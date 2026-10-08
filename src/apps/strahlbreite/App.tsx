@@ -1,5 +1,10 @@
 import { SupportFooter } from "../../components/SupportFooter";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  IndexedSymbol,
+  MathExpression,
+  math,
+} from "../../components/MathNotation";
 import { readSheet } from "read-excel-file/browser";
 import type { Data, Shape } from "plotly.js";
 import { Chart } from "../../components/Chart";
@@ -39,7 +44,7 @@ function NumericControl({
   max,
   step = 0.1,
 }: {
-  label: string;
+  label: ReactNode;
   value: string;
   onChange: (value: string) => void;
   min: number;
@@ -215,7 +220,7 @@ export default function StrahlbreiteApp() {
       y: [h, h],
       type: "scatter",
       mode: "lines",
-      name: `h_ges = ${format(h)} µm`,
+      name: `<i>h</i><sub>ges</sub> = ${format(h)} µm`,
       line: { color: "#526674", dash: "dash", width: 2 },
     });
   const rectangles: Partial<Shape>[] =
@@ -253,24 +258,46 @@ export default function StrahlbreiteApp() {
           10 % des Messbereichs mit einer Kosinus-Hüllkurve gedämpft.
         </p>
         <p>
-          Auswertung im 1-mm-Raster: h_max ist das Profilmaximum; Sb₅₀ ist der
+          Auswertung im 1-mm-Raster: <IndexedSymbol base="h" index="max" /> ist
+          das Profilmaximum; <IndexedSymbol base="Sb" index="50" /> ist der
           Abstand zwischen dem ersten und letzten Rasterpunkt mit mindestens
           halber Maximalhöhe. Bei mehreren Spitzen umfasst diese Breite auch die
           dazwischenliegenden Bereiche.
         </p>
-        <p className="formula">
-          ÜL [%] = (1 − Δy / Sb₅₀) · 100; ÜL [−] = Sb₅₀ / Δy
-        </p>
+        <div className="formula-list">
+          <MathExpression label="Überlappungsgrad in Prozent: eins minus Bahnversatz geteilt durch Halbhöhenbreite, mal hundert">
+            {math.row(
+              math.text("ÜL [%]"),
+              math.operator("="),
+              math.operator("("),
+              math.number("1"),
+              math.operator("−"),
+              math.fraction(math.identifier("Δy"), math.index("Sb", "50")),
+              math.operator(")"),
+              math.operator("·"),
+              math.number("100"),
+            )}
+          </MathExpression>
+          <MathExpression label="Dimensionsloser Überlappungsgrad: Halbhöhenbreite geteilt durch Bahnversatz">
+            {math.row(
+              math.text("ÜL [−]"),
+              math.operator("="),
+              math.fraction(math.index("Sb", "50"), math.identifier("Δy")),
+            )}
+          </MathExpression>
+        </div>
         <p>
           Die Totalbeschichtung ist die Summe der verschobenen Einzelstrahlen.
           Zwischen Rasterpunkten wird linear interpoliert, außerhalb des
           Messbereichs wird null angesetzt.
         </p>
         <p>
-          <strong>Automatisches h_ges:</strong> Mittelwert aller Rasterwerte mit
-          mindestens 95 % des Maximums der Totalbeschichtung. Dieser Wert
-          beschreibt den Bereich nahe dem Maximum. Er ist kein Mittelwert über
-          die gesamte beschichtete Breite.
+          <strong>
+            Automatisches <IndexedSymbol base="h" index="ges" />:
+          </strong>{" "}
+          Mittelwert aller Rasterwerte mit mindestens 95 % des Maximums der
+          Totalbeschichtung. Dieser Wert beschreibt den Bereich nahe dem
+          Maximum. Er ist kein Mittelwert über die gesamte beschichtete Breite.
         </p>
         <p>
           Excel-Dateien werden ausschließlich im Browser verarbeitet. Grenzen:
@@ -350,9 +377,12 @@ export default function StrahlbreiteApp() {
           {profile && (
             <>
               <section className="result" aria-live="polite">
-                <strong>h_max = {format(profile.maximum)} µm</strong>
+                <strong>
+                  <IndexedSymbol base="h" index="max" /> ={" "}
+                  {format(profile.maximum)} µm
+                </strong>
                 <p>
-                  Sb₅₀ ={" "}
+                  <IndexedSymbol base="Sb" index="50" /> ={" "}
                   {profile.halfWidth === null
                     ? "nicht bestimmbar"
                     : `${format(profile.halfWidth)} mm`}
@@ -367,7 +397,13 @@ export default function StrahlbreiteApp() {
               </section>
               <Chart
                 title="Einzelstrahlprofil mit Halbhöhenbreite"
-                description="Messpunkte als Rauten; interpoliertes Profil als Linie. Gestrichelte Linien markieren die halbe Maximalhöhe und Sb₅₀."
+                description={
+                  <>
+                    Messpunkte als Rauten; interpoliertes Profil als Linie.
+                    Gestrichelte Linien markieren die halbe Maximalhöhe und{" "}
+                    <IndexedSymbol base="Sb" index="50" />.
+                  </>
+                }
                 data={[
                   {
                     x: profile.x,
@@ -446,7 +482,8 @@ export default function StrahlbreiteApp() {
                   <>
                     <fieldset>
                       <legend>
-                        Methode zur Ermittlung der Gesamtschichtdicke h_ges
+                        Methode zur Ermittlung der Gesamtschichtdicke{" "}
+                        <IndexedSymbol base="h" index="ges" />
                       </legend>
                       <label className="radio-label">
                         <input
@@ -471,7 +508,12 @@ export default function StrahlbreiteApp() {
                     </fieldset>
                     {method === "manual" && (
                       <NumericControl
-                        label="Manuelle Gesamtschichtdicke h_ges [µm]"
+                        label={
+                          <>
+                            Manuelle Gesamtschichtdicke{" "}
+                            <IndexedSymbol base="h" index="ges" /> [µm]
+                          </>
+                        }
                         value={
                           manual === null
                             ? String(manualValue)
@@ -507,14 +549,22 @@ export default function StrahlbreiteApp() {
                     <p>ÜL [−] = {format(total.overlapFactor)}</p>
                     {!manualError && (
                       <p>
-                        Gesamtschichtdicke h_ges = {format(h)} µm (
-                        {method === "manual" ? "manuell" : "automatisch"})
+                        Gesamtschichtdicke{" "}
+                        <IndexedSymbol base="h" index="ges" /> = {format(h)} µm
+                        ({method === "manual" ? "manuell" : "automatisch"})
                       </p>
                     )}
                   </section>
                   <Chart
                     title="Totalbeschichtung"
-                    description="Dünne Linien: Einzelstrahlen; dicke Linie: Totalbeschichtung. Rechtecke verdeutlichen Sb₅₀ der ersten beiden Bahnen."
+                    description={
+                      <>
+                        Dünne Linien: Einzelstrahlen; dicke Linie:
+                        Totalbeschichtung. Rechtecke verdeutlichen{" "}
+                        <IndexedSymbol base="Sb" index="50" /> der ersten beiden
+                        Bahnen.
+                      </>
+                    }
                     data={totalData}
                     layout={{ ...axes, shapes: rectangles }}
                   />
