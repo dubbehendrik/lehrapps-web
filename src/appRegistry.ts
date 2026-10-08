@@ -1,6 +1,12 @@
 import { lazy } from "react";
 export const appRegistry = [
   {
+    path: "/zerfallsarten",
+    name: "Zerfallsarten",
+    description: "Kennzahlen und Filmdicke an einer Rotationsglocke berechnen und den Betriebspunkt im Zerfallsdiagramm untersuchen.",
+    component: lazy(() => import("./apps/zerfallsarten/App")),
+  },
+  {
     path: "/flock-inspector",
     name: "Flock-Inspector",
     description:

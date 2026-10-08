@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "errors": [],
+  "checks": [
+    "desktop",
+    "tablet",
+    "phone",
+    "formulas",
+    "empty",
+    "zero",
+    "outside",
+    "reset",
+    "CSV",
+    "deep-link",
+    "overview"
+  ]
+}
