@@ -1,0 +1,47 @@
+{
+  "passed": true,
+  "errors": [],
+  "screenshots": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "overflow": false
+    },
+    {
+      "name": "tablet",
+      "width": 768,
+      "height": 1024,
+      "overflow": false
+    },
+    {
+      "name": "tablet-landscape",
+      "width": 1024,
+      "height": 768,
+      "overflow": false
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    }
+  ],
+  "checks": [
+    "empty start",
+    "three examples",
+    "smoothing",
+    "presets",
+    "manual",
+    "keyboard slider",
+    "invalid tracks",
+    "100 tracks",
+    "remove",
+    "xlsx upload",
+    "malformed xlsx",
+    "desktop/tablet/phone",
+    "template download",
+    "deep-link reload",
+    "normalverteilung regression"
+  ]
+}
