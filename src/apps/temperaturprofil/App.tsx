@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useRef, useState, useEffect, createElement } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "plotly.js-basic-dist-min";
@@ -27,14 +28,14 @@ const palette = [
   "#8C6D00",
   "#6A3D9A",
 ];
-const labels: Record<keyof Parameters, string> = {
+const labels: Record<keyof Parameters, ReactNode> = {
   alpha: "Wärmeübergangskoeffizient α [W/(m² K)]",
   cp: "Spezifische Wärmekapazität cₚ [J/(kg K)]",
   area: "Oberfläche A [m²]",
   mass: "Masse m [kg]",
-  referenceTime: "Referenzzeit tᵣₑ𝒻 [s]",
-  referenceTemperature: "Referenztemperatur Tᵣₑ𝒻 [°C]",
-  ambientTemperature: "Umgebungstemperatur T∞ [°C]",
+  referenceTime: <>Referenzzeit t<sub>ref</sub> [s]</>,
+  referenceTemperature: <>Referenztemperatur T<sub>ref</sub> [°C]</>,
+  ambientTemperature: <>Umgebungstemperatur T<sub>∞</sub> [°C]</>,
   endTime: "Endzeit [s]",
   step: "Abtastschritt Δt [s]",
 };
