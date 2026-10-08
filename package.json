@@ -19,7 +19,8 @@
     "react-dom": "19.3.0",
     "react-plotly.js": "4.1.0",
     "react-router-dom": "7.18.4",
-    "read-excel-file": "9.3.12"
+    "read-excel-file": "9.3.12",
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@types/plotly.js": "3.0.15",

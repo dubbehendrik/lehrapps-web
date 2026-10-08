@@ -51,3 +51,7 @@ npm run dev
 `main` ist der Produktionsbranch. Größere Änderungen auf Feature-Branches entwickeln. Rücknahme durch `git revert` des betreffenden Commits, anschließend Push. Keine neue Lizenz erteilt: Nutzungshinweis der Referenz-App bleibt erhalten.
 
 Die bestehenden Streamlit-Repositories bleiben unverändert als Referenz und Fallback. Cloudflare Pages ist mit GitHub verbunden: https://lehrapps-web.pages.dev/normalverteilung und https://lehrapps-web.pages.dev/strahlbreite. Produktionsdeployments werden durch Änderungen an `main` ausgelöst.
+
+## Lackverbrauchsrechnung
+
+Route `/lackverbrauchsrechnung`: Materialbilanz, Produktionsplanung, Szenarienvergleich und CSV/Excel/PNG/SVG. Fachliche Referenz und Prüfung: [Migrationsdokumentation](docs/lackverbrauchsrechnung/migration.md).
