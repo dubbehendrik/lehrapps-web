@@ -87,3 +87,122 @@
 .flock-app p {
   overflow-wrap: anywhere;
 }
+.flock-canvas {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  max-height: 72vh;
+  width: 100%;
+  margin-inline: auto;
+  touch-action: none;
+}
+.flock-canvas canvas {
+  width: auto;
+  max-width: 100%;
+  max-height: 72vh;
+  height: auto;
+  object-fit: contain;
+  transform-origin: center;
+  touch-action: none;
+}
+.flock-canvas.expanded {
+  position: fixed;
+  inset: 3vh 3vw;
+  width: 94vw;
+  height: 94vh;
+  max-height: none;
+  z-index: 40;
+  aspect-ratio: auto !important;
+}
+.flock-canvas.expanded canvas {
+  max-height: 90vh;
+}
+.close-view {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 41;
+}
+.flock-help {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  gap: 3px;
+  max-width: 100%;
+}
+.flock-help-icon {
+  padding: 5px 8px !important;
+}
+.flock-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 0;
+  width: min(320px, 75vw);
+  padding: 12px;
+  background: #162c3c;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  z-index: 50;
+  box-shadow: 0 2px 8px #0003;
+}
+.flock-help:hover .flock-tooltip,
+.flock-help:focus-within .flock-tooltip,
+.flock-tooltip.open {
+  display: block;
+  animation: hint-show 0.25s;
+}
+.flock-table th button {
+  padding: 2px 5px;
+  border: 0;
+  background: transparent;
+  font-weight: bold;
+}
+.flock-table tbody tr {
+  cursor: pointer;
+  user-select: none;
+}
+.flock-table tbody tr:focus-visible,
+.flock-canvas canvas:focus-visible {
+  outline: 3px solid #a34c00;
+  outline-offset: -3px;
+}
+.color-samples {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.color-samples button {
+  color: white;
+  text-shadow: 0 1px 3px #000;
+  border: 1px solid #000;
+  min-width: 40px;
+}
+@keyframes hint-show {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.flock-help:hover .flock-tooltip {
+  animation-delay: 0.35s;
+  animation-fill-mode: backwards;
+}
+.flock-help:focus-within .flock-tooltip,
+.flock-tooltip.open {
+  animation-delay: 0s;
+}
+.flock-help-icon {
+  font-family: Georgia, serif;
+  font-weight: bold;
+  min-width: 28px;
+  font-size: 1rem;
+}
+.flock-tooltip.open {
+  animation: none;
+}

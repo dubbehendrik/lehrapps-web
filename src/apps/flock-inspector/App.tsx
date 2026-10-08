@@ -13,7 +13,26 @@ import {
 import { encodeProject, decodeProject, download } from "./project";
 import { Chart } from "../../components/Chart";
 import { SupportFooter } from "../../components/SupportFooter";
+import { HelpButton } from "./HelpButton";
+import { rgbToHsv } from "./segmentation";
+import { displayPoint, sourcePoint, selectionForClick, sortFibers } from "./editor";
+import type { SortKey } from "./editor";
 import "./style.css";
+const modeHelp: Record<string, string> = {
+  calibrate:
+    "Klicke auf die beiden Endpunkte einer bekannten Strecke und gib deren Länge in mm ein. Jedes Bild wird separat kalibriert.",
+  exclude:
+    "Markiere mit zwei gegenüberliegenden Ecken einen Bereich, den die Erkennung ignorieren soll, etwa Beschriftungen oder Maßstabsbalken. Mehrere Bereiche sind möglich.",
+  roi: "Markiere mit zwei gegenüberliegenden Ecken den zu untersuchenden Bildausschnitt. Außerhalb werden keine Fasern erkannt.",
+  manual:
+    "Klicke entlang einer fehlenden Faser vom Anfang bis zum Ende. Mit „Verlauf übernehmen“ wird die Längenmessung hinzugefügt.",
+  scale:
+    "Klicke auf die gewünschte Position des eingeblendeten Maßstabs. Kalibrierung und Faserlängen bleiben unverändert.",
+  select:
+    "Klicke eine erkannte Faser an, um sie zu bearbeiten. STRG/⌘ oder Umschalt erlaubt Mehrfachauswahl.",
+  sampleColor:
+    "Klicke auf typische Faserstellen im Originalbild, möglichst helle und dunkle. Die Farbreferenzen werden für dieses Bild gespeichert.",
+};
 const initial: Project = {
   format: "flock-inspector",
   version: 1,
@@ -41,11 +60,56 @@ export default function App() {
     [overlay, setOverlay] = useState(true),
     [ids, setIds] = useState(false),
     [zoom, setZoom] = useState(1),
-    [history, setHistory] = useState<Project[]>([]);
+    [history, setHistory] = useState<Project[]>([]),
+    [preview, setPreview] = useState<Uint8Array | null>(null),
+    [expanded, setExpanded] = useState(false),
+    [pan, setPan] = useState({ x: 0, y: 0 }),
+    [spaceHeld, setSpaceHeld] = useState(false),
+    [sortKey, setSortKey] = useState<SortKey>("id"),
+    [descending, setDescending] = useState(false);
+  const viewport = useRef<HTMLDivElement>(null),
+    selectionAnchor = useRef<string | undefined>(undefined),
+    panStart = useRef<{ x: number; y: number; origin: Point } | null>(null);
+
   const canvas = useRef<HTMLCanvasElement>(null),
     worker = useRef<Worker | null>(null);
   const img = project.images.find((i) => i.id === active);
   const scale = img && mmPerPixel(img);
+  const rotation = img?.rotation ?? 0;
+  const orderedFibers = img ? sortFibers(img, sortKey, descending) : [];
+  const imageWidth = img ? (rotation % 180 ? img.height : img.width) : 1;
+  const imageHeight = img ? (rotation % 180 ? img.width : img.height) : 1;
+  function chooseRow(
+    id: string,
+    mod: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+  ) {
+    setSelected((current) =>
+      selectionForClick(
+        current,
+        id,
+        orderedFibers.map((f) => f.id),
+        selectionAnchor.current,
+        { shift: mod.shiftKey, toggle: mod.ctrlKey || mod.metaKey },
+      ),
+    );
+    if (!mod.shiftKey || !selectionAnchor.current) selectionAnchor.current = id;
+  }
+  function deleteSelection() {
+    if (!img || busy || !selected.length) return;
+    update({ fibers: img.fibers.filter((f) => !selected.includes(f.id)) });
+    setSelected([]);
+    selectionAnchor.current = undefined;
+  }
+  function rotate(delta: number) {
+    if (!img || busy) return;
+    update({
+      rotation: ((rotation + delta + 360) % 360) as 0 | 90 | 180 | 270,
+    });
+    setPan({ x: 0, y: 0 });
+    setZoom(1);
+    setDraft([]);
+  }
+
   useEffect(() => () => worker.current?.terminate(), []);
   function commit(next: Project) {
     setHistory((h) => [...h.slice(-19), project]);
@@ -54,6 +118,7 @@ export default function App() {
   function update(patch: Partial<ImageRecord>) {
     if (!img) return;
     let next = { ...img, ...patch };
+    if (patch.settings || patch.exclusions || "roi" in patch) setPreview(null);
     if (patch.exclusions || patch.roi) {
       next = {
         ...next,
@@ -92,6 +157,10 @@ export default function App() {
     setDraft([]);
     setSelected([]);
     setMode("select");
+    setPreview(null);
+    setPan({ x: 0, y: 0 });
+    setZoom(1);
+    selectionAnchor.current = undefined;
   }
   function guard(fn: () => void) {
     try {
@@ -144,7 +213,12 @@ export default function App() {
           contrast: 12,
           minPixels: 8,
           polarity: "dark",
-          crosshair: false,
+          mode: "brightness",
+          colorSamples: [],
+          hueTolerance: 20,
+          minSaturation: 0.15,
+          backgroundRadius: 20,
+          backgroundStrength: 1,
         },
       };
       commit({ ...project, images: [...project.images, record] });
@@ -167,9 +241,37 @@ export default function App() {
     let cancelled = false;
     image.onload = () => {
       if (cancelled) return;
-      c.width = img.width;
-      c.height = img.height;
+      c.width = imageWidth;
+      c.height = imageHeight;
+      if (rotation === 90) {
+        context.translate(img.height, 0);
+        context.rotate(Math.PI / 2);
+      }
+      if (rotation === 180) {
+        context.translate(img.width, img.height);
+        context.rotate(Math.PI);
+      }
+      if (rotation === 270) {
+        context.translate(0, img.width);
+        context.rotate(-Math.PI / 2);
+      }
       context.drawImage(image, 0, 0);
+      if (preview) {
+        const layer = document.createElement("canvas");
+        layer.width = img.width;
+        layer.height = img.height;
+        const lc = layer.getContext("2d")!,
+          pixels = lc.createImageData(img.width, img.height);
+        for (let i = 0; i < preview.length; i++)
+          if (preview[i]) {
+            pixels.data[i * 4] = 255;
+            pixels.data[i * 4 + 2] = 100;
+            pixels.data[i * 4 + 3] = 180;
+          }
+        lc.putImageData(pixels, 0, 0);
+        context.drawImage(layer, 0, 0);
+      }
+
       const lineWidth = Math.max(1.5, img.width / 500);
       const draw = (points: Point[], stroke: string, dashed = false) => {
         context.beginPath();
@@ -182,7 +284,7 @@ export default function App() {
         context.stroke();
         context.setLineDash([]);
       };
-      if (overlay)
+      if (overlay && !preview)
         for (const f of img.fibers) {
           draw(
             f.points,
@@ -219,15 +321,26 @@ export default function App() {
         }
       }
       if (scale) {
+        context.save();
+        context.setTransform(1, 0, 0, 1, 0, 0);
         const mm =
-            img.width * scale >= 5 ? 1 : img.width * scale >= 1 ? 0.5 : 0.1,
-          length = mm / scale,
-          { x, y } = img.scale;
+          [
+            10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001,
+          ].find((v) => v / scale <= imageWidth * 0.25) ??
+          imageWidth * scale * 0.2;
+        const length = mm / scale,
+          position = displayPoint(img.scale, img.width, img.height, rotation);
+        const x = Math.max(8, Math.min(imageWidth - length - 8, position.x)),
+          y = Math.max(30, Math.min(imageHeight - 12, position.y));
         context.fillStyle = "#fff";
         context.fillRect(x - 8, y - 29, length + 16, 40);
         context.fillStyle = "#000";
         context.font = "16px sans-serif";
-        context.fillText(`${mm.toLocaleString("de-DE")} mm`, x, y - 9);
+        context.fillText(
+          `${mm.toLocaleString("de-DE", { maximumSignificantDigits: 3 })} mm`,
+          x,
+          y - 9,
+        );
         draw(
           [
             { x, y },
@@ -235,6 +348,7 @@ export default function App() {
           ],
           "#000",
         );
+        context.restore();
       }
       if (draft.length) draw(draft, "#0066ff");
     };
@@ -242,21 +356,72 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [img, overlay, color, ids, selected, draft, scale]);
+  }, [
+    img,
+    overlay,
+    color,
+    ids,
+    selected,
+    draft,
+    scale,
+    preview,
+    rotation,
+    imageWidth,
+    imageHeight,
+  ]);
   function click(e: PointerEvent<HTMLCanvasElement>) {
     if (!img) return;
-    const r = e.currentTarget.getBoundingClientRect(),
-      p = {
-        x: ((e.clientX - r.left) * img.width) / r.width,
-        y: ((e.clientY - r.top) * img.height) / r.height,
+    e.currentTarget.focus();
+    if (busy) return;
+    if (spaceHeld || e.button === 1) {
+      e.preventDefault();
+      panStart.current = { x: e.clientX, y: e.clientY, origin: pan };
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+    if (e.button !== 0) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const p = sourcePoint(
+      {
+        x: ((e.clientX - r.left) * imageWidth) / r.width,
+        y: ((e.clientY - r.top) * imageHeight) / r.height,
+      },
+      img.width,
+      img.height,
+      rotation,
+    );
+    if (mode === "sampleColor") {
+      const original = new Image();
+      original.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = img.width;
+        c.height = img.height;
+        const ctx = c.getContext("2d")!;
+        ctx.drawImage(original, 0, 0);
+        const pixel = ctx.getImageData(
+          Math.min(img.width - 1, Math.max(0, Math.floor(p.x))),
+          Math.min(img.height - 1, Math.max(0, Math.floor(p.y))),
+          1,
+          1,
+        ).data;
+        const sample = rgbToHsv(pixel[0], pixel[1], pixel[2]);
+        update({
+          settings: {
+            ...img.settings,
+            colorSamples: [...(img.settings.colorSamples ?? []), sample],
+          },
+        });
       };
+      original.src = img.dataUrl;
+      return;
+    }
     if (mode === "split") {
       setDraft([p]);
       return;
     }
     if (mode === "select") {
       let nearest: Fiber | undefined,
-        min = 12 / zoom;
+        min = (12 * imageWidth) / r.width;
       for (const f of img.fibers)
         for (const q of f.points) {
           const d = distance(p, q);
@@ -267,7 +432,7 @@ export default function App() {
         }
       if (nearest)
         setSelected((s) =>
-          e.shiftKey
+          e.shiftKey || e.ctrlKey || e.metaKey
             ? s.includes(nearest!.id)
               ? s.filter((id) => id !== nearest!.id)
               : [...s, nearest!.id]
@@ -323,8 +488,8 @@ export default function App() {
     setDraft([]);
     setMode("select");
   }
-  function detect() {
-    if (!img || !scale) return;
+  function detect(previewOnly = false) {
+    if (!img || (!previewOnly && !scale)) return;
     setBusy(true);
     setError("");
     const image = new Image();
@@ -343,7 +508,10 @@ export default function App() {
       w.onmessage = ({ data }) => {
         setBusy(false);
         if (data.error) setError(data.error);
-        else {
+        else if (data.mask) {
+          setPreview(data.mask);
+        } else {
+          setPreview(null);
           update({
             fibers: [...img.fibers.filter((f) => f.manual), ...data.fibers],
           });
@@ -357,7 +525,13 @@ export default function App() {
         w.terminate();
       };
       w.postMessage(
-        { rgba, width: img.width, height: img.height, image: img },
+        {
+          rgba,
+          width: img.width,
+          height: img.height,
+          image: img,
+          preview: previewOnly,
+        },
         [rgba.buffer],
       );
     };
@@ -677,7 +851,8 @@ export default function App() {
                 ["scale", "Maßstab verschieben"],
                 ["select", "Faser auswählen"],
               ].map(([v, label]) => (
-                <button
+                <HelpButton
+                  help={modeHelp[v]}
                   disabled={busy}
                   aria-pressed={mode === v}
                   key={v}
@@ -687,17 +862,19 @@ export default function App() {
                   }}
                 >
                   {label}
-                </button>
+                </HelpButton>
               ))}
             </div>
             <p aria-live="polite">
               {mode === "manual"
                 ? "Entlang der Faser klicken, danach „Verlauf übernehmen“."
                 : mode === "select"
-                  ? "Faser anklicken; mit Umschalt mehrere wählen. Auswahl auch über die Tabelle möglich."
-                  : mode === "scale"
-                    ? "Neue Position des Maßstabs anklicken."
-                    : "Zwei Punkte im Bild anklicken."}{" "}
+                  ? "Faser anklicken; mit STRG/⌘ oder Umschalt mehrere wählen. Leertaste + Ziehen verschiebt den vergrößerten Ausschnitt."
+                  : mode === "sampleColor"
+                    ? "Typische Faserfarben im Originalbild anklicken; helle und dunkle Stellen aufnehmen."
+                    : mode === "scale"
+                      ? "Neue Position des Maßstabs anklicken."
+                      : "Zwei Punkte im Bild anklicken."}{" "}
               {scale
                 ? `Kalibrierung: ${fmt(scale * 1000)} µm/Pixel.`
                 : "Bild ist noch nicht kalibriert."}
@@ -762,12 +939,159 @@ export default function App() {
           <section className="controls">
             <div className="input-grid">
               <label>
+                Erkennungsmodus
+                <select
+                  disabled={busy}
+                  aria-label="Erkennungsmodus"
+                  value={img.settings.mode ?? "brightness"}
+                  onChange={(e) =>
+                    update({
+                      settings: {
+                        ...img.settings,
+                        mode: e.target.value as "brightness" | "color",
+                      },
+                    })
+                  }
+                >
+                  <option value="brightness">Helligkeit</option>
+                  <option value="color">Farbe</option>
+                </select>
+              </label>
+              {(img.settings.mode ?? "brightness") === "color" ? (
+                <>
+                  <label>
+                    Farbtoleranz [°]
+                    <input
+                      disabled={busy}
+                      type="range"
+                      min="1"
+                      max="90"
+                      value={img.settings.hueTolerance ?? 20}
+                      onChange={(e) =>
+                        update({
+                          settings: {
+                            ...img.settings,
+                            hueTolerance: Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                    {img.settings.hueTolerance ?? 20}°
+                  </label>
+                  <label>
+                    Minimale Farbsättigung [%]
+                    <input
+                      disabled={busy}
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={(img.settings.minSaturation ?? 0.15) * 100}
+                      onChange={(e) =>
+                        update({
+                          settings: {
+                            ...img.settings,
+                            minSaturation: Number(e.target.value) / 100,
+                          },
+                        })
+                      }
+                    />
+                    {Math.round((img.settings.minSaturation ?? 0.15) * 100)} %
+                  </label>
+                  <div>
+                    <HelpButton
+                      disabled={busy}
+                      help={modeHelp.sampleColor}
+                      aria-pressed={mode === "sampleColor"}
+                      onClick={() => {
+                        setMode("sampleColor");
+                        setDraft([]);
+                        setPreview(null);
+                      }}
+                    >
+                      Faserfarben aufnehmen
+                    </HelpButton>
+                    <p>
+                      {img.settings.colorSamples?.length ?? 0} Farbreferenzen
+                    </p>
+                    <div className="color-samples">
+                      {img.settings.colorSamples?.map((c, i) => (
+                        <button
+                          key={i}
+                          disabled={busy}
+                          title="Farbreferenz entfernen"
+                          aria-label={`Farbreferenz ${i + 1} entfernen`}
+                          style={{
+                            background: `hsl(${c.h} ${c.s * 100}% 45%)`,
+                          }}
+                          onClick={() =>
+                            update({
+                              settings: {
+                                ...img.settings,
+                                colorSamples: img.settings.colorSamples!.filter(
+                                  (_, j) => i !== j,
+                                ),
+                              },
+                            })
+                          }
+                        >
+                          ×
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label>
+                    Hintergrundausgleich [%]
+                    <input
+                      disabled={busy}
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={(img.settings.backgroundStrength ?? 1) * 100}
+                      onChange={(e) =>
+                        update({
+                          settings: {
+                            ...img.settings,
+                            backgroundStrength: Number(e.target.value) / 100,
+                          },
+                        })
+                      }
+                    />
+                    {Math.round((img.settings.backgroundStrength ?? 1) * 100)} %
+                  </label>
+                  <label>
+                    Umgebung für Hintergrund [Pixel]
+                    <input
+                      disabled={busy}
+                      type="number"
+                      min="3"
+                      max="200"
+                      value={img.settings.backgroundRadius ?? 20}
+                      onChange={(e) =>
+                        update({
+                          settings: {
+                            ...img.settings,
+                            backgroundRadius: Math.max(
+                              3,
+                              Math.min(200, Number(e.target.value)),
+                            ),
+                          },
+                        })
+                      }
+                    />
+                  </label>
+                </>
+              )}
+
+              <label>
                 Kontrastschwelle
                 <input
-                  disabled={busy}
                   type="number"
                   min="1"
                   max="100"
+                  disabled={busy || img.settings.mode === "color"}
                   value={img.settings.contrast}
                   onChange={(e) =>
                     update({
@@ -825,25 +1149,19 @@ export default function App() {
                   </option>
                 </select>
               </label>
-              <label>
-                <input
-                  disabled={busy}
-                  type="checkbox"
-                  checked={img.settings.crosshair}
-                  onChange={(e) =>
-                    update({
-                      settings: {
-                        ...img.settings,
-                        crosshair: e.target.checked,
-                      },
-                    })
-                  }
-                />{" "}
-                Fadenkreuz des Beispielbildes maskieren
-              </label>
             </div>
             <div className="button-row">
-              <button disabled={!scale || busy} onClick={detect}>
+              <HelpButton
+                help="Zeigt die als Fasern eingestuften Pixel, bevor daraus Mittellinien und Längen entstehen. Die Vorschau verändert vorhandene Messwerte nicht."
+                disabled={busy}
+                onClick={() => detect(true)}
+              >
+                Erkennungsvorschau
+              </HelpButton>
+              <button onClick={() => setPreview(null)} disabled={!preview}>
+                Vorschau ausblenden
+              </button>
+              <button disabled={!scale || busy} onClick={() => detect(false)}>
                 {busy ? "Erkennung läuft …" : "Fasern erkennen / neu erkennen"}
               </button>
               {busy && (
@@ -865,6 +1183,29 @@ export default function App() {
             </p>
           </section>
           <div className="button-row">
+            <HelpButton
+              disabled={busy}
+              help="Dreht die Ansicht um 90° nach links. Kalibrierung und Faserlängen bleiben erhalten."
+              onClick={() => rotate(-90)}
+            >
+              90° links
+            </HelpButton>
+            <HelpButton
+              disabled={busy}
+              help="Dreht die Ansicht um 90° nach rechts. Die Ausrichtung wird im Projekt gespeichert."
+              onClick={() => rotate(90)}
+            >
+              90° rechts
+            </HelpButton>
+            <button
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
+              }}
+            >
+              Ganzes Bild einpassen
+            </button>
+            <button onClick={() => setExpanded(!expanded)}>Großansicht</button>
             <label>
               <input
                 type="checkbox"
@@ -890,10 +1231,14 @@ export default function App() {
               />
             </label>
             <label>
-              Zoom
+              Zoom (1× = ganzes Bild)
               <select
+                aria-label="Zoom (1× = ganzes Bild)"
                 value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
+                onChange={(e) => {
+                  setZoom(Number(e.target.value));
+                  if (Number(e.target.value) === 1) setPan({ x: 0, y: 0 });
+                }}
               >
                 {[1, 1.5, 2, 3, 4].map((z) => (
                   <option key={z} value={z}>
@@ -912,10 +1257,61 @@ export default function App() {
               Ansicht als PNG exportieren
             </button>
           </div>
-          <div className="flock-canvas">
+          <div
+            ref={viewport}
+            className={expanded ? "flock-canvas expanded" : "flock-canvas"}
+            style={{ aspectRatio: `${imageWidth}/${imageHeight}` }}
+          >
+            {expanded && (
+              <button className="close-view" onClick={() => setExpanded(false)}>
+                Großansicht schließen
+              </button>
+            )}
             <canvas
               ref={canvas}
-              style={{ width: `${zoom * 100}%` }}
+              tabIndex={0}
+              style={{
+                transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Delete" && !busy) {
+                  e.preventDefault();
+                  deleteSelection();
+                }
+                if (e.code === "Space") {
+                  e.preventDefault();
+                  setSpaceHeld(true);
+                }
+                if (e.key === "Escape") {
+                  setExpanded(false);
+                  setDraft([]);
+                }
+              }}
+              onKeyUp={(e) => {
+                if (e.code === "Space") setSpaceHeld(false);
+              }}
+              onBlur={() => setSpaceHeld(false)}
+              onPointerMove={(e) => {
+                if (panStart.current)
+                  setPan({
+                    x:
+                      panStart.current.origin.x +
+                      e.clientX -
+                      panStart.current.x,
+                    y:
+                      panStart.current.origin.y +
+                      e.clientY -
+                      panStart.current.y,
+                  });
+              }}
+              onPointerUp={(e) => {
+                panStart.current = null;
+                if (e.currentTarget.hasPointerCapture(e.pointerId))
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+              }}
+              onPointerCancel={() => {
+                panStart.current = null;
+              }}
               onPointerDown={click}
               aria-label="Bildeditor. Referenzpunkte, Ausschlussbereiche und Faserverläufe durch Klicken festlegen."
             />
@@ -939,6 +1335,22 @@ export default function App() {
               ausgeschlossen. Zielabweichung ±0,03 mm ist noch nicht validiert.
             </p>
             <div className="button-row">
+              <button
+                disabled={busy || !img.fibers.length}
+                onClick={() => setSelected(img.fibers.map((f) => f.id))}
+              >
+                Alle auswählen
+              </button>
+              <button
+                disabled={!selected.length}
+                onClick={() => {
+                  setSelected([]);
+                  selectionAnchor.current = undefined;
+                }}
+              >
+                Auswahl aufheben
+              </button>
+              <span aria-live="polite">{selected.length} ausgewählt</span>
               <button
                 disabled={!selected.length}
                 onClick={() => status("accepted")}
@@ -992,30 +1404,75 @@ export default function App() {
                 <thead>
                   <tr>
                     <th>Auswahl</th>
-                    <th>ID</th>
-                    <th>Länge [mm]</th>
-                    <th>Status</th>
-                    <th>Hinweis</th>
+                    {(
+                      [
+                        ["id", "ID"],
+                        ["length", "Länge [mm]"],
+                        ["status", "Status"],
+                        ["reason", "Hinweis"],
+                      ] as [SortKey, string][]
+                    ).map(([key, label]) => (
+                      <th
+                        key={key}
+                        aria-sort={
+                          sortKey === key
+                            ? descending
+                              ? "descending"
+                              : "ascending"
+                            : "none"
+                        }
+                      >
+                        <button
+                          onClick={() => {
+                            if (sortKey === key) setDescending(!descending);
+                            else {
+                              setSortKey(key);
+                              setDescending(false);
+                            }
+                            selectionAnchor.current = undefined;
+                          }}
+                        >
+                          {label}
+                          {sortKey === key ? (descending ? " ▼" : " ▲") : ""}
+                        </button>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {img.fibers.map((f) => (
+                  {orderedFibers.map((f) => (
                     <tr
                       key={f.id}
+                      tabIndex={0}
+                      aria-selected={selected.includes(f.id)}
+                      onClick={(e) => {
+                        if (!(e.target as HTMLElement).closest("input"))
+                          chooseRow(f.id, e);
+                      }}
+                      onKeyDown={(e) => {
+                        if ((e.target as HTMLElement).tagName === "INPUT")
+                          return;
+                        if (e.key === "Enter" || e.code === "Space") {
+                          e.preventDefault();
+                          chooseRow(f.id, e);
+                        }
+                      }}
                       className={selected.includes(f.id) ? "selected" : ""}
                     >
                       <td>
                         <input
                           aria-label={`${f.id} auswählen`}
                           type="checkbox"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            chooseRow(f.id, {
+                              shiftKey: e.shiftKey,
+                              ctrlKey: !e.shiftKey || e.ctrlKey,
+                              metaKey: e.metaKey,
+                            });
+                          }}
                           checked={selected.includes(f.id)}
-                          onChange={(e) =>
-                            setSelected((s) =>
-                              e.target.checked
-                                ? [...s, f.id]
-                                : s.filter((id) => id !== f.id),
-                            )
-                          }
+                          onChange={() => {}}
                         />
                       </td>
                       <td>{f.id}</td>

@@ -1,3 +1,4 @@
+import { segmentImage } from "./segmentation";
 import type { Fiber, ImageRecord, Point } from "./types";
 import { contains, pathLength } from "./logic";
 export function detectFibers(
@@ -6,52 +7,7 @@ export function detectFibers(
   h: number,
   img: ImageRecord,
 ): Fiber[] {
-  const gray = new Float32Array(w * h),
-    integral = new Float64Array((w + 1) * (h + 1)),
-    mask = new Uint8Array(w * h),
-    blocked = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++) {
-    let row = 0;
-    for (let x = 0; x < w; x++) {
-      const i = y * w + x,
-        k = i * 4;
-      gray[i] =
-        (0.2126 * rgba[k] + 0.7152 * rgba[k + 1] + 0.0722 * rgba[k + 2]) *
-          (rgba[k + 3] / 255) +
-        255 * (1 - rgba[k + 3] / 255);
-      row += gray[i];
-      integral[(y + 1) * (w + 1) + x + 1] = integral[y * (w + 1) + x + 1] + row;
-      const p = { x, y };
-      blocked[i] = Number(
-        img.exclusions.some((r) => contains(r, p)) ||
-          (!!img.roi && !contains(img.roi, p)) ||
-          (img.settings.crosshair &&
-            (Math.abs(x - w / 2) < 2 || Math.abs(y - h * 0.578) < 2)),
-      );
-    }
-  }
-  // Local background removes slow illumination gradients; no physical-length filter.
-  const radius = 20;
-  for (let y = 1; y < h - 1; y++)
-    for (let x = 1; x < w - 1; x++) {
-      const i = y * w + x;
-      if (blocked[i]) continue;
-      const x0 = Math.max(0, x - radius),
-        x1 = Math.min(w, x + radius + 1),
-        y0 = Math.max(0, y - radius),
-        y1 = Math.min(h, y + radius + 1);
-      const background =
-        (integral[y1 * (w + 1) + x1] -
-          integral[y0 * (w + 1) + x1] -
-          integral[y1 * (w + 1) + x0] +
-          integral[y0 * (w + 1) + x0]) /
-        ((x1 - x0) * (y1 - y0));
-      mask[i] = Number(
-        (img.settings.polarity === "dark"
-          ? background - gray[i]
-          : gray[i] - background) > img.settings.contrast,
-      );
-    }
+  const mask = segmentImage(rgba, w, h, img);
   // Zhang-Suen thinning, preserving the connected centerline topology.
   let changed = true,
     iteration = 0;

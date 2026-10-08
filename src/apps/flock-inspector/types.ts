@@ -15,6 +15,7 @@ export type ImageRecord = {
   series: string;
   dataUrl: string;
   originalDataUrl?: string;
+  rotation?: 0 | 90 | 180 | 270;
   width: number;
   height: number;
   calibration?: { points: [Point, Point]; mm: number };
@@ -26,7 +27,13 @@ export type ImageRecord = {
     contrast: number;
     minPixels: number;
     polarity: "dark" | "light";
-    crosshair: boolean;
+    crosshair?: boolean; // Legacy field; ignored on import and detection.
+    mode?: "brightness" | "color";
+    colorSamples?: { h: number; s: number; v: number }[];
+    hueTolerance?: number;
+    minSaturation?: number;
+    backgroundRadius?: number;
+    backgroundStrength?: number;
   };
 };
 export type Project = {
