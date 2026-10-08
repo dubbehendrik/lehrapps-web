@@ -86,13 +86,50 @@ export function decodeProject(bytes: Uint8Array): Project {
       !finite(img.settings.contrast) ||
       !finite(img.settings.minPixels) ||
       !["dark", "light"].includes(img.settings.polarity) ||
-      typeof img.settings.crosshair !== "boolean" ||
       !point(img.scale) ||
       ![img.name, img.material, img.sample, img.series].every(
         (v) => typeof v === "string",
       )
     )
       throw Error("Ungültige Metadaten.");
+    delete img.settings.crosshair;
+    if (img.rotation !== undefined && ![0, 90, 180, 270].includes(img.rotation))
+      throw Error("Ungültige Bilddrehung.");
+    if (
+      img.settings.mode !== undefined &&
+      !["brightness", "color"].includes(img.settings.mode)
+    )
+      throw Error("Ungültiger Erkennungsmodus.");
+    const bounds = [
+      ["hueTolerance", 0, 180],
+      ["minSaturation", 0, 1],
+      ["backgroundRadius", 1, 200],
+      ["backgroundStrength", 0, 1],
+    ] as const;
+    for (const [key, low, high] of bounds)
+      if (
+        img.settings[key] !== undefined &&
+        (!finite(img.settings[key]) ||
+          img.settings[key] < low ||
+          img.settings[key] > high)
+      )
+        throw Error("Ungültige Erkennungseinstellung.");
+    if (
+      img.settings.colorSamples !== undefined &&
+      (!Array.isArray(img.settings.colorSamples) ||
+        img.settings.colorSamples.some(
+          (c: any) =>
+            !c ||
+            ![c.h, c.s, c.v].every(finite) ||
+            c.h < 0 ||
+            c.h >= 360 ||
+            c.s < 0 ||
+            c.s > 1 ||
+            c.v < 0 ||
+            c.v > 1,
+        ))
+    )
+      throw Error("Ungültige Farbreferenzen.");
   }
   if (
     !p.comparison ||
