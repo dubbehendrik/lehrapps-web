@@ -1,0 +1,9 @@
+name: Funktion anfragen
+description: Ergänzung einer Lehr-App vorschlagen
+body:
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: App und gewünschte Funktion
+    validations:
+      required: true

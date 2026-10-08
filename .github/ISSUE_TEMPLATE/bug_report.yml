@@ -1,0 +1,15 @@
+name: Fehler melden
+description: Fehler in einer Lehr-App melden
+body:
+  - type: input
+    id: app
+    attributes:
+      label: App und URL
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Eingaben, Schritte und beobachtetes Verhalten
+    validations:
+      required: true
