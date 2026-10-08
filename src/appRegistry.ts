@@ -1,6 +1,13 @@
 import { lazy } from "react";
 export const appRegistry = [
   {
+    path: "/temperaturprofil",
+    name: "Temperaturverläufe",
+    description:
+      "Wärmeübergangskoeffizienten aus Messdaten bestimmen und Temperaturverläufe simulieren und vergleichen.",
+    component: lazy(() => import("./apps/temperaturprofil/App")),
+  },
+  {
     path: "/hx-diagramm",
     name: "Mollier h,x-Diagramm",
     description:

@@ -1,0 +1,18 @@
+{
+  "browserErrors": [],
+  "tabletOverflow": false,
+  "checks": [
+    "fixed alpha without data",
+    "ideal Excel fit",
+    "real Excel fit",
+    "CSV export",
+    "Excel export",
+    "PNG export",
+    "SVG export",
+    "retained curves",
+    "residuals",
+    "stale fit after interval change",
+    "reset",
+    "copy-paste with measurement label"
+  ]
+}
