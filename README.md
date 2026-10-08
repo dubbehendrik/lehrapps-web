@@ -1,6 +1,6 @@
 # lehrapps-web
 
-Gemeinsame, rein browserbasierte Lehr-Apps mit React, TypeScript, Vite und Plotly. Erste Referenz-App: `/normalverteilung`.
+Gemeinsame, rein browserbasierte Lehr-Apps mit React, TypeScript, Vite und Plotly. Apps: `/normalverteilung` und `/strahlbreite`.
 
 ## Lokal starten
 
@@ -19,7 +19,11 @@ npm run dev
 - `src/apps/normalverteilung/App.tsx`: Eingaben und Ergebnisse.
 - `src/apps/normalverteilung/logic.ts`: unabhängige mathematische Funktionen und Validierung.
 - `src/components/Chart.tsx`: gemeinsame responsive Plotly-Darstellung.
-- `src/lib/`: reserviert für tatsächlich gemeinsam genutzte fachliche Funktionen.
+- `src/components/SupportFooter.tsx`: gemeinsames Feedback und Nutzungshinweise.
+- `src/apps/strahlbreite/`: UI, Logik, Datentypen und Originalbeispiele.
+- `docs/strahlbreite/migration.md`: fachliche Definitionen und Prüfprotokoll.
+- `scripts/generate-strahlbreite-references.py`: SciPy-Referenzen für Strahlbreite.
+- `src/lib/fitpack.ts`: browserbasierter kubischer FITPACK-Spline.
 - `src/styles/global.css`: gemeinsame Gestaltung.
 - `tests/`: mathematische Tests und Python-Referenzwerte.
 - `public/`: Hochschullogo und SPA-Fallback.
@@ -29,7 +33,7 @@ npm run dev
 
 ## Cloudflare Pages
 
-GitHub-Repository `dubbehendrik/lehrapps-web`, Produktionsbranch `main`, Root-Verzeichnis Repository-Wurzel, Build-Befehl `npm run build`, Ausgabe `dist`, Umgebungsvariable `NODE_VERSION=24`. `public/_redirects` ermöglicht direkten Aufruf und Neuladen von `/normalverteilung`. Der Build selbst blockiert Veröffentlichung bei fehlgeschlagenen Tests, unabhängig vom separat laufenden GitHub-Workflow.
+GitHub-Repository `dubbehendrik/lehrapps-web`, Produktionsbranch `main`, Root-Verzeichnis Repository-Wurzel, Build-Befehl `npm run build`, Ausgabe `dist`, Umgebungsvariable `NODE_VERSION=24`. `public/_redirects` ermöglicht direkten Aufruf und Neuladen aller App-Routen. Der Build selbst blockiert Veröffentlichung bei fehlgeschlagenen Tests, unabhängig vom separat laufenden GitHub-Workflow.
 
 Offizielle Dokumentation: https://developers.cloudflare.com/pages/framework-guides/deploy-a-vite3-project/ und https://developers.cloudflare.com/pages/configuration/serving-pages/
 
@@ -46,4 +50,4 @@ npm run dev
 
 `main` ist der Produktionsbranch. Größere Änderungen auf Feature-Branches entwickeln. Rücknahme durch `git revert` des betreffenden Commits, anschließend Push. Keine neue Lizenz erteilt: Nutzungshinweis der Referenz-App bleibt erhalten.
 
-Das bestehende Streamlit-Repository wurde unverändert gelassen. Cloudflare Pages ist vorbereitet, aber noch nicht mit GitHub verbunden oder veröffentlicht.
+Die bestehenden Streamlit-Repositories bleiben unverändert als Referenz und Fallback. Cloudflare Pages ist mit GitHub verbunden: https://lehrapps-web.pages.dev/normalverteilung und https://lehrapps-web.pages.dev/strahlbreite. Produktionsdeployments werden durch Änderungen an `main` ausgelöst.
