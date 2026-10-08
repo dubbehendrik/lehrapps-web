@@ -663,7 +663,11 @@ export default function App() {
     b = data.get(project.comparison.b) || [];
   let result: ReturnType<typeof welch> | undefined,
     testError = "";
-  if (a.length && b.length) {
+  if (!project.comparison.a || !project.comparison.b) {
+    testError = "Bitte Gruppe A und Gruppe B auswählen.";
+  } else if (!a.length || !b.length) {
+    testError = "Mindestens eine Gruppe enthält keine gültigen Faserlängen. Kalibrierung und freigegebene Fasern prüfen.";
+  } else {
     try {
       if (project.comparison.a === project.comparison.b)
         throw Error("Zwei verschiedene Gruppen auswählen.");
@@ -1593,13 +1597,18 @@ export default function App() {
             ? "Jede Probe wird gleich gewichtet; ihre Bilder werden zuvor zusammengeführt."
             : "Aussage über die ausgewählten Messreihen. Fasern müssen unabhängig sein; Bildfelder dürfen sich nicht überlappen. Materialaussagen benötigen unabhängige Proben."}
         </p>
-        {testError && <p role="status">{testError}</p>}
+        {!result && (
+          <div className="result" role="status">
+            <strong>Vergleich nicht auswertbar</strong>
+            <p>{testError}</p>
+          </div>
+        )}
         {result && (
-          <div className="result">
+          <div className="result" role="status">
             <strong>
               {result.significant
-                ? "Statistisch signifikanter Mittelwertunterschied"
-                : "Kein statistisch signifikanter Mittelwertunterschied nachgewiesen"}
+                ? "Die mittleren Faserlängen unterscheiden sich statistisch signifikant."
+                : "Kein statistisch signifikanter Unterschied der mittleren Faserlängen nachgewiesen."}
             </strong>
             <p>
               n(A) = {a.length}, n(B) = {b.length} · Mittelwerte{" "}
@@ -1617,6 +1626,7 @@ export default function App() {
               {result.p < 0.0001
                 ? result.p.toExponential(3)
                 : result.p.toFixed(4)}{" "}
+              · α = {(project.comparison.alpha * 100).toLocaleString("de-DE")} %
               · t = {fmt(result.t)} · Freiheitsgrade = {fmt(result.df)}
             </p>
           </div>
