@@ -5,14 +5,8 @@ import {
   type Scenario,
   type Period,
 } from "./logic";
-export function download(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob),
-    a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+import { download } from "../../lib/download";
+export { download } from "../../lib/download";
 export function exportFrames(entries: Scenario[]) {
   const summary: Record<string, unknown>[] = [],
     parameters: Record<string, unknown>[] = [],
