@@ -1,0 +1,89 @@
+.flock-app input:not([type="checkbox"]):not([type="color"]):not([type="file"]),
+.flock-app select {
+  font: inherit;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #70899a;
+  border-radius: 5px;
+  background: white;
+}
+.flock-app label {
+  margin: 10px 0;
+}
+.flock-app details {
+  margin-top: 20px;
+}
+.flock-canvas {
+  overflow: auto;
+  max-height: 75vh;
+  background: #dbe3e8;
+  border: 1px solid #70899a;
+  margin-top: 20px;
+}
+.flock-canvas canvas {
+  display: block;
+  height: auto;
+  max-width: none;
+  cursor: crosshair;
+  touch-action: pan-x pan-y;
+}
+.flock-table {
+  max-height: 500px;
+  overflow: auto;
+}
+.flock-table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+.flock-table td,
+.flock-table th {
+  padding: 8px;
+  border: 1px solid #cad5dd;
+  text-align: left;
+}
+.flock-table th {
+  position: sticky;
+  top: 0;
+  background: #e8f0f7;
+}
+.flock-table .selected {
+  background: #d9edff;
+}
+.flock-app .button-row {
+  align-items: center;
+}
+.flock-app input[type="color"] {
+  width: 60px;
+  height: 40px;
+}
+.flock-app select:focus-visible {
+  outline: 3px solid #a34c00;
+}
+.flock-app .error {
+  padding: 16px;
+  background: #ffe9df;
+  color: #822700;
+}
+@media (max-width: 700px) {
+  .flock-app .input-grid {
+    grid-template-columns: 1fr;
+  }
+  .flock-app .controls {
+    padding: 16px;
+  }
+}
+.flock-app .button-row > label {
+  min-width: 0;
+  max-width: 100%;
+}
+.flock-app input[type="file"] {
+  width: 100%;
+  min-width: 0;
+}
+.flock-app .input-grid > * {
+  min-width: 0;
+}
+.flock-app p {
+  overflow-wrap: anywhere;
+}

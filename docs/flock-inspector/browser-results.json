@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "errors": [],
+  "detected": 93,
+  "checks": [
+    "calibration",
+    "worker detection",
+    "manual tracing",
+    "ZIP roundtrip",
+    "CSV",
+    "desktop",
+    "tablet",
+    "phone"
+  ]
+}

@@ -1,6 +1,13 @@
 import { lazy } from "react";
 export const appRegistry = [
   {
+    path: "/flock-inspector",
+    name: "Flock-Inspector",
+    description:
+      "Flockfasern in Bildern vermessen, Messreihen prüfen und mittlere Faserlängen statistisch vergleichen.",
+    component: lazy(() => import("./apps/flock-inspector/App")),
+  },
+  {
     path: "/temperaturprofil",
     name: "Temperaturverläufe",
     description:
