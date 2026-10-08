@@ -1,0 +1,16 @@
+{
+  "pageErrors": [],
+  "desktop": true,
+  "tablet": true,
+  "phone": true,
+  "exports": [
+    "SVG",
+    "PNG",
+    "Excel"
+  ],
+  "pressureRepair": true,
+  "atomicInvalidEdit": true,
+  "keyboardAdd": true,
+  "processAdd": true,
+  "iceRejected": true
+}
