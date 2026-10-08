@@ -8,7 +8,7 @@ export function AppOverview() {
       <section className="overview-intro" aria-labelledby="overview-title">
         <p className="eyebrow">Hochschule Esslingen · Interaktive Lehre</p>
         <h1 id="overview-title">Lehr-Apps</h1>
-        <p>Zusammenhänge verstehen, Parameter verändern und Ergebnisse direkt entdecken. Wählen Sie eine App für Ihre Berechnungen und Experimente.</p>
+        <p>Interaktive Programme basierend auf Inhalten aus den Vorlesungen Applikationstechnik, Anlagentechnik sowie der Verfahrenstechnik der Oberflächenbeschichtung – inklusive des zugehörigen Laborpraktikums.</p>
       </section>
       <section aria-label="Verfügbare Lehr-Apps">
         <ul className="app-grid">
