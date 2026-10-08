@@ -67,6 +67,8 @@ Zusätzlich [1;1,01], [5,99;6], [−6;−5,99]; vollständige ungerundete Werte 
 
 33 Vitest-Tests bestanden: 22 Python-Referenzen, Defaults, φ(0), Φ(0), Symmetrie/Monotonie/Wertebereich über 1201 z-Werte, identische Grenzen, vertauschte/unzulässige Grenzen, exakte Diagrammendpunkte und begrenzte Rastergröße. TypeScript-Prüfung und Vite-Produktionsbuild erfolgreich. Plotly-App-Bundle ca. 388 kB gzip; verbleibende Vite-Größenwarnung ist dokumentiert.
 
-Das Repository dubbehendrik/lehrapps-web wurde über die GitHub-Weboberfläche angelegt; der geprüfte Stand wird über den Connector übertragen. Die Cloudflare-Verknüpfung und das Deployment sind noch offen. Das bestehende Streamlit-Repository bleibt unverändert.
+Das Repository dubbehendrik/lehrapps-web wurde über die GitHub-Weboberfläche angelegt; der geprüfte Stand wurde über den Connector übertragen. Die Cloudflare-Verknüpfung und das Deployment sind noch offen. Das bestehende Streamlit-Repository bleibt unverändert.
 
 Browserprüfung des Produktionsbuilds: Zahlenfelder, Tastatur-Slider-Synchronisierung, leere/gleiche/vertauschte Grenzen, Weiterleitung von /, Neuladen der App-URL, keine JavaScript-Seitenfehler. Desktop 1440 px, Tablet 768 px, Smartphone 390 px; Screenshots visuell geprüft. Entdeckte Layoutüberlagerung und horizontaler Überlauf wurden korrigiert. Der Wendepunkt wird im erklärenden Diagrammtext statt einer separaten Plotlegende bezeichnet. Grenzwerttexte nahe Φ=1 stehen unter dem Punkt, um Abschneiden zu vermeiden.
+
+GitHub Actions: Tests, TypeScript-Prüfung und Produktionsbuild für Commit `96803c8a2602a40fbb6a343529ea0b459f5ddebc` erfolgreich. Prüfprotokoll: https://github.com/dubbehendrik/lehrapps-web/actions/runs/37771255454
