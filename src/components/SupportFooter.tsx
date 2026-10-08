@@ -3,19 +3,8 @@ export function SupportFooter({ appName }: { appName: string }) {
     <>
       <section className="feedback">
         <h2>Feedback & Support</h2>
-        <a
-          href="https://github.com/dubbehendrik/lehrapps-web/issues/new?template=bug_report.yml"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Fehler melden
-        </a>
-        <a
-          href="https://github.com/dubbehendrik/lehrapps-web/issues/new?template=feature_request.yml"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Funktion anfragen
+        <a href={`mailto:hendrik.dubbe@hs-esslingen.de?subject=${encodeURIComponent(`Anfrage zu App ${appName}`)}`}>
+          E-Mail an hendrik.dubbe@hs-esslingen.de
         </a>
       </section>
       <footer>
@@ -30,7 +19,7 @@ export function SupportFooter({ appName }: { appName: string }) {
           übernommen.
         </p>
         <a
-          href={`mailto:hendrik.dubbe@hs-esslingen.de?subject=Anfrage%20zu%20${encodeURIComponent(appName)}-App`}
+          href={`mailto:hendrik.dubbe@hs-esslingen.de?subject=${encodeURIComponent(`Anfrage zu App ${appName}`)}`}
         >
           Prof. Dr.-Ing. Hendrik Dubbe
         </a>
