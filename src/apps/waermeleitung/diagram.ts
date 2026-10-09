@@ -105,7 +105,17 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   const origin=proj(.5,.5,.5);
   ctx.strokeStyle='#007053';ctx.fillStyle='#007053';ctx.lineWidth=2.5;
   [[Math.sqrt(3)/2,.5],[-Math.sqrt(3)/2,.5],[0,-1]].forEach(([dx,dy],i)=>{
-    const length=i===2?75:140;
+    // Extend each axis just beyond the projected cuboid contour.
+    const crossings:number[]=[];
+    for(let a=0;a<8;a++)for(const bit of [1,2,4])if(!(a&bit)) {
+      const A=corners[a],B=corners[a|bit],ex=B[0]-A[0],ey=B[1]-A[1];
+      const det=dx*ey-dy*ex;
+      if(Math.abs(det)<1e-9)continue;
+      const ax=A[0]-origin[0],ay=A[1]-origin[1];
+      const distance=(ax*ey-ay*ex)/det,u=(ax*dy-ay*dx)/det;
+      if(distance>=0&&u>=0&&u<=1)crossings.push(distance);
+    }
+    const length=i===2?75:Math.max(70,...crossings.map(distance=>distance+16));
     const end=[origin[0]+length*dx,origin[1]+length*dy];arrow(ctx,origin[0],origin[1],end[0],end[1]);
     ctx.fillText(axes[i],end[0]+(dx<0?-14:6),end[1]+(dy<0?-4:6));
   });ctx.fillStyle='#162c3c';ctx.lineWidth=1.5;
