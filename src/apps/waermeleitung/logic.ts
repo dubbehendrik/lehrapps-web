@@ -89,3 +89,18 @@ export function computeSlice(p:Parameters,view:View):Slice {
   const profiles=[h,v].map(i=>{const x=sampleCoordinates(p.size[i],p.points[i]);return {x,temperature:x.map(value=>{const pos=[0,0,0];pos[n]=view.position;pos[i]=value;return pointTemperature(p,view.time,pos,sol);})};});
   return {horizontal:axes[h],vertical:axes[v],normal:axes[n],u,v:vv,temperature:fv.map(y=>fu.map(x=>p.ambient+delta*x*y*fn)),terms:sol.map(s=>view.time===0||delta===0?0:s.q.length),errorBound,converged:errorBound<=TEMPERATURE_TOLERANCE,bi:p.alphas.map((alpha,i)=>alpha*p.size[Math.floor(i/2)]/2000/p.conductivity),fo:p.size.map(d=>a*view.time/(d/2000)**2),center:pointTemperature(p,view.time,[0,0,0],sol),profiles};
 }
+
+/** Keep the two in-plane coordinates while the normal coordinate follows the slice. */
+export function pointInPlane(p:Parameters,view:View,point:number[]|null):number[]|null {
+  if(!point)return null;
+  const normal=planeAxes(view.plane)[2],position=[...point];position[normal]=view.position;
+  if(position.length!==3||position.some((x,i)=>!Number.isFinite(x)||Math.abs(x)>p.size[i]/2+1e-10)) throw new Error('Ort außerhalb des Bauteils.');
+  return position;
+}
+export function analyzePoint(p:Parameters,view:View,point:number[]) {
+  const position=pointInPlane(p,view,point)!,sol=solutions(p,view.time),[h,v]=planeAxes(view.plane);
+  return {position,temperature:pointTemperature(p,view.time,position,sol),profiles:[h,v].map(i=>{
+    const x=sampleCoordinates(p.size[i],p.points[i]);
+    return {x,temperature:x.map(value=>{const pos=[...position];pos[i]=value;return pointTemperature(p,view.time,pos,sol);})};
+  })};
+}

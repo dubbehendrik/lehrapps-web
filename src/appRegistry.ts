@@ -2,7 +2,7 @@ import { lazy } from "react";
 export const appRegistry = [
   {
     path: "/waermeleitung",
-    name: "Wärmeleitung im Quader",
+    name: "Temperaturverteilung",
     description: "Abkühlung eines Quaders untersuchen, Temperaturfelder in verschiebbaren Schnitten betrachten und Biot- sowie Fourier-Zahlen vergleichen.",
     component: lazy(() => import("./apps/waermeleitung/App")),
   },

@@ -12,10 +12,10 @@ export function exportSheets(p:Parameters,view:View,s:Slice) {
 export async function exportExcel(p:Parameters,view:View,s:Slice) {
   const {default:writeXlsxFile}=await import('write-excel-file/browser');
   const tables=exportSheets(p,view,s),names=['Parameter','Kennzahlen','Aktueller Schnitt'];
-  await writeXlsxFile(tables.map((data,i)=>({sheet:names[i],data,stickyRowsCount:1}))).toFile('Waermeleitung.xlsx');
+  await writeXlsxFile(tables.map((data,i)=>({sheet:names[i],data,stickyRowsCount:1}))).toFile('Temperaturverteilung.xlsx');
 }
-export async function exportPng(p:Parameters,view:View,s:Slice) {
-  const canvas=document.createElement('canvas');drawDiagram(canvas,p,view,s);
+export async function exportPng(p:Parameters,view:View,s:Slice,point:number[]|null=null) {
+  const canvas=document.createElement('canvas');drawDiagram(canvas,p,view,s,point);
   const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('PNG konnte nicht erstellt werden.')),'image/png'));
-  download(blob,'Waermeleitung.png');
+  download(blob,'Temperaturverteilung.png');
 }

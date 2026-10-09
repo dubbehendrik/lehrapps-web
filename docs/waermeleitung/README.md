@@ -1,4 +1,4 @@
-# Wärmeleitung im Quader
+# Temperaturverteilung
 
 Route: `/waermeleitung`. Rein browserseitig, ohne Python-Server und ohne neue Abhängigkeiten.
 
@@ -35,12 +35,13 @@ Temperaturbegrenzung, welche Konvergenzprobleme verdecken könnte.
 ## Darstellung und Exporte
 
 Standard: 70×70×5 mm; T₀=180 °C; T∞=20 °C; α=10 W/(m² K); Ende 1800 s.
+Stahl/Edelstahl: ρ=7850 kg/m³, cₚ=477 J/(kg K); Aluminium: ρ=2700 kg/m³, cₚ=888 J/(kg K).
 101×101×41 Auswertepunkte, ganzzahlig 11–201; die Punkte schließen beide Oberflächen ein.
 Nur die gerade sichtbare Ebene wird materialisiert. Worker, begrenzter Eigenmoden-Cache,
 gebündelte Regleraktualisierungen; eine Animation wartet auf die Berechnung.
 
 Zentrierte Koordinaten, XY/XZ/YZ, kontinuierlich verschiebbare Ebenen. Die Karten
-sind geometrisch maßstabsgerecht. Der kleine Quader ist explizit schematisch.
+sind geometrisch maßstabsgerecht. Der kleine Quader hat eine orthografische isometrische Projektion mit einem gemeinsamen geometrischen Maßstab; die eingegebenen Seitenverhältnisse bleiben erhalten.
 Farbfelder sind den nächstliegenden Auswertepunkten zugeordnet, keine FVM-Zellen.
 Glättung: bilineare Interpolation der Temperaturmatrix, keine künstlichen Extrema.
 Blau-Rot-Skala mit festen physikalischen Temperaturgrenzen min/max(T₀,T∞).
@@ -75,3 +76,25 @@ Eine vollständige Desktop-/Tablet-Browserprüfung steht noch aus, weil die
 unterstützte Browsersteuerung in dieser Sitzung nicht verfügbar war. Die
 fachliche/didaktische Abnahme durch den App-Verantwortlichen bleibt ebenfalls offen;
 der Footer der neuen App behauptet diese Abnahme nicht.
+
+## Punktauswahl und überarbeitete Ausgabe
+
+Initialisierung und Reset: keine Punktauswahl. Profile und Abkühlkurve zeigen dann
+nur einen Auswahlhinweis. Auswahl per Klick, Koordinaten oder Mittelpunkt-Button.
+Der Mittelpunkt-Button setzt die Schnittebene auf null und wählt (0,0,0).
+Beim Verschieben der Ebene bleiben die beiden in-plane Koordinaten erhalten;
+die Normalrichtung folgt der Schnittposition. Löschen entfernt Marker und beide
+Profillinien sofort. Der PNG-Export verwendet denselben Auswahlzustand.
+
+Profile durch den gewählten Ort, Markierung in beiden Profilen, Achsenrahmen an
+den Bauteiloberflächen. Abkühlkurve für genau diesen festen räumlichen Ort;
+der Kurven-Cache berücksichtigt die Punktkoordinaten. Hintergrundberechnung
+liefert Karte, Punktwert und Profile als konsistenten Snapshot.
+
+Zahlen: Beträge ≥1 höchstens eine Nachkommastelle, darunter vier signifikante
+Stellen, ohne unnötige Endnullen. Eingaben zeigen im unfokussierten Zustand die
+gekürzte Darstellung; beim Bearbeiten bleibt die volle Eingabe verfügbar.
+Excel und Berechnungen werden nicht gerundet. Canvas-Beschriftungen besitzen
+native kleinere und abgesenkte Indizes. Parameterblöcke sind durch Linien getrennt.
+Reihenglieder sind separat aufklappbar erklärt. Die dynamische Zusatzzeile im
+Karten-Figcaption entfällt; der übrige Berechnungsstatus hat eine feste Höhe.
