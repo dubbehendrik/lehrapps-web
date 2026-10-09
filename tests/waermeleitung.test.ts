@@ -9,7 +9,7 @@ describe('Analytische Wärmeleitung im Quader',()=>{
   });
   it('liefert t=0 exakt und alle Flächen adiabatisch bei jeder Zeit konstant',()=>{
     const v=p();expect(pointTemperature(v,0,[35,-35,2.5])).toBe(180);
-    v.alphas.fill(0);for(const t of [0,.001,100,1800])expect(pointTemperature(v,t,[35,-35,2.5])).toBe(180);
+    v.endTime=1800;v.alphas.fill(0);for(const t of [0,.001,100,1800])expect(pointTemperature(v,t,[35,-35,2.5])).toBe(180);
   });
   it('stimmt mit der symmetrischen Plattenreferenz mu*tan(mu)=Bi überein',()=>{
     // Independent half-slab one-term reference, Bi=1: mu1=0.8603335890193797,
@@ -52,7 +52,7 @@ describe('Analytische Wärmeleitung im Quader',()=>{
     expect(pointTemperature(v,t,[0,0,0])).toBeCloseTo(v.ambient+(v.initial-v.ambient)*Math.exp(-rate*t),1);
   });
   it('erreicht Genauigkeitsziel bei frühen Zeiten, meldet Termlimit und bleibt in physikalischen Grenzen',()=>{
-    const v=p();v.conductivity=.02;v.density=100;v.cp=1000;
+    const v=p();v.endTime=1800;v.conductivity=.02;v.density=100;v.cp=1000;
     for(const time of [.01,1,100,1800]) {
       const slice=computeSlice(v,{plane:'XY',position:2.5,time,smooth:false});expect(slice.converged).toBe(true);
       for(const row of slice.temperature)for(const T of row){expect(T).toBeGreaterThanOrEqual(20-.01);expect(T).toBeLessThanOrEqual(180+.01);}
