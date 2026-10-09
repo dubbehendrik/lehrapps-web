@@ -36,7 +36,7 @@ describe('Analytische Wärmeleitung im Quader',()=>{
     const xz=computeSlice(v,{plane:'XZ',position:0,time:t,smooth:true});
     expect(xy.temperature[50][50]).toBeCloseTo(xz.temperature[20][50],12);
     expect(xy.bi[0]).toBeCloseTo(10*.025/50,14);expect(xy.bi[4]).toBe(0);
-    expect(xy.fo[2]).toBeCloseTo((50/(7850*500))*t/.0025**2,12);
+    expect(xy.fo[2]).toBeCloseTo((v.conductivity/(v.density*v.cp))*t/.0025**2,12);
     const coarse={...v,points:[11,11,11] as [number,number,number]};
     expect(computeSlice(coarse,{plane:'XY',position:0,time:t,smooth:false}).temperature[5][5]).toBe(xy.temperature[50][50]);
   });
@@ -81,4 +81,26 @@ it('ordnet Klickkoordinaten richtig zu, respektiert Maßstab und exportiert unge
   const s=computeSlice(v,view),sheets=exportSheets(v,view,s);
   expect(sheets[2][21][51]).toBe(s.temperature[20][50]);expect(sheets[1][3][1]).toBe(2.5);
   expect(color(20,20,180)).toEqual([24,67,185]);expect(color(180,20,180)).toEqual([194,32,35]);
+});
+
+import {analyzePoint,pointInPlane} from '../src/apps/waermeleitung/logic';
+import {fmt,cuboidProjection} from '../src/apps/waermeleitung/diagram';
+import {materials} from '../src/apps/waermeleitung/materials';
+it('Punktauswahl folgt nur der Normalrichtung; Profile und Temperatur beziehen sich auf denselben Ort',()=>{
+  const v=p();v.alphas=[0,100,20,10,0,100];const view={plane:'XY' as const,position:1,time:30,smooth:true};
+  expect(pointInPlane(v,view,null)).toBeNull();expect(pointInPlane(v,view,[7,-14,0])).toEqual([7,-14,1]);
+  const analysis=analyzePoint(v,view,[7,-14,0]);
+  expect(analysis.temperature).toBe(pointTemperature(v,30,[7,-14,1]));
+  for(const [i,coordinate] of [[0,7],[1,-14]]){const j=analysis.profiles[i].x.findIndex(x=>Math.abs(x-coordinate)<1e-10);expect(j).toBeGreaterThanOrEqual(0);expect(analysis.profiles[i].temperature[j]).toBeCloseTo(analysis.temperature,12);}
+  expect(analyzePoint(v,{...view,position:0},[0,0,0]).temperature).toBe(pointTemperature(v,30,[0,0,0]));
+});
+it('formatiert relevante kleine Werte ohne Rechenwerte zu runden',()=>{
+  expect(fmt(12.12342354)).toBe('12,1');expect(fmt(.0009)).toBe('0,0009');expect(fmt(.123456)).toBe('0,1235');expect(fmt(-12.123)).toBe('-12,1');expect(fmt(12)).toBe('12');expect(fmt(0)).toBe('0');expect(fmt(.0000009)).toContain('9');
+});
+it('zeichnet Würfel und Blech mit gleichen Maßstäben in allen Achsen',()=>{
+  for(const size of [[70,70,70],[70,70,5]]){const project=cuboidProjection(size),o=project([0,0,0]);const lengths=size.map((d,i)=>{const pos=[0,0,0];pos[i]=d;const e=project(pos);return Math.hypot(e[0]-o[0],e[1]-o[1]);});expect(lengths[0]/lengths[1]).toBeCloseTo(1,12);expect(lengths[0]/lengths[2]).toBeCloseTo(size[0]/size[2],12);}
+});
+it('verwendet die vorgegebenen Lehrstoffwerte einschließlich Initialisierung',()=>{
+  for(const id of ['steel','stainless']){const m=materials.find(m=>m.id===id)!;expect(m.cp).toBe(477);expect(m.density).toBe(7850);}
+  expect(materials.find(m=>m.id==='aluminum')?.cp).toBe(888);expect(materials.find(m=>m.id==='aluminum')?.density).toBe(2700);expect(defaults.cp).toBe(477);
 });
