@@ -61,6 +61,14 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   }
   ctx.textAlign='center';ctx.fillText(`${s.horizontal} [mm]`,r.x+r.width/2,r.y+r.height+53);
   ctx.save();ctx.translate(r.x-65,r.y+r.height/2);ctx.rotate(-Math.PI/2);ctx.fillText(`${s.vertical} [mm]`,0,0);ctx.restore();
+  // Light extension lines connect the half-length dimensions to the map.
+  ctx.save();ctx.strokeStyle='#91b3a8';ctx.lineWidth=.8;
+  for(const x of [r.x+r.width/2,r.x+r.width]) {
+    line(ctx,[[x,r.y+r.height+8],[x,r.y+r.height+16]]);
+    line(ctx,[[x,r.y+r.height+60],[x,r.y+r.height+83]]);
+  }
+  for(const y of [r.y,r.y+r.height/2])line(ctx,[[r.x+r.width+4,y],[r.x+r.width+21,y]]);
+  ctx.restore();
   ctx.strokeStyle='#00543f';ctx.fillStyle='#00543f';
   doubleArrow(ctx,r.x+r.width/2,r.y+r.height+77,r.x+r.width,r.y+r.height+77);
   ctx.textAlign='left';subscriptText(ctx,[['L',`${s.horizontal},char`],[` = ${fmt((s.u.at(-1)!-s.u[0])/2)} mm`]],r.x+r.width/2,r.y+r.height+103);
