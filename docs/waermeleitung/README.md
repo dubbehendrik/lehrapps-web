@@ -1,6 +1,6 @@
 # Temperaturverteilung
 
-Route: `/waermeleitung`. Rein browserseitig, ohne Python-Server und ohne neue Abhängigkeiten.
+Route: `/Temperaturverteilung`; `/waermeleitung` leitet auf die neue Adresse weiter. Rein browserseitig, ohne Python-Server und ohne neue Abhängigkeiten.
 
 ## Modell
 
