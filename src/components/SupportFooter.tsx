@@ -1,4 +1,4 @@
-export function SupportFooter({ appName }: { appName: string }) {
+export function SupportFooter({ appName, reviewed = true }: { appName: string; reviewed?: boolean }) {
   return (
     <>
       <section className="feedback">
@@ -24,12 +24,12 @@ export function SupportFooter({ appName }: { appName: string }) {
           Antworten erzeugt.
         </p>
         <p>
-          Die Anwendung wurde anhand automatisierter Tests sowie anschließend
+          {reviewed ? <>Die Anwendung wurde anhand automatisierter Tests sowie anschließend
           durch Prof. Dr.-Ing. Hendrik Dubbe in der implementierten Form auf
           Funktionalität und fachliche Korrektheit geprüft. Diese Prüfungen
           beziehen sich auf die untersuchten Testfälle und Nutzungsszenarien
           und gewährleisten keine Fehlerfreiheit für sämtliche Eingaben und
-          Anwendungsfälle.
+          Anwendungsfälle.</> : <>Die Berechnungslogik wurde anhand automatisierter Referenz- und Grenzfalltests geprüft. Die fachliche und didaktische Abnahme durch Prof. Dr.-Ing. Hendrik Dubbe steht für diese neue Anwendung noch aus.</>}
         </p>
         <p>
           Es wird keine Gewähr für die Richtigkeit, Vollständigkeit oder
