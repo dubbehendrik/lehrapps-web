@@ -14,14 +14,14 @@ function NumberInput({label,value,onChange,min,max,step='any'}:{label:ReactNode;
   const [focused,setFocused]=useState(false);
   return <label>{label}<input type="number" onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} value={Number.isNaN(value)?'':focused?value:displayNumber(value)} min={min} max={max} step={step} onChange={e=>onChange(e.target.value===''?NaN:Number(e.target.value))}/></label>;
 }
-function Description(){return <details className="heat-description" open><summary>Programmbeschreibung</summary>
+function Description(){return <details className="heat-description"><summary>Programmbeschreibung</summary>
   <p>Die Anwendung zeigt, wie sich die Temperatur in einem <strong>quaderförmigen Bauteil</strong> während der Abkühlung verändert. Material, Abmessungen und Wärmeübergang zur Umgebung können eingestellt sowie verschiedene Schnitte und Zeitpunkte betrachtet werden. Gegenüberliegende Flächen dürfen unterschiedliche Wärmeübergangskoeffizienten besitzen.</p>
   <div className="formula-list">
-    <MathExpression label="Biot-Zahl: alpha i plus oder minus mal L i geteilt durch lambda">{math.row(math.index('Bi','i,±'),math.operator('='),math.fraction(math.row(math.index('α','i,±'),math.index('L','i')),math.identifier('λ')))}</MathExpression>
-    <MathExpression label="Fourier-Zahl: a mal t geteilt durch L i zum Quadrat">{math.row(math.index('Fo','i'),math.operator('='),math.fraction(math.row(math.identifier('a'),math.identifier('t')),math.row(math.index('L','i'),math.operator('²'))))}</MathExpression>
+    <MathExpression label="Biot-Zahl: alpha i plus oder minus mal L i geteilt durch lambda">{math.row(math.index('Bi','i,±'),math.operator('='),math.fraction(math.row(math.index('α','i,±'),math.index('L','i,char')),math.identifier('λ')))}</MathExpression>
+    <MathExpression label="Fourier-Zahl: a mal t geteilt durch L i zum Quadrat">{math.row(math.index('Fo','i'),math.operator('='),math.fraction(math.row(math.identifier('a'),math.identifier('t')),math.row(math.index('L','i,char'),math.operator('²'))))}</MathExpression>
     <MathExpression label="Temperaturleitfähigkeit: lambda geteilt durch rho mal c p">{math.row(math.identifier('a'),math.operator('='),math.fraction(math.identifier('λ'),math.row(math.identifier('ρ'),math.index('c','p'))))}</MathExpression>
   </div>
-  <p>Für jede Richtung i = x, y, z ist L die <strong>halbe Bauteilabmessung</strong>, auch bei asymmetrischer Kühlung. α bezeichnet den Wärmeübergangskoeffizienten, λ die Wärmeleitfähigkeit, ρ die Dichte und cₚ die spezifische Wärmekapazität. − und + kennzeichnen die gegenüberliegenden Flächen. Bei α = 0 ist die betreffende Fläche adiabatisch: Über sie fließt keine Wärme.</p>
+  <p>Für jede Richtung i = x, y, z ist L<sub>i,char</sub> die <strong>halbe Bauteilabmessung</strong>, auch bei asymmetrischer Kühlung. α bezeichnet den Wärmeübergangskoeffizienten, λ die Wärmeleitfähigkeit, ρ die Dichte und cₚ die spezifische Wärmekapazität. − und + kennzeichnen die gegenüberliegenden Flächen. Bei α = 0 ist die betreffende Fläche adiabatisch: Über sie fließt keine Wärme.</p>
   <p>Die <strong>Biot-Zahl</strong> beschreibt, wie stark der Wärmeübergang an der Oberfläche im Verhältnis zur Wärmeleitung im Inneren wirkt.</p><ul><li>Kleine Werte: Wärme wird im Inneren vergleichsweise schnell verteilt; die Temperatur bleibt in der jeweiligen Richtung annähernd gleichmäßig.</li><li>Bei größeren Werten kann die Oberfläche Wärme schneller abgeben, als sie aus dem Inneren nachgeliefert wird. Deutliche Temperaturunterschiede können entstehen.</li></ul>
   <p>Die <strong>Fourier-Zahl</strong> setzt die vergangene Zeit ins Verhältnis zur charakteristischen Wärmeleitungszeit über die angegebene Strecke. Je größer sie ist, desto weiter ist der Temperaturausgleich durch Wärmeleitung fortgeschritten. Sie beschreibt nicht allein, wie weit das Bauteil bereits abgekühlt ist.</p>
   <p>Das Modell nimmt eine gleichmäßige Anfangstemperatur, konstante Stoffwerte und eine gemeinsame konstante Umgebungstemperatur an. Die Wärmeübergangskoeffizienten sind auf jeder Fläche gleichmäßig und zeitlich konstant. Wärmestrahlung, Wärmequellen und lokale Kontaktstellen werden nicht berücksichtigt. Die auswählbare Glättung verändert ausschließlich die Darstellung. Alle Temperaturen werden in °C ausgegeben.</p>
@@ -67,13 +67,16 @@ export default function HeatApp(){
   const choosePoint=(pos:number[])=>{setSelected(pos);setPointValues(pos);};
   const doExport=async(format:'png'|'excel')=>{if(!result)return;setExporting(true);try{if(format==='png')await exportPng(result.p,currentView,result.slice,effectivePoint);else await exportExcel(result.p,currentView,result.slice);}catch(e){setError((e as Error).message);}finally{setExporting(false);}};
   return <div className="heat-app"><h1>Temperaturverteilung</h1><Description/>
-  <section className="controls"><h2>Material & Geometrie</h2><div className="input-grid">
+  <section className="controls"><h2>Material & Geometrie</h2><div className="input-grid heat-material-row">
     <label>Material<select value={material} onChange={e=>{const id=e.target.value;setMaterial(id);if(id==='custom')return;const m=materials.find(m=>m.id===id)!;setPlaying(false);setP(current=>({...current,material:m.name,conductivity:m.conductivity,density:m.density,cp:m.cp}));}}>{materials.map(m=><option value={m.id} key={m.id}>{m.name}</option>)}<option value="custom">Benutzerdefiniert (Werte übernehmen)</option></select></label>
     <label>Materialname<input type="text" maxLength={80} value={p.material} disabled={material!=='custom'} onChange={e=>setP(current=>({...current,material:e.target.value}))}/></label>
-    <NumberInput label="Wärmeleitfähigkeit λ [W/(m K)]" value={p.conductivity} min={.001} max={10000} onChange={value=>setMaterialValue('conductivity',value)}/>
+  </div><div className="input-grid heat-material-properties">
     <NumberInput label="Dichte ρ [kg/m³]" value={p.density} min={.1} max={30000} onChange={value=>setMaterialValue('density',value)}/>
     <NumberInput label={<>Wärmekapazität c<sub>p</sub> [J/(kg K)]</>} value={p.cp} min={1} max={20000} onChange={value=>setMaterialValue('cp',value)}/>
+    <NumberInput label="Wärmeleitfähigkeit λ [W/(m K)]" value={p.conductivity} min={.001} max={10000} onChange={value=>setMaterialValue('conductivity',value)}/>
+  </div><div className="input-grid heat-material-dimensions">
     {axes.map((axis,i)=><NumberInput key={axis} label={`Abmessung ${axis} [mm]`} value={p.size[i]} min={.1} max={2000} onChange={value=>setDimension(i,value)}/>)}
+  </div><div className="input-grid heat-material-resolution">
     {axes.map((axis,i)=><NumberInput key={axis} label={<>Auswertepunkte N<sub>{axis}</sub></>} value={p.points[i]} min={11} max={201} step={1} onChange={value=>{setPlaying(false);setP(current=>({...current,points:current.points.map((x,j)=>i===j?value:x) as Parameters['points']}));}}/>)}
   </div><p className="heat-hint">Punktzahlen beziehen sich auf die volle Abmessung einschließlich beider Oberflächen. 11–201 Punkte je Richtung; Standard: 101 × 101 × 41.</p>
   {material!=='custom'&&<p className="heat-hint">{materials.find(m=>m.id===material)?.note} <a href={materials.find(m=>m.id===material)?.source} target="_blank" rel="noreferrer">Materialreferenz</a></p>}

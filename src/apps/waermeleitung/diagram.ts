@@ -4,9 +4,10 @@ export const WIDTH=1100,HEIGHT=800;
 export const fmt=(v:number)=>Math.abs(v)>=1?v.toLocaleString('de-DE',{maximumFractionDigits:1}):Number(v.toPrecision(4)).toLocaleString('de-DE',{maximumSignificantDigits:4});
 export function color(t:number,lo:number,hi:number):[number,number,number] {
   const f=hi===lo?.5:Math.max(0,Math.min(1,(t-lo)/(hi-lo)));
-  // Blue -> pale neutral -> red; same temperature mapping for every time/slice.
-  const a=f<.5?[24,67,185]:[245,242,234],b=f<.5?[245,242,234]:[194,32,35],q=f<.5?2*f:2*f-1;
-  return a.map((v,i)=>Math.round(v+(b[i]-v)*q)) as [number,number,number];
+  // Fixed continuous blue -> cyan -> yellow -> orange -> red scale.
+  const stops=[[24,67,185],[0,185,220],[255,230,45],[245,135,20],[194,32,35]];
+  const segment=Math.min(3,Math.floor(f*4)),q=f*4-segment;
+  return stops[segment].map((v,i)=>Math.round(v+(stops[segment+1][i]-v)*q)) as [number,number,number];
 }
 export function mapBounds(p:Parameters,view:View) {
   const [h,v]=planeAxes(view.plane),scale=Math.min(670/p.size[h],430/p.size[v]);
@@ -25,7 +26,12 @@ function line(ctx:CanvasRenderingContext2D,points:number[][],close=false,fill?:s
   ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));if(close)ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill();}ctx.stroke();
 }
 function arrow(ctx:CanvasRenderingContext2D,x:number,y:number,xx:number,yy:number) {
-  line(ctx,[[x,y],[xx,yy]]);const a=Math.atan2(yy-y,xx-x);line(ctx,[[xx-9*Math.cos(a-.45),yy-9*Math.sin(a-.45)],[xx,yy],[xx-9*Math.cos(a+.45),yy-9*Math.sin(a+.45)]]);
+  line(ctx,[[x,y],[xx,yy]]);const a=Math.atan2(yy-y,xx-x),head=Math.min(9,Math.hypot(xx-x,yy-y)/3);line(ctx,[[xx-head*Math.cos(a-.45),yy-head*Math.sin(a-.45)],[xx,yy],[xx-head*Math.cos(a+.45),yy-head*Math.sin(a+.45)]]);
+}
+function doubleArrow(ctx:CanvasRenderingContext2D,x:number,y:number,xx:number,yy:number) {
+  arrow(ctx,x,y,xx,yy);
+  const a=Math.atan2(y-yy,x-xx),head=Math.min(9,Math.hypot(xx-x,yy-y)/3);
+  line(ctx,[[x-head*Math.cos(a-.45),y-head*Math.sin(a-.45)],[x,y],[x-head*Math.cos(a+.45),y-head*Math.sin(a+.45)]]);
 }
 export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Slice,selected:number[]|null=null) {
   canvas.width=WIDTH;canvas.height=HEIGHT;const ctx=canvas.getContext('2d')!;
@@ -56,11 +62,16 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   ctx.textAlign='center';ctx.fillText(`${s.horizontal} [mm]`,r.x+r.width/2,r.y+r.height+53);
   ctx.save();ctx.translate(r.x-65,r.y+r.height/2);ctx.rotate(-Math.PI/2);ctx.fillText(`${s.vertical} [mm]`,0,0);ctx.restore();
   ctx.strokeStyle='#00543f';ctx.fillStyle='#00543f';
-  arrow(ctx,r.x+r.width/2,r.y+r.height+77,r.x+r.width,r.y+r.height+77);
-  ctx.textAlign='left';subscriptText(ctx,[['L',s.horizontal],[` = ${fmt((s.u.at(-1)!-s.u[0])/2)} mm`]],r.x+r.width*.65,r.y+r.height+101);
-  ctx.textAlign='left';subscriptText(ctx,[['L',s.vertical],[` = ${fmt((s.v.at(-1)!-s.v[0])/2)} mm`]],r.x,r.y+r.height+124);
-  // Also show the vertical half-dimension with an actual arrow beside the field.
-  arrow(ctx,r.x+r.width+12,r.y+r.height/2,r.x+r.width+12,r.y);
+  doubleArrow(ctx,r.x+r.width/2,r.y+r.height+77,r.x+r.width,r.y+r.height+77);
+  ctx.textAlign='left';subscriptText(ctx,[['L',`${s.horizontal},char`],[` = ${fmt((s.u.at(-1)!-s.u[0])/2)} mm`]],r.x+r.width/2,r.y+r.height+103);
+  // Vertical half-length label stays immediately next to its dimension arrow.
+  const verticalX=r.x+r.width+15,verticalMid=r.y+r.height/4;
+  doubleArrow(ctx,verticalX,r.y+r.height/2,verticalX,r.y);
+  ctx.save();ctx.translate(verticalX+15,verticalMid);ctx.rotate(-Math.PI/2);
+  const verticalLabel=`L${s.vertical},char = ${fmt((s.v.at(-1)!-s.v[0])/2)} mm`;
+  ctx.font='17px system-ui';const labelWidth=ctx.measureText(verticalLabel).width;
+  subscriptText(ctx,[['L',`${s.vertical},char`],[` = ${fmt((s.v.at(-1)!-s.v[0])/2)} mm`]],-labelWidth/2,0);ctx.restore();
+  ctx.font='16px system-ui';ctx.fillText('Charakteristische Länge = halbe Bauteilabmessung',30,646);
   if(selected){
     const [h,v]=planeAxes(view.plane),x=r.x+(selected[h]/p.size[h]+.5)*r.width,y=r.y+(.5-selected[v]/p.size[v])*r.height;
     ctx.save();ctx.beginPath();ctx.rect(r.x,r.y,r.width,r.height);ctx.clip();
@@ -83,7 +94,12 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   const [h,v,n]=planeAxes(view.plane),f=view.position/p.size[n]+.5;
   const plane=[[0,0],[1,0],[1,1],[0,1]].map(([a,b])=>{const pos=[0,0,0];pos[h]=a;pos[v]=b;pos[n]=f;return proj(pos[0],pos[1],pos[2]);});
   ctx.strokeStyle='#a34800';line(ctx,plane,true,'#f0a65b80');ctx.fillStyle='#162c3c';ctx.font='16px system-ui';ctx.fillText('Quader · proportionale Geometrie',810,98);
-  ['x','y','z'].forEach((axis,i)=>{const end=[0,0,0];end[i]=1;const pt=proj(end[0],end[1],end[2]);ctx.fillText(axis,pt[0]+5,pt[1]+6);});
+  const origin=proj(.5,.5,.5);
+  ctx.strokeStyle='#007053';ctx.fillStyle='#007053';ctx.lineWidth=2.5;
+  [[Math.sqrt(3)/2,.5],[-Math.sqrt(3)/2,.5],[0,-1]].forEach(([dx,dy],i)=>{
+    const end=[origin[0]+38*dx,origin[1]+38*dy];arrow(ctx,origin[0],origin[1],end[0],end[1]);
+    ctx.fillText(axes[i],end[0]+(dx<0?-14:6),end[1]+(dy<0?-4:6));
+  });ctx.fillStyle='#162c3c';ctx.lineWidth=1.5;
   ctx.fillText(`Schnitt: ${view.plane}, ${s.normal} = ${fmt(view.position)} mm`,815,237);
   ctx.strokeStyle='#cad5dd';ctx.strokeRect(805,252,275,535);ctx.font='17px system-ui';
   const text=(value:string,y:number)=>ctx.fillText(value,818,y,250);
@@ -95,7 +111,7 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   axes.forEach((axis,i)=>{
     const y=473+i*92;ctx.strokeStyle='#cad5dd';line(ctx,[[817,y-16],[1068,y-16]]);
     subscriptText(ctx,[['α',`${axis},−`],[` = ${fmt(p.alphas[2*i])}; `],['α',`${axis},+`],[` = ${fmt(p.alphas[2*i+1])}`]],818,y);
-    subscriptText(ctx,[['L',axis],[` = ${fmt(p.size[i]/2)} mm · α: W/(m² K)`]],818,y+23);
+    subscriptText(ctx,[['L',`${axis},char`],[` = ${fmt(p.size[i]/2)} mm · α: W/(m² K)`]],818,y+23);
     subscriptText(ctx,[['Bi',`${axis},−`],[` = ${fmt(s.bi[2*i])}; `],['Bi',`${axis},+`],[` = ${fmt(s.bi[2*i+1])}`]],818,y+46);
     subscriptText(ctx,[['Fo',axis],[` = ${fmt(s.fo[i])}`]],818,y+69);
   });
