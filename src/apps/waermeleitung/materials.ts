@@ -1,0 +1,9 @@
+export const materials = [
+  {id:'steel',name:'Stahl (unlegiert, Lehrwert)',conductivity:50,density:7850,cp:500,note:'Gerundeter Lehrdatensatz für unlegierten Stahl im Bereich Raumtemperatur bis etwa 200 °C; kein zertifizierter Werkstoffdatensatz.',source:'https://www.matweb.com/search/DataSheet.aspx?MatGUID=b58ee61a3745453a9232f7864abba74f'},
+  {id:'stainless',name:'Edelstahl 304 / 1.4301',conductivity:15,density:7900,cp:500,note:'Richtwerte bei 20 °C, Outokumpu Core 304.',source:'https://www.outokumpu.com/en/products/product-ranges/core'},
+  {id:'aluminum',name:'Aluminium (Lehrwert)',conductivity:200,density:2700,cp:900,note:'Raumtemperatur-Richtwerte nach NIST; Legierungen können deutlich abweichen.',source:'https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=101567'},
+  {id:'copper',name:'Kupfer (Lehrwert)',conductivity:400,density:8960,cp:385,note:'Gerundete Raumtemperaturwerte. λ und ρ nach NIST; cₚ als üblicher Lehrwert.',source:'https://www.nist.gov/ncnr/neutron-instruments/sample-environment/sample-mounting/reference-tables'},
+  {id:'pmma',name:'Kunststoff: PMMA',conductivity:.19,density:1190,cp:1470,note:'Raumtemperatur-Richtwerte für PMMA. Bei 180 °C kein formstabiles Bauteil; nur idealisierter Wärmeleitungsvergleich.',source:'https://www.rct-online.de/de/RctGlossar/detail/id/1'},
+  {id:'glass',name:'Kalk-Natron-Glas',conductivity:1.2,density:2500,cp:750,note:'Raumtemperatur-Richtwerte nach NIST.',source:'https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=101567'},
+  {id:'aerogel',name:'Silica-Aerogel (idealisiert)',conductivity:.02,density:150,cp:1000,note:'Illustrativer Lehrdatensatz: λ und ρ in typischen Größenordnungen; cₚ = 1000 J/(kg K) ist eine Modellannahme. Kein konkretes Produkt. Effektive Wärmeleitung vereinfacht als isotrop.',source:'https://www.aerogel.com/wp-content/uploads/2021/06/Pyrogel_HPS_Datasheet_English_v1.3.pdf'},
+];

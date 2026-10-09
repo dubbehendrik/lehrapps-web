@@ -1,6 +1,12 @@
 import { lazy } from "react";
 export const appRegistry = [
   {
+    path: "/waermeleitung",
+    name: "Wärmeleitung im Quader",
+    description: "Abkühlung eines Quaders untersuchen, Temperaturfelder in verschiebbaren Schnitten betrachten und Biot- sowie Fourier-Zahlen vergleichen.",
+    component: lazy(() => import("./apps/waermeleitung/App")),
+  },
+  {
     path: "/zerfallsarten",
     name: "Zerfallsarten",
     description: "Kennzahlen und Filmdicke an einer Rotationsglocke berechnen und den Betriebspunkt im Zerfallsdiagramm untersuchen.",
