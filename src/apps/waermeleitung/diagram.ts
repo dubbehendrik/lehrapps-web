@@ -93,14 +93,15 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   for(let i=0;i<8;i++)for(const bit of [1,2,4])if(!(i&bit))line(ctx,[corners[i],corners[i|bit]]);
   const [h,v,n]=planeAxes(view.plane),f=view.position/p.size[n]+.5;
   const plane=[[0,0],[1,0],[1,1],[0,1]].map(([a,b])=>{const pos=[0,0,0];pos[h]=a;pos[v]=b;pos[n]=f;return proj(pos[0],pos[1],pos[2]);});
-  ctx.strokeStyle='#a34800';line(ctx,plane,true,'#f0a65b80');ctx.fillStyle='#162c3c';ctx.font='16px system-ui';ctx.fillText('Quader · proportionale Geometrie',810,98);
+  ctx.strokeStyle='#a34800';line(ctx,plane,true,'#f0a65b80');ctx.fillStyle='#162c3c';ctx.font='16px system-ui';ctx.fillText('Quader · proportionale Geometrie',810,60);
   const origin=proj(.5,.5,.5);
   ctx.strokeStyle='#007053';ctx.fillStyle='#007053';ctx.lineWidth=2.5;
   [[Math.sqrt(3)/2,.5],[-Math.sqrt(3)/2,.5],[0,-1]].forEach(([dx,dy],i)=>{
-    const end=[origin[0]+38*dx,origin[1]+38*dy];arrow(ctx,origin[0],origin[1],end[0],end[1]);
+    const length=i===2?75:140;
+    const end=[origin[0]+length*dx,origin[1]+length*dy];arrow(ctx,origin[0],origin[1],end[0],end[1]);
     ctx.fillText(axes[i],end[0]+(dx<0?-14:6),end[1]+(dy<0?-4:6));
   });ctx.fillStyle='#162c3c';ctx.lineWidth=1.5;
-  ctx.fillText(`Schnitt: ${view.plane}, ${s.normal} = ${fmt(view.position)} mm`,815,237);
+  ctx.fillText(`Schnitt: ${view.plane}, ${s.normal} = ${fmt(view.position)} mm`,815,247);
   ctx.strokeStyle='#cad5dd';ctx.strokeRect(805,252,275,535);ctx.font='17px system-ui';
   const text=(value:string,y:number)=>ctx.fillText(value,818,y,250);
   text(p.material,277);text(`${p.size.map(fmt).join(' × ')} mm`,303);
@@ -109,11 +110,12 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   subscriptText(ctx,[['T','0'],[` = ${fmt(p.initial)} °C; `],['T','∞'],[` = ${fmt(p.ambient)} °C`]],818,407);
   text(`Endzeit: ${fmt(p.endTime)} s`,433);
   axes.forEach((axis,i)=>{
-    const y=473+i*92;ctx.strokeStyle='#cad5dd';line(ctx,[[817,y-16],[1068,y-16]]);
-    subscriptText(ctx,[['α',`${axis},−`],[` = ${fmt(p.alphas[2*i])}; `],['α',`${axis},+`],[` = ${fmt(p.alphas[2*i+1])}`]],818,y);
-    subscriptText(ctx,[['L',`${axis},char`],[` = ${fmt(p.size[i]/2)} mm · α: W/(m² K)`]],818,y+23);
-    subscriptText(ctx,[['Bi',`${axis},−`],[` = ${fmt(s.bi[2*i])}; `],['Bi',`${axis},+`],[` = ${fmt(s.bi[2*i+1])}`]],818,y+46);
-    subscriptText(ctx,[['Fo',axis],[` = ${fmt(s.fo[i])}`]],818,y+69);
+    const y=469+i*92;ctx.strokeStyle='#cad5dd';line(ctx,[[817,y-16],[1068,y-16]]);
+    subscriptText(ctx,[['α',`${axis},−`],[` = ${fmt(p.alphas[2*i])} W/(m² K)`]],818,y);
+    subscriptText(ctx,[['α',`${axis},+`],[` = ${fmt(p.alphas[2*i+1])} W/(m² K)`]],818,y+18);
+    subscriptText(ctx,[['L',`${axis},char`],[` = ${fmt(p.size[i]/2)} mm`]],818,y+36);
+    subscriptText(ctx,[['Bi',`${axis},−`],[` = ${fmt(s.bi[2*i])}; `],['Bi',`${axis},+`],[` = ${fmt(s.bi[2*i+1])}`]],818,y+54);
+    subscriptText(ctx,[['Fo',axis],[` = ${fmt(s.fo[i])}`]],818,y+72);
   });
   ctx.strokeStyle='#cad5dd';line(ctx,[[817,744],[1068,744]]);text(`Punkte: ${p.points.join(' × ')}`,770);
 }
