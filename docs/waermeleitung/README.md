@@ -34,7 +34,7 @@ Temperaturbegrenzung, welche Konvergenzprobleme verdecken könnte.
 
 ## Darstellung und Exporte
 
-Standard: 70×70×5 mm; T₀=180 °C; T∞=20 °C; α=10 W/(m² K); Ende 1800 s.
+Standard: 70×70×5 mm; T₀=180 °C; T∞=20 °C; α=10 W/(m² K); Ende 600 s.
 Stahl/Edelstahl: ρ=7850 kg/m³, cₚ=477 J/(kg K); Aluminium: ρ=2700 kg/m³, cₚ=888 J/(kg K).
 101×101×41 Auswertepunkte, ganzzahlig 11–201; die Punkte schließen beide Oberflächen ein.
 Nur die gerade sichtbare Ebene wird materialisiert. Worker, begrenzter Eigenmoden-Cache,

@@ -19,5 +19,5 @@ export interface Slice {
 export const defaults: Parameters = {
   size: [70,70,5], points: [101,101,41], alphas: [10,10,10,10,10,10],
   conductivity: 50, density: 7850, cp: 477, initial: 180, ambient: 20,
-  endTime: 1800, material: 'Stahl (unlegiert, Lehrwert)',
+  endTime: 600, material: 'Stahl (unlegiert, Lehrwert)',
 };
