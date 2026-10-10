@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Chart } from '../../components/Chart';
 import { MathExpression, math as m } from '../../components/MathNotation';
 import { SupportFooter } from '../../components/SupportFooter';
 import { calculate, compareStages, DEFAULTS, MAX_STAGES, type Parameters } from './logic';
 import { FlowDiagram, fmt, type LabelMode } from './FlowDiagram';
+import { flow, Symbol } from './Notation';
+import { ProgramDescription, ApproximationFormula } from './ProgramDescription';
+import { powerAxis } from './display';
 import './style.css';
 
 export default function App() {
@@ -17,7 +20,7 @@ export default function App() {
   try { result = calculate(p); } catch (e) { error = (e as Error).message; }
   const comparisons = result ? compareStages(p) : [];
   const update = (key: keyof Parameters, value: number) => setP(old => ({ ...old, [key]: value }));
-  const number = (key: keyof Parameters, label: string, min: number, step: number | 'any' = 'any') => <label>{label}
+  const number = (key: keyof Parameters, label: ReactNode, min: number, step: number | 'any' = 'any') => <label>{label}
     <input type="number" min={min} step={step} value={Number.isNaN(Number(p[key])) ? '' : Number(p[key])}
       onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))} />
   </label>;
@@ -29,13 +32,17 @@ export default function App() {
   const changeMode = (mode: Parameters['mode']) => setP(old => ({ ...old, mode,
     freshFlow: mode === 'flow' && result ? result.freshFlow : old.freshFlow }));
   const c = (index: string) => m.index('c', index);
-  const vA = m.index('V̇', 'A');
-  const vW = m.index('V̇', 'VE');
+  const vA = flow('A');
   const plus = m.operator('+');
   const eq = m.operator('=');
   const minus = m.operator('−');
   const i = Math.min(selected, p.stages);
-  const nextSymbol = i === p.stages ? 'VE' : String(i + 1);
+  const dragInIndex = `${i - 1}${i}`;
+  const dragOutIndex = i === p.stages ? `${i},aus` : `${i}${i + 1}`;
+  const waterOutIndex = i === 1 ? '1,aus' : `${i}${i - 1}`;
+  const nextSymbol = i === p.stages ? 'VE' : `${i + 1}${i}`;
+  const waterInFlow = flow(nextSymbol);
+  const waterOutFlow = flow(waterOutIndex);
   const nextConcentration = result ? (i === p.stages ? p.freshConcentration : result.concentrations[i + 1]) : 0;
   const balances = result ? {
     dragIn: result.dragFlow * result.concentrations[i - 1],
@@ -61,7 +68,7 @@ export default function App() {
   };
   return <article className="cascade-app">
     <h1>Gegenstromkaskade</h1>
-    <p>Untersuchen Sie, wie zusätzliche Spülstufen den Wasserbedarf und die Restkonzentration verändern. Bauteile werden vorwärts transportiert, das Spülwasser fließt im Gegenstrom.</p>
+    <ProgramDescription />
     <section className="controls" aria-label="Eingaben">
       <div className="cascade-toolbar"><h2>Spülstufen</h2>
         <button aria-label="Eine Spülstufe entfernen" disabled={p.stages === 1} onClick={() => changeStages(-1)}>−</button>
@@ -78,9 +85,9 @@ export default function App() {
         {number('area', `Benetzte Oberfläche je ${basis} [m²]`, 0)}
         {number('throughput', `Durchsatz [${basis === 'Charge' ? 'Chargen' : 'Bauteile'}/h]`, 0)}
         {number('specificDrag', 'Spezifische Verschleppung [ml/m²]', 0)}
-        {number('initialConcentration', 'Konzentration der eingeschleppten Flüssigkeit c₀ [g/L]', 0)}
-        {number('freshConcentration', 'Frischwasserkonzentration cVE [g/L]', 0)}
-        {number('targetCriterion', p.mode === 'target' ? 'Gefordertes Spülkriterium Sk = c₀ / cN [−]' : 'Spülkriterium zum Vergleich Sk [−]', 1)}
+        {number('initialConcentration', <>Konzentration der eingeschleppten Flüssigkeit <Symbol base="c" index="0" /> [g/L]</>, 0)}
+        {number('freshConcentration', <>Frischwasserkonzentration <Symbol base="c" index="VE" /> [g/L]</>, 0)}
+        {number('targetCriterion', <>{p.mode === 'target' ? 'Gefordertes Spülkriterium' : 'Spülkriterium zum Vergleich'} <MathExpression label="Spülkriterium gleich Eingangskonzentration geteilt durch Endkonzentration">{m.row(m.index('S', 'k'), eq, m.fraction(c('0'), c('N')))}</MathExpression> [−]</>, 1)}
         {p.mode === 'flow' && number('freshFlow', 'Frischwasserstrom [L/min]', 0)}
       </div>
       <p className="cascade-hint">Oberfläche und Durchsatz beziehen sich auf dieselbe Bezugsgröße. Für eine Charge alle gleichzeitig gespülten Oberflächen zusammenzählen. Oberfläche, Durchsatz, Verschleppung und c₀ müssen größer als 0 sein.</p>
@@ -91,7 +98,7 @@ export default function App() {
         <dl className="cascade-metrics">
           <div><dt>{p.mode === 'target' ? 'Erforderlicher Frischwasserstrom' : 'Vorgegebener Frischwasserstrom'}</dt><dd>{fmt(result.freshFlow, 6)} L/min</dd></div>
           <div><dt>Verschleppungsstrom</dt><dd>{fmt(result.dragFlow, 6)} L/min</dd></div>
-          <div><dt>Endkonzentration cN</dt><dd>{fmt(result.finalConcentration, 6)} g/L</dd></div>
+          <div><dt>Endkonzentration <Symbol base="c" index="N" /></dt><dd>{fmt(result.finalConcentration, 6)} g/L</dd></div>
           <div><dt>Erreichtes Spülkriterium</dt><dd>{fmt(result.criterion, 6)}</dd></div>
         </dl>
         <p><strong>{result.meetsTarget ? 'Spülkriterium erfüllt' : 'Spülkriterium nicht erfüllt'}</strong> · Grenzwert: {fmt(result.limit, 6)} g/L · Spülverhältnis R: {fmt(result.ratio, 6)}</p>
@@ -106,13 +113,13 @@ export default function App() {
           <button onClick={() => setSelected(Math.min(p.stages, i + 1))} disabled={i === p.stages} aria-label="Bilanz der nächsten Stufe">→</button>
         </div>
         <p>Volumenbilanz: gleicher Verschleppungsstrom hinein und hinaus; alle Überläufe entsprechen dem Frischwasserstrom.</p>
-        <MathExpression label="Volumenbilanz: Verschleppung plus Wasserzulauf minus Verschleppung minus Wasserablauf gleich null">{m.row(vA, plus, vW, minus, vA, minus, vW, eq, m.number('0'))}</MathExpression>
+        <MathExpression label="Volumenbilanz: Verschleppung plus Wasserzulauf minus Verschleppung minus Wasserablauf gleich null">{m.row(vA, plus, waterInFlow, minus, vA, minus, waterOutFlow, eq, m.number('0'))}</MathExpression>
         <p>Schmutzmassenbilanz: Eingehende Schmutzströme entsprechen den ausgehenden Schmutzströmen.</p>
         <div className="cascade-equation"><MathExpression label={`Schmutzbilanz für Stufe ${i}`}>
-          {m.row(vA, c(String(i - 1)), plus, vW, c(nextSymbol), minus, vA, c(String(i)), minus, vW, c(String(i)), eq, m.number('0'))}
+          {m.row(vA, c(dragInIndex), plus, waterInFlow, c(nextSymbol), minus, vA, c(dragOutIndex), minus, waterOutFlow, c(waterOutIndex), eq, m.number('0'))}
         </MathExpression></div>
         {balances && <p>{fmt(balances.dragIn, 6)} + {fmt(balances.waterIn, 6)} − {fmt(balances.dragOut, 6)} − {fmt(balances.waterOut, 6)} = {fmt(balances.dragIn + balances.waterIn - balances.dragOut - balances.waterOut, 3)} g/min</p>}
-        <p className="cascade-hint">c₀ ist die Eingangskonzentration des Flüssigkeitsfilms; in der letzten Stufe stammt der Wasserzulauf aus dem Frischwasser mit cVE. Alle Zahlen werden erst für die Anzeige gerundet.</p>
+        <p className="cascade-hint"><Symbol base="c" index="0" /> ist die Eingangskonzentration des Flüssigkeitsfilms. Alle Stromkonzentrationen entsprechen ihrer Herkunftsstufe; in der letzten Stufe stammt der Wasserzulauf aus dem Frischwasser mit <Symbol base="c" index="VE" />. Alle Zahlen werden erst für die Anzeige gerundet.</p>
       </section>
       <div className="cascade-chart-options"><label><input type="checkbox" checked={logarithmic} onChange={e => setLogarithmic(e.target.checked)} /> Konzentrationen logarithmisch darstellen</label></div>
       <div className="charts">
@@ -122,7 +129,7 @@ export default function App() {
             { x: [0, p.stages], y: [result.limit, result.limit], type: 'scatter', mode: 'lines', name: 'Grenzwert', line: { color: '#a34c00', dash: 'dash' } },
             ...(p.freshConcentration > 0 ? [{ x: [0, p.stages], y: [p.freshConcentration, p.freshConcentration], type: 'scatter' as const, mode: 'lines' as const, name: 'Frischwasser', line: { color: '#007053', dash: 'dot' as const } }] : []),
           ]}
-          layout={{ xaxis: { title: { text: 'Spülstufe [−]' }, dtick: 1 }, yaxis: { title: { text: 'Konzentration [g/L]' }, type: logarithmic ? 'log' : 'linear' }, legend: { orientation: 'h', y: -0.3 } }} />
+          layout={{ xaxis: { title: { text: 'Spülstufe [−]' }, dtick: 1 }, yaxis: { title: { text: 'Konzentration [g/L]' }, ...(logarithmic ? powerAxis([...result.concentrations, result.limit, p.freshConcentration]) : { type: 'linear' as const }) }, legend: { orientation: 'h', y: -0.3 } }} />
         <Chart title={p.mode === 'target' ? 'Wasserbedarf nach Stufenzahl' : 'Spülwirkung nach Stufenzahl'}
           description={p.mode === 'target' ? 'Gleiches Spülkriterium und gleicher Durchsatz für alle Varianten. Der aktuelle Aufbau ist orange markiert.' : 'Gleicher Frischwasserstrom und gleicher Durchsatz für alle Varianten. Die gestrichelte Linie zeigt das Vergleichskriterium.'}
           data={[
@@ -130,7 +137,7 @@ export default function App() {
             { x: [p.stages], y: [p.mode === 'target' ? result.freshFlow : result.criterion], type: 'scatter', mode: 'markers', name: 'Aktuelle Stufenzahl', marker: { color: '#a34c00', size: 12, symbol: 'diamond' } },
             ...(p.mode === 'flow' ? [{ x: [1, MAX_STAGES], y: [p.targetCriterion, p.targetCriterion], type: 'scatter' as const, mode: 'lines' as const, name: 'Vergleichskriterium', line: { color: '#007053', dash: 'dash' as const } }] : []),
           ]}
-          layout={{ xaxis: { title: { text: 'Anzahl Spülstufen [−]' }, dtick: 1 }, yaxis: { title: { text: p.mode === 'target' ? 'Frischwasserstrom [L/min]' : 'Spülkriterium [−]' }, type: p.mode === 'target' && result.freshFlow === 0 ? 'linear' : 'log' }, legend: { orientation: 'h', y: -0.3 } }} />
+          layout={{ xaxis: { title: { text: 'Anzahl Spülstufen [−]' }, dtick: 1 }, yaxis: { title: { text: p.mode === 'target' ? 'Frischwasserstrom [L/min]' : 'Spülkriterium [−]' }, ...(p.mode === 'target' && result.freshFlow === 0 ? { type: 'linear' as const } : powerAxis([...comparisons.map(row => row.result ? p.mode === 'target' ? row.result.freshFlow : row.result.criterion : NaN), ...(p.mode === 'flow' ? [p.targetCriterion] : [])])) }, legend: { orientation: 'h', y: -0.3 } }} />
       </div>
       <h2>Ergebnisse je Stufe</h2>
       <div className="cascade-table"><table><thead><tr><th scope="col">Stufe</th><th scope="col">Konzentration [g/L]</th><th scope="col">Verschleppung hinaus [g/min]</th><th scope="col">Überlauf hinaus [g/min]</th></tr></thead>
@@ -142,28 +149,10 @@ export default function App() {
       {p.mode === 'target' && result.approximateFlow !== null && <details><summary>Exakte Lösung und Näherung vergleichen</summary>
         <p>Exakt: {fmt(result.freshFlow, 6)} L/min. Näherung: {fmt(result.approximateFlow, 6)} L/min.
           {result.freshFlow > 0 && <> Abweichung: +{fmt((result.approximateFlow / result.freshFlow - 1) * 100, 4)} %.</>}</p>
-        <p>Für unbelastetes Frischwasser gilt R ≈ Sk<sup>1/N</sup>. Bei belastetem Frischwasser wird stattdessen [(c₀ − cVE) / (c₀/Sk − cVE)]<sup>1/N</sup> verwendet.</p>
+        <p>Die Näherung berücksichtigt die Frischwasserkonzentration; für unbelastetes Frischwasser vereinfacht sie sich entsprechend.</p><ApproximationFormula />
         <p>Die Näherung lässt die kleineren Potenzen in der Summe weg und überschätzt den Mindestwasserbedarf. Sie ist nur bei hinreichend großem R brauchbar. Ein großes Spülkriterium allein garantiert dies bei vielen Stufen nicht.</p>
       </details>}
     </>}
-    <details><summary>Berechnungsmodell und Annahmen</summary>
-      <p>Stationärer Zustand, ideal durchmischte Becken, inkompressible Flüssigkeit mit näherungsweise gleicher Dichte. Der mitgeführte Flüssigkeitsfilm nimmt nach jeder Spülstufe deren Konzentration an. Der Verschleppungsstrom bleibt an allen Stufen gleich. Verdunstung, Reaktion und zusätzliche Flüssigkeitsverluste werden vernachlässigt.</p>
-      <p>Die Eingangskonzentration beschreibt Schmutz in der mitgeführten Flüssigkeit, keine unabhängig auf der Oberfläche haftende Schmutzmasse. Die Zahl der Stufen ist auf 1 bis 8 begrenzt. Für eine Nullstufen-Anlage gilt dieses Modell nicht.</p>
-      <div className="cascade-equation"><MathExpression label="Verschleppungsstrom in Liter je Minute gleich Fläche mal spezifische Verschleppung mal Durchsatz geteilt durch 60000">
-        {m.row(vA, eq, m.fraction(m.row(m.identifier('A'), m.operator('·'), m.index('v', 'A'), m.operator('·'), m.identifier('ṅ')), m.number('60000')))}
-      </MathExpression></div>
-      <p>Einheiten dieser Umrechnung: A in m², vA in ml/m² und Durchsatz in 1/h; Ergebnis in L/min.</p>
-      <div className="cascade-equation"><MathExpression label="Spülverhältnis gleich Frischwasserstrom geteilt durch Verschleppungsstrom">
-        {m.row(m.identifier('R'), eq, m.fraction(vW, vA))}
-      </MathExpression></div>
-      <p>Mit Sⱼ = 1 + R + … + Rʲ gilt für jede Stufe i:</p>
-      <div className="cascade-equation"><MathExpression label="Konzentration in Stufe i gleich Frischwasserkonzentration plus Eingangskonzentration minus Frischwasserkonzentration mal S N minus i geteilt durch S N">
-        {m.row(c('i'), eq, c('VE'), plus, m.operator('('), c('0'), minus, c('VE'), m.operator(')'), m.operator('·'), m.fraction(m.index('S', 'N−i'), m.index('S', 'N')))}
-      </MathExpression></div>
-      <p>Bei unbelastetem Frischwasser folgt Sk = Sₙ. Für R = 1 ergibt sich cᵢ = cVE + (c₀ − cVE) · (N − i + 1)/(N + 1). Bei Wasserstrom 0 findet stationär keine Verdünnung statt.</p>
-      <p>Bei cVE &gt; 0 ist c₀/cVE die asymptotische Obergrenze des erreichbaren Spülkriteriums, sofern cVE &lt; c₀. Ein Ziel genau an dieser Grenze benötigt einen unendlich großen Wasserstrom.</p>
-      <p>Die Mindestwassermenge wird numerisch aus der vollständigen Bilanz berechnet. Beckenvolumen, Bauteilmasse, Verweilzeit und Transportzeit gehen in dieses stationäre Idealmodell nicht ein. Der Durchsatz wird direkt vorgegeben.</p>
-    </details>
     <SupportFooter appName="Gegenstromkaskade" reviewed={false} />
   </article>;
 }

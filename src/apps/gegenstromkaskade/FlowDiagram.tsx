@@ -7,10 +7,14 @@ export function FlowDiagram({ p, result, selected, onSelect, labels }: {
   p: Parameters; result: ReturnType<typeof calculate>; selected: number;
   onSelect: (stage: number) => void; labels: LabelMode;
 }) {
-  const width = 360 + 270 * p.stages;
-  const x = (i: number) => 170 + (i - 1) * 270;
-  const label = (symbol: string, value: number, unit: string) => labels === 'symbols' ? symbol
-    : labels === 'values' ? `${fmt(value)} ${unit}` : `${symbol} = ${fmt(value)} ${unit}`;
+  const width = 360 + 310 * p.stages;
+  const x = (i: number) => 170 + (i - 1) * 310;
+  const label = (symbol: string, value: number, unit: string) => {
+    if (labels === 'values') return `${fmt(value)} ${unit}`;
+    const dotted = symbol.startsWith('V̇');
+    const index = symbol.slice(dotted ? 2 : 1);
+    return <>{dotted ? <><tspan>V</tspan><tspan dx="-0.6em" dy="-0.65em">˙</tspan><tspan dx="0.35em" dy="0.65em" /></> : <tspan>c</tspan>}<tspan baselineShift="sub" fontSize="70%">{index}</tspan>{labels === 'both' && <tspan baselineShift="baseline"> = {fmt(value)} {unit}</tspan>}</>;
+  };
   return <div className="cascade-flow-scroll" tabIndex={0} aria-label="Fließbild, bei vielen Stufen horizontal verschiebbar">
     <svg className="cascade-flow" viewBox={`0 0 ${width} 435`} style={{ minWidth: width }} role="img" aria-labelledby="cascade-svg-title cascade-svg-description">
       <title id="cascade-svg-title">Gegenstromkaskade mit {p.stages} Spülstufen</title>
@@ -20,7 +24,7 @@ export function FlowDiagram({ p, result, selected, onSelect, labels }: {
         <marker id="cascade-water-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#164a87" /></marker>
       </defs>
       <text x="20" y="28" fontWeight="700">Bauteile / Chargen →</text>
-      <text x="20" y="55">{fmt(p.throughput)} pro Stunde · Verschleppung: {label('V̇A', result.dragFlow, 'L/min')}</text>
+      <text x="20" y="55">{fmt(p.throughput)} pro Stunde</text>
       {Array.from({ length: p.stages }, (_, j) => {
         const i = j + 1;
         return <g key={i} role="button" tabIndex={0} aria-label={`Bilanz für Stufe ${i} anzeigen`} aria-pressed={selected === i}
@@ -36,21 +40,23 @@ export function FlowDiagram({ p, result, selected, onSelect, labels }: {
         const start = i === 0 ? 10 : x(i) + 170;
         const end = i === p.stages ? width - 10 : x(i + 1);
         return <g key={`drag-${i}`}><path d={`M ${start} 175 H ${end - 6}`} stroke="#a34c00" strokeWidth="3" fill="none" markerEnd="url(#cascade-drag-arrow)" />
-          <text x={(start + end) / 2} y="164" textAnchor="middle" fontSize="14">{labels === 'symbols' ? `c${i}` : `${fmt(result.concentrations[i])} g/L`}</text></g>;
+          <text x={(start + end) / 2} y="164" textAnchor="middle" fontSize="14">{label(`c${i === p.stages ? `${i},aus` : `${i}${i + 1}`}`, result.concentrations[i], 'g/L')}</text></g>;
       })}
       {Array.from({ length: p.stages }, (_, j) => {
         const i = j + 1;
         const start = x(i);
         const end = i === 1 ? 10 : x(i - 1) + 170;
         return <g key={`water-${i}`}><path d={`M ${start} 264 H ${end + 6}`} stroke="#164a87" strokeWidth="3" fill="none" markerEnd="url(#cascade-water-arrow)" />
-          <text x={(start + end) / 2} y="253" textAnchor="middle" fontSize="14">{labels === 'symbols' ? `c${i}` : `${fmt(result.concentrations[i])} g/L`}</text></g>;
+          <text x={(start + end) / 2} y="284" textAnchor="middle" fontSize="14">{label(`V̇${i === 1 ? '1,aus' : `${i}${i - 1}`}`, result.freshFlow, 'L/min')}</text>
+          <text x={(start + end) / 2} y="253" textAnchor="middle" fontSize="14">{label(`c${i === 1 ? '1,aus' : `${i}${i - 1}`}`, result.concentrations[i], 'g/L')}</text></g>;
       })}
       <path d={`M ${x(p.stages) + 85} 70 V 112`} stroke="#164a87" strokeWidth="3" markerEnd="url(#cascade-water-arrow)" />
-      <text x={x(p.stages) + 85} y="29" textAnchor="middle" fontWeight="700">Frischwasser ↓</text>
-      <text x={x(p.stages) + 85} y="53" textAnchor="middle">{label('cVE', p.freshConcentration, 'g/L')}</text>
-      <text x="20" y="345" fill="#164a87">← Abwasser: {label('V̇VE', result.freshFlow, 'L/min')}</text>
+      <text x={x(p.stages) + 185} y="29" textAnchor="start" fontWeight="700">Frischwasser ↓</text>
+      <text x={x(p.stages) + 185} y="92" textAnchor="start" fontSize="14">{label('V̇VE', result.freshFlow, 'L/min')}</text>
+      <text x={x(p.stages) + 185} y="53" textAnchor="start">{label('cVE', p.freshConcentration, 'g/L')}</text>
+      <text x="20" y="345" fill="#164a87">← Abwasser: {label('V̇1,aus', result.freshFlow, 'L/min')}</text>
       <text x={width - 20} y="345" textAnchor="end" fill="#a34c00">Ausgetragener Flüssigkeitsfilm →</text>
-      <text x="20" y="385" fill="#a34c00">Orange Pfeile: mitgeführter Flüssigkeitsfilm, überall {fmt(result.dragFlow)} L/min</text>
+      <text x="20" y="385" fill="#a34c00">Orange Pfeile: Flüssigkeitsfilm, überall {label('V̇A', result.dragFlow, 'L/min')}</text>
       <text x="20" y="414" fill="#164a87">Blaue Pfeile: Wasser im Gegenstrom, Zulauf und alle Überläufe {fmt(result.freshFlow)} L/min</text>
     </svg>
   </div>;
