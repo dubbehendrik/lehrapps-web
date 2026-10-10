@@ -16,8 +16,8 @@ export function ApproximationFormula() {
 export function ProgramDescription() {
   return <details><summary>Programmbeschreibung</summary>
     <h2>Ansatz und Bedienung</h2>
-    <p>Das Programm berechnet die stationären Konzentrationen und den Frischwasserbedarf einer Gegenstrom-Spülkaskade. Bauteile beziehungsweise Chargen durchlaufen die Becken von Stufe 1 bis Stufe N. Das Frischwasser wird der letzten Stufe zugeführt und gelangt über die Überläufe entgegen der Bauteilbewegung zur ersten Stufe.</p>
-    <p>Mit − und + ändern Sie die Anzahl der Spülstufen von 1 bis 8. Geben Sie die gesamte benetzte Oberfläche je Bauteil beziehungsweise Charge, den Durchsatz, die spezifische Verschleppung sowie die Eingangs- und Frischwasserkonzentration vor. Oberfläche und Durchsatz müssen sich auf dieselbe Bezugsgröße beziehen.</p>
+    <p>Das Programm berechnet die stationären Konzentrationen und den Frischwasserbedarf einer Gegenstrom-Spülkaskade. Bauteile durchlaufen die Becken von Stufe 1 bis Stufe N. Das Frischwasser wird der letzten Stufe zugeführt und gelangt über die Überläufe entgegen der Bauteilbewegung zur ersten Stufe.</p>
+    <p>Mit − und + ändern Sie die Anzahl der Spülstufen von 1 bis 8. Geben Sie die gesamte benetzte Oberfläche je Bauteil, den Durchsatz, die spezifische Verschleppung sowie die Eingangs- und Frischwasserkonzentration vor. Ein gemeinsam gespültes Paket kann als ein Bauteil gezählt werden; dann werden seine gesamte benetzte Oberfläche und der Paketdurchsatz eingesetzt.</p>
     <p>In der Betriebsart „Spülkriterium vorgeben“ wird der erforderliche Frischwasserstrom berechnet; der Stufenvergleich zeigt die Wassereinsparung bei gleichem Spülziel. In der Betriebsart „Frischwasserstrom vorgeben“ werden die Endkonzentration und das erreichte Spülkriterium berechnet; der Stufenvergleich zeigt die Spülwirkung bei gleichem Wasserstrom.</p>
     <p>Das Fließbild zeigt Ströme und Konzentrationen. Wählen Sie ein Becken, um seine Volumen- und Schmutzmassenbilanz zu betrachten. Diagramme und Tabellen ergänzen die Auswertung; die Ergebnisse können als CSV heruntergeladen werden.</p>
     <h2>Bezeichnungen und Stromrichtungen</h2>

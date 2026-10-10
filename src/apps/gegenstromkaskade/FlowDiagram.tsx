@@ -1,8 +1,7 @@
 import type { Parameters } from './logic';
 import { calculate } from './logic';
 export type LabelMode = 'values' | 'symbols' | 'both';
-export const fmt = (v: number, digits = 4) => Number.isFinite(v)
-  ? v.toLocaleString('de-DE', { maximumSignificantDigits: digits }) : '∞';
+import { fmt } from './format';
 export function FlowDiagram({ p, result, selected, onSelect, labels }: {
   p: Parameters; result: ReturnType<typeof calculate>; selected: number;
   onSelect: (stage: number) => void; labels: LabelMode;
@@ -13,7 +12,7 @@ export function FlowDiagram({ p, result, selected, onSelect, labels }: {
     if (labels === 'values') return `${fmt(value)} ${unit}`;
     const dotted = symbol.startsWith('V̇');
     const index = symbol.slice(dotted ? 2 : 1);
-    return <>{dotted ? <><tspan>V</tspan><tspan dx="-0.6em" dy="-0.65em">˙</tspan><tspan dx="0.35em" dy="0.65em" /></> : <tspan>c</tspan>}<tspan baselineShift="sub" fontSize="70%">{index}</tspan>{labels === 'both' && <tspan baselineShift="baseline"> = {fmt(value)} {unit}</tspan>}</>;
+    return <>{dotted ? <><tspan>V</tspan><tspan dx="-0.6em" dy="-0.45em">•</tspan><tspan dx="0.35em" dy="0.45em" /></> : <tspan>c</tspan>}<tspan baselineShift="sub" fontSize="70%">{index}</tspan>{labels === 'both' && <tspan baselineShift="baseline"> = {fmt(value)} {unit}</tspan>}</>;
   };
   return <div className="cascade-flow-scroll" tabIndex={0} aria-label="Fließbild, bei vielen Stufen horizontal verschiebbar">
     <svg className="cascade-flow" viewBox={`0 0 ${width} 435`} style={{ minWidth: width }} role="img" aria-labelledby="cascade-svg-title cascade-svg-description">
@@ -23,7 +22,7 @@ export function FlowDiagram({ p, result, selected, onSelect, labels }: {
         <marker id="cascade-drag-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a34c00" /></marker>
         <marker id="cascade-water-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#164a87" /></marker>
       </defs>
-      <text x="20" y="28" fontWeight="700">Bauteile / Chargen →</text>
+      <text x="20" y="28" fontWeight="700">Bauteile →</text>
       <text x="20" y="55">{fmt(p.throughput)} pro Stunde</text>
       {Array.from({ length: p.stages }, (_, j) => {
         const i = j + 1;

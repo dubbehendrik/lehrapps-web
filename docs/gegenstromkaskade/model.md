@@ -4,7 +4,7 @@ Route: `/gegenstromkaskade`. Stationäres Idealmodell einer Gegenstrom-Spülkask
 
 ## Eingaben und Modellgrenzen
 
-Oberfläche in m² je Bauteil/Charge, spezifische Verschleppung in ml/m², Durchsatz in 1/h, Konzentrationen in g/L. Die Wahl Bauteil/Charge ändert nur die Bezugsgrößenbeschriftung, keine Zahlen. Oberfläche und Durchsatz müssen zusammenpassen. Masse, Beckenvolumen, Verweilzeit und Transportzeit sind keine Parameter dieses stationären Modells. Positive Verschleppung und positive Eingangskonzentration sind erforderlich. Wasserstrom und Frischwasserkonzentration dürfen null sein.
+Oberfläche in m² je Bauteil, spezifische Verschleppung in ml/m², Durchsatz in 1/h, Konzentrationen in g/L. Ein gemeinsam gespültes Paket kann als ein Bauteil gezählt werden; dann werden seine Gesamtoberfläche und der Paketdurchsatz eingesetzt. Oberfläche und Durchsatz müssen zusammenpassen. Masse, Beckenvolumen, Verweilzeit und Transportzeit sind keine Parameter dieses stationären Modells. Positive Verschleppung und positive Eingangskonzentration sind erforderlich. Wasserstrom und Frischwasserkonzentration dürfen null sein.
 
 Alle Becken werden als ideal durchmischt betrachtet. Der ausgetragene Film hat die Konzentration des jeweiligen Beckens. Gleicher Verschleppungsstrom an allen Übergängen, gleiche Dichte, inkompressible Flüssigkeit, keine Verdunstung/Reaktion oder sonstige Verluste. Schmutz wird mit einem Flüssigkeitsfilm eingeschleppt; eine unabhängige Ablösekinetik haftender Verschmutzung wird nicht simuliert.
 
@@ -52,3 +52,7 @@ Browser-/Tablet-Sichtprüfung wurde in dieser Sitzung nicht durchgeführt; fachl
 ## Bedienung
 
 +/− fügt am sauberen Ende Stufen hinzu oder entfernt sie. Der Frischwasserzulauf liegt stets an der letzten Stufe. Beim Wechsel in den Wasserstrommodus wird der aktuell berechnete Wasserstrom übernommen. Modus Ziel: Stufenvergleich bei gleichem Sk. Modus Wasserstrom: Stufenvergleich bei gleichem W. Klick oder Enter/Leertaste auf ein Becken wählt die Stufenbilanz; zusätzlich sind alle Stufen per Tabellenbutton und Bilanznavigation erreichbar. Alle Schaubildwerte stehen auch in Tabellen. Mehrstufige Fließbilder können horizontal gescrollt werden, statt Schrift auf Tablets unleserlich zu verkleinern. CSV enthält vollständige Eingaben und Ergebnisse mit deutschen Dezimalzeichen. Diagramme können über Plotly als PNG exportiert werden.
+
+## Zahlenanzeige und Notation
+
+Normale Ergebniswerte werden mit einer Nachkommastelle angezeigt. Werte unter 0,1 behalten zwei signifikante Stellen; unter 0,001 und ab 10^6 wird eine Mantisse mit einer Nachkommastelle und eine Zehnerpotenz verwendet. Berechnung und CSV behalten die ungerundeten Werte. Plotly-Hovertexte verwenden dieselbe Anzeigeformatierung wie Tabellen und Fließbild. Status, Grenzwert, Spülverhältnis und Verbrauchswerte stehen auf separaten Zeilen. Punkte über Volumenströmen werden in Formeln direkt am Buchstaben positioniert; im SVG ist der Punkt separat gesetzt.

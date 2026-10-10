@@ -3,15 +3,16 @@ import { Chart } from '../../components/Chart';
 import { MathExpression, math as m } from '../../components/MathNotation';
 import { SupportFooter } from '../../components/SupportFooter';
 import { calculate, compareStages, DEFAULTS, MAX_STAGES, type Parameters } from './logic';
-import { FlowDiagram, fmt, type LabelMode } from './FlowDiagram';
+import { FlowDiagram, type LabelMode } from './FlowDiagram';
 import { flow, Symbol } from './Notation';
 import { ProgramDescription, ApproximationFormula } from './ProgramDescription';
+import { fmt } from './format';
 import { powerAxis } from './display';
 import './style.css';
 
 export default function App() {
   const [p, setP] = useState<Parameters>({ ...DEFAULTS });
-  const [basis, setBasis] = useState('Charge');
+  const basis = 'Bauteil';
   const [selected, setSelected] = useState(1);
   const [labels, setLabels] = useState<LabelMode>('both');
   const [logarithmic, setLogarithmic] = useState(false);
@@ -74,35 +75,34 @@ export default function App() {
         <button aria-label="Eine Spülstufe entfernen" disabled={p.stages === 1} onClick={() => changeStages(-1)}>−</button>
         <output aria-live="polite" aria-label="Anzahl Spülstufen">{p.stages}</output>
         <button aria-label="Eine Spülstufe hinzufügen" disabled={p.stages === MAX_STAGES} onClick={() => changeStages(1)}>+</button>
-        <button onClick={() => { setP({ ...DEFAULTS }); setBasis('Charge'); setSelected(1); setLabels('both'); setLogarithmic(false); }}>Aufgabenbeispiel laden</button>
+        <button onClick={() => { setP({ ...DEFAULTS }); setSelected(1); setLabels('both'); setLogarithmic(false); }}>Aufgabenbeispiel laden</button>
       </div>
       <fieldset><legend>Betriebsart</legend>
         <label className="radio-label"><input type="radio" name="cascade-mode" checked={p.mode === 'target'} onChange={() => changeMode('target')} />Spülkriterium vorgeben → erforderlichen Frischwasserstrom berechnen</label>
         <label className="radio-label"><input type="radio" name="cascade-mode" checked={p.mode === 'flow'} onChange={() => changeMode('flow')} />Frischwasserstrom vorgeben → erreichtes Spülkriterium berechnen</label>
       </fieldset>
       <div className="input-grid cascade-inputs">
-        <label>Bezugsgröße<select value={basis} onChange={e => setBasis(e.target.value)}><option>Charge</option><option>Bauteil</option></select></label>
         {number('area', `Benetzte Oberfläche je ${basis} [m²]`, 0)}
-        {number('throughput', `Durchsatz [${basis === 'Charge' ? 'Chargen' : 'Bauteile'}/h]`, 0)}
+        {number('throughput', 'Durchsatz [Bauteile/h]', 0)}
         {number('specificDrag', 'Spezifische Verschleppung [ml/m²]', 0)}
         {number('initialConcentration', <>Konzentration der eingeschleppten Flüssigkeit <Symbol base="c" index="0" /> [g/L]</>, 0)}
         {number('freshConcentration', <>Frischwasserkonzentration <Symbol base="c" index="VE" /> [g/L]</>, 0)}
         {number('targetCriterion', <>{p.mode === 'target' ? 'Gefordertes Spülkriterium' : 'Spülkriterium zum Vergleich'} <MathExpression label="Spülkriterium gleich Eingangskonzentration geteilt durch Endkonzentration">{m.row(m.index('S', 'k'), eq, m.fraction(c('0'), c('N')))}</MathExpression> [−]</>, 1)}
         {p.mode === 'flow' && number('freshFlow', 'Frischwasserstrom [L/min]', 0)}
       </div>
-      <p className="cascade-hint">Oberfläche und Durchsatz beziehen sich auf dieselbe Bezugsgröße. Für eine Charge alle gleichzeitig gespülten Oberflächen zusammenzählen. Oberfläche, Durchsatz, Verschleppung und c₀ müssen größer als 0 sein.</p>
+      <p className="cascade-hint">Auch ein gemeinsam gespültes Paket kann als ein Bauteil gezählt werden. Dann ist die gesamte benetzte Oberfläche des Pakets anzugeben und der Durchsatz zählt Pakete pro Stunde. Oberfläche, Durchsatz, Verschleppung und c₀ müssen größer als 0 sein.</p>
     </section>
     {error && <p className="error" role="alert">{error}</p>}
     {result && <>
       <section className="result" aria-label="Berechnungsergebnisse">
         <dl className="cascade-metrics">
-          <div><dt>{p.mode === 'target' ? 'Erforderlicher Frischwasserstrom' : 'Vorgegebener Frischwasserstrom'}</dt><dd>{fmt(result.freshFlow, 6)} L/min</dd></div>
-          <div><dt>Verschleppungsstrom</dt><dd>{fmt(result.dragFlow, 6)} L/min</dd></div>
-          <div><dt>Endkonzentration <Symbol base="c" index="N" /></dt><dd>{fmt(result.finalConcentration, 6)} g/L</dd></div>
-          <div><dt>Erreichtes Spülkriterium</dt><dd>{fmt(result.criterion, 6)}</dd></div>
+          <div><dt>{p.mode === 'target' ? 'Erforderlicher Frischwasserstrom' : 'Vorgegebener Frischwasserstrom'}</dt><dd>{fmt(result.freshFlow)} L/min</dd></div>
+          <div><dt>Verschleppungsstrom</dt><dd>{fmt(result.dragFlow)} L/min</dd></div>
+          <div><dt>Endkonzentration <Symbol base="c" index="N" /></dt><dd>{fmt(result.finalConcentration)} g/L</dd></div>
+          <div><dt>Erreichtes Spülkriterium</dt><dd>{fmt(result.criterion)}</dd></div>
         </dl>
-        <p><strong>{result.meetsTarget ? 'Spülkriterium erfüllt' : 'Spülkriterium nicht erfüllt'}</strong> · Grenzwert: {fmt(result.limit, 6)} g/L · Spülverhältnis R: {fmt(result.ratio, 6)}</p>
-        <p>Verschleppung je {basis}: {fmt(result.dragVolume, 6)} L · Frischwasser je {basis}: {fmt(result.freshFlow * 60 / p.throughput, 6)} L</p>
+        <p><strong>{result.meetsTarget ? 'Spülkriterium erfüllt' : 'Spülkriterium nicht erfüllt'}</strong></p><p>Grenzwert: {fmt(result.limit)} g/L</p><p>Spülverhältnis R: {fmt(result.ratio)}</p>
+        <p>Verschleppung je {basis}: {fmt(result.dragVolume)} L</p><p>Frischwasser je {basis}: {fmt(result.freshFlow * 60 / p.throughput)} L</p>
       </section>
       <h2>Fließbild mit Stoffströmen</h2>
       <label className="cascade-display-mode">Beschriftung<select value={labels} onChange={e => setLabels(e.target.value as LabelMode)}><option value="both">Symbole und Zahlenwerte</option><option value="values">Zahlenwerte</option><option value="symbols">Symbole</option></select></label>
@@ -118,37 +118,37 @@ export default function App() {
         <div className="cascade-equation"><MathExpression label={`Schmutzbilanz für Stufe ${i}`}>
           {m.row(vA, c(dragInIndex), plus, waterInFlow, c(nextSymbol), minus, vA, c(dragOutIndex), minus, waterOutFlow, c(waterOutIndex), eq, m.number('0'))}
         </MathExpression></div>
-        {balances && <p>{fmt(balances.dragIn, 6)} + {fmt(balances.waterIn, 6)} − {fmt(balances.dragOut, 6)} − {fmt(balances.waterOut, 6)} = {fmt(balances.dragIn + balances.waterIn - balances.dragOut - balances.waterOut, 3)} g/min</p>}
+        {balances && <p title="Bilanzgleichgewicht innerhalb numerischer Genauigkeit; Einzelwerte für die Anzeige gerundet.">{fmt(balances.dragIn)} + {fmt(balances.waterIn)} − {fmt(balances.dragOut)} − {fmt(balances.waterOut)} ≈ {fmt(0)} g/min</p>}
         <p className="cascade-hint"><Symbol base="c" index="0" /> ist die Eingangskonzentration des Flüssigkeitsfilms. Alle Stromkonzentrationen entsprechen ihrer Herkunftsstufe; in der letzten Stufe stammt der Wasserzulauf aus dem Frischwasser mit <Symbol base="c" index="VE" />. Alle Zahlen werden erst für die Anzeige gerundet.</p>
       </section>
       <div className="cascade-chart-options"><label><input type="checkbox" checked={logarithmic} onChange={e => setLogarithmic(e.target.checked)} /> Konzentrationen logarithmisch darstellen</label></div>
       <div className="charts">
         <Chart title="Konzentration entlang der Kaskade" description="Stufe 0 bezeichnet die eingeschleppte Flüssigkeit. Die gestrichelte Linie markiert die erlaubte Endkonzentration."
           data={[
-            { x: result.concentrations.map((_, j) => j), y: result.concentrations, type: 'scatter', mode: 'lines+markers', name: 'Konzentration', line: { color: '#164a87' } },
-            { x: [0, p.stages], y: [result.limit, result.limit], type: 'scatter', mode: 'lines', name: 'Grenzwert', line: { color: '#a34c00', dash: 'dash' } },
-            ...(p.freshConcentration > 0 ? [{ x: [0, p.stages], y: [p.freshConcentration, p.freshConcentration], type: 'scatter' as const, mode: 'lines' as const, name: 'Frischwasser', line: { color: '#007053', dash: 'dot' as const } }] : []),
+            { x: result.concentrations.map((_, j) => j), y: result.concentrations, customdata: result.concentrations.map(fmt), hovertemplate: 'Stufe %{x}<br>%{customdata} g/L<extra>Konzentration</extra>', type: 'scatter', mode: 'lines+markers', name: 'Konzentration', line: { color: '#164a87' } },
+            { x: [0, p.stages], y: [result.limit, result.limit], customdata: [fmt(result.limit), fmt(result.limit)], hovertemplate: '%{customdata} g/L<extra>Grenzwert</extra>', type: 'scatter', mode: 'lines', name: 'Grenzwert', line: { color: '#a34c00', dash: 'dash' } },
+            ...(p.freshConcentration > 0 ? [{ x: [0, p.stages], y: [p.freshConcentration, p.freshConcentration], customdata: [fmt(p.freshConcentration), fmt(p.freshConcentration)], hovertemplate: '%{customdata} g/L<extra>Frischwasser</extra>', type: 'scatter' as const, mode: 'lines' as const, name: 'Frischwasser', line: { color: '#007053', dash: 'dot' as const } }] : []),
           ]}
-          layout={{ xaxis: { title: { text: 'Spülstufe [−]' }, dtick: 1 }, yaxis: { title: { text: 'Konzentration [g/L]' }, ...(logarithmic ? powerAxis([...result.concentrations, result.limit, p.freshConcentration]) : { type: 'linear' as const }) }, legend: { orientation: 'h', y: -0.3 } }} />
+          layout={{ separators: ',.', xaxis: { title: { text: 'Spülstufe [−]' }, dtick: 1 }, yaxis: { title: { text: 'Konzentration [g/L]' }, ...(logarithmic ? powerAxis([...result.concentrations, result.limit, p.freshConcentration]) : { type: 'linear' as const, tickformat: '.1f' }) }, legend: { orientation: 'h', y: -0.3 } }} />
         <Chart title={p.mode === 'target' ? 'Wasserbedarf nach Stufenzahl' : 'Spülwirkung nach Stufenzahl'}
           description={p.mode === 'target' ? 'Gleiches Spülkriterium und gleicher Durchsatz für alle Varianten. Der aktuelle Aufbau ist orange markiert.' : 'Gleicher Frischwasserstrom und gleicher Durchsatz für alle Varianten. Die gestrichelte Linie zeigt das Vergleichskriterium.'}
           data={[
-            { x: comparisons.map(row => row.stages), y: comparisons.map(row => row.result ? p.mode === 'target' ? row.result.freshFlow : row.result.criterion : null), type: 'scatter', mode: 'lines+markers', name: p.mode === 'target' ? 'Wasserbedarf' : 'Spülkriterium', line: { color: '#164a87' } },
-            { x: [p.stages], y: [p.mode === 'target' ? result.freshFlow : result.criterion], type: 'scatter', mode: 'markers', name: 'Aktuelle Stufenzahl', marker: { color: '#a34c00', size: 12, symbol: 'diamond' } },
-            ...(p.mode === 'flow' ? [{ x: [1, MAX_STAGES], y: [p.targetCriterion, p.targetCriterion], type: 'scatter' as const, mode: 'lines' as const, name: 'Vergleichskriterium', line: { color: '#007053', dash: 'dash' as const } }] : []),
+            { x: comparisons.map(row => row.stages), y: comparisons.map(row => row.result ? p.mode === 'target' ? row.result.freshFlow : row.result.criterion : null), customdata: comparisons.map(row => row.result ? fmt(p.mode === 'target' ? row.result.freshFlow : row.result.criterion) : '–'), hovertemplate: `Stufen: %{x}<br>%{customdata}${p.mode === 'target' ? ' L/min' : ''}<extra></extra>`, type: 'scatter', mode: 'lines+markers', name: p.mode === 'target' ? 'Wasserbedarf' : 'Spülkriterium', line: { color: '#164a87' } },
+            { x: [p.stages], y: [p.mode === 'target' ? result.freshFlow : result.criterion], customdata: [fmt(p.mode === 'target' ? result.freshFlow : result.criterion)], hovertemplate: `Stufen: %{x}<br>%{customdata}${p.mode === 'target' ? ' L/min' : ''}<extra>Aktuelle Stufenzahl</extra>`, type: 'scatter', mode: 'markers', name: 'Aktuelle Stufenzahl', marker: { color: '#a34c00', size: 12, symbol: 'diamond' } },
+            ...(p.mode === 'flow' ? [{ x: [1, MAX_STAGES], y: [p.targetCriterion, p.targetCriterion], customdata: [fmt(p.targetCriterion), fmt(p.targetCriterion)], hovertemplate: '%{customdata}<extra>Vergleichskriterium</extra>', type: 'scatter' as const, mode: 'lines' as const, name: 'Vergleichskriterium', line: { color: '#007053', dash: 'dash' as const } }] : []),
           ]}
-          layout={{ xaxis: { title: { text: 'Anzahl Spülstufen [−]' }, dtick: 1 }, yaxis: { title: { text: p.mode === 'target' ? 'Frischwasserstrom [L/min]' : 'Spülkriterium [−]' }, ...(p.mode === 'target' && result.freshFlow === 0 ? { type: 'linear' as const } : powerAxis([...comparisons.map(row => row.result ? p.mode === 'target' ? row.result.freshFlow : row.result.criterion : NaN), ...(p.mode === 'flow' ? [p.targetCriterion] : [])])) }, legend: { orientation: 'h', y: -0.3 } }} />
+          layout={{ separators: ',.', xaxis: { title: { text: 'Anzahl Spülstufen [−]' }, dtick: 1 }, yaxis: { title: { text: p.mode === 'target' ? 'Frischwasserstrom [L/min]' : 'Spülkriterium [−]' }, ...(p.mode === 'target' && result.freshFlow === 0 ? { type: 'linear' as const, tickformat: '.1f' } : powerAxis([...comparisons.map(row => row.result ? p.mode === 'target' ? row.result.freshFlow : row.result.criterion : NaN), ...(p.mode === 'flow' ? [p.targetCriterion] : [])])) }, legend: { orientation: 'h', y: -0.3 } }} />
       </div>
       <h2>Ergebnisse je Stufe</h2>
       <div className="cascade-table"><table><thead><tr><th scope="col">Stufe</th><th scope="col">Konzentration [g/L]</th><th scope="col">Verschleppung hinaus [g/min]</th><th scope="col">Überlauf hinaus [g/min]</th></tr></thead>
-        <tbody>{result.concentrations.slice(1).map((value, j) => <tr key={j} aria-current={i === j + 1}><th scope="row"><button onClick={() => setSelected(j + 1)}>Stufe {j + 1}</button></th><td>{fmt(value, 6)}</td><td>{fmt(value * result.dragFlow, 6)}</td><td>{fmt(value * result.freshFlow, 6)}</td></tr>)}</tbody>
+        <tbody>{result.concentrations.slice(1).map((value, j) => <tr key={j} aria-current={i === j + 1}><th scope="row"><button onClick={() => setSelected(j + 1)}>Stufe {j + 1}</button></th><td>{fmt(value)}</td><td>{fmt(value * result.dragFlow)}</td><td>{fmt(value * result.freshFlow)}</td></tr>)}</tbody>
       </table></div>
-      <p>Abwasser aus Stufe 1: {fmt(result.bathWasteLoad, 6)} g/min Schmutz. Flüssigkeitsfilm nach der letzten Stufe: {fmt(result.outputDragLoad, 6)} g/min Schmutz.</p>
+      <p>Abwasser aus Stufe 1: {fmt(result.bathWasteLoad)} g/min Schmutz. Flüssigkeitsfilm nach der letzten Stufe: {fmt(result.outputDragLoad)} g/min Schmutz.</p>
       <div className="button-row"><button onClick={exportCsv}>Ergebnisse als CSV herunterladen</button></div>
-      <details><summary>Vergleich aller Stufenzahlen als Tabelle</summary><div className="cascade-table"><table><thead><tr><th scope="col">Spülstufen</th><th scope="col">Wasserstrom [L/min]</th><th scope="col">Endkonzentration [g/L]</th><th scope="col">Spülkriterium [−]</th></tr></thead><tbody>{comparisons.map(row => <tr key={row.stages} aria-current={p.stages === row.stages}><th scope="row">{row.stages}</th><td>{row.result ? fmt(row.result.freshFlow, 6) : '–'}</td><td>{row.result ? fmt(row.result.finalConcentration, 6) : '–'}</td><td>{row.result ? fmt(row.result.criterion, 6) : row.error}</td></tr>)}</tbody></table></div></details>
+      <details><summary>Vergleich aller Stufenzahlen als Tabelle</summary><div className="cascade-table"><table><thead><tr><th scope="col">Spülstufen</th><th scope="col">Wasserstrom [L/min]</th><th scope="col">Endkonzentration [g/L]</th><th scope="col">Spülkriterium [−]</th></tr></thead><tbody>{comparisons.map(row => <tr key={row.stages} aria-current={p.stages === row.stages}><th scope="row">{row.stages}</th><td>{row.result ? fmt(row.result.freshFlow) : '–'}</td><td>{row.result ? fmt(row.result.finalConcentration) : '–'}</td><td>{row.result ? fmt(row.result.criterion) : row.error}</td></tr>)}</tbody></table></div></details>
       {p.mode === 'target' && result.approximateFlow !== null && <details><summary>Exakte Lösung und Näherung vergleichen</summary>
-        <p>Exakt: {fmt(result.freshFlow, 6)} L/min. Näherung: {fmt(result.approximateFlow, 6)} L/min.
-          {result.freshFlow > 0 && <> Abweichung: +{fmt((result.approximateFlow / result.freshFlow - 1) * 100, 4)} %.</>}</p>
+        <p>Exakt: {fmt(result.freshFlow)} L/min. Näherung: {fmt(result.approximateFlow)} L/min.
+          {result.freshFlow > 0 && <> Abweichung: +{fmt((result.approximateFlow / result.freshFlow - 1) * 100)} %.</>}</p>
         <p>Die Näherung berücksichtigt die Frischwasserkonzentration; für unbelastetes Frischwasser vereinfacht sie sich entsprechend.</p><ApproximationFormula />
         <p>Die Näherung lässt die kleineren Potenzen in der Summe weg und überschätzt den Mindestwasserbedarf. Sie ist nur bei hinreichend großem R brauchbar. Ein großes Spülkriterium allein garantiert dies bei vielen Stufen nicht.</p>
       </details>}
