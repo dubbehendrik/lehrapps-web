@@ -232,7 +232,7 @@ export default function StrahlbreiteApp() {
     });
   if (referenceInterior)
     totalData.push({
-      x: [referenceInterior.start, referenceInterior.end],
+      x: [referenceTotal!.x[0], referenceTotal!.x.at(-1)!],
       y: [referenceInterior.mean, referenceInterior.mean],
       type: "scatter",
       mode: "lines",
@@ -240,7 +240,7 @@ export default function StrahlbreiteApp() {
       line: { color: "#164a87", dash: "dash", width: 2 },
     });
   if (varied && total) totalData.push({ x: total.x, y: total.y, type: "scatter", mode: "lines", name: `Variation: ${format(numeric(speed))} mm/s`, line: { color: "#747474", width: 3 } });
-  if (varied && interior) totalData.push({ x: [interior.start, interior.end], y: [interior.mean, interior.mean], type: "scatter", mode: "lines", name: `Variierter Mittelwert = ${format(interior.mean)} µm`, line: { color: "#747474", dash: "dash", width: 2 } });
+  if (varied && interior && total) totalData.push({ x: [total.x[0], total.x.at(-1)!], y: [interior.mean, interior.mean], type: "scatter", mode: "lines", name: `Variierter Mittelwert = ${format(interior.mean)} µm`, line: { color: "#747474", dash: "dash", width: 2 } });
   const rectangles: Partial<Shape>[] =
     profile && referenceTotal
       ? Array.from({ length: Math.min(2, trackCount) }, (_, i) => ({
@@ -521,7 +521,7 @@ export default function StrahlbreiteApp() {
                         Dünne Linien: Einzelstrahlen; dicke Linie:
                         Totalbeschichtung. Rechtecke verdeutlichen{" "}
                         <IndexedSymbol base="Sb" index="50" /> der ersten beiden
-                        Bahnen. Die hinterlegte Fläche markiert den Auswertebereich; die gestrichelte Linie zeigt dessen Mittelwert.
+                        Bahnen. Die hinterlegte Fläche markiert den Auswertebereich. Die gestrichelten Mittelwertlinien reichen über die gesamte Diagrammbreite; berechnet werden die Werte ausschließlich im markierten Bereich.
                       </>
                     }
                     data={totalData}
