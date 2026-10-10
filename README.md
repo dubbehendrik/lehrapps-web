@@ -55,3 +55,7 @@ Die bestehenden Streamlit-Repositories bleiben unverändert als Referenz und Fal
 ## Lackverbrauchsrechnung
 
 Route `/lackverbrauchsrechnung`: Materialbilanz, Produktionsplanung, Szenarienvergleich und CSV/Excel/PNG/SVG. Fachliche Referenz und Prüfung: [Migrationsdokumentation](docs/lackverbrauchsrechnung/migration.md).
+
+## Gegenstromkaskade
+
+Route `/gegenstromkaskade`: Variable Zahl von Gegenstrom-Spülstufen, dynamisches Fließbild, Stufenbilanzen und Frischwasserbedarf auch bei belastetem Frischwasser. Fachliche Referenzen und Modellgrenzen: [Modelldokumentation](docs/gegenstromkaskade/model.md).

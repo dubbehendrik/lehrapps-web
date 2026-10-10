@@ -1,6 +1,12 @@
 import { lazy } from "react";
 export const appRegistry = [
   {
+    path: "/gegenstromkaskade",
+    name: "Gegenstromkaskade",
+    description: "Spülstufen ergänzen, Stoffströme und Konzentrationen verfolgen und den Frischwasserbedarf einer Gegenstromkaskade bestimmen.",
+    component: lazy(() => import("./apps/gegenstromkaskade/App")),
+  },
+  {
     path: "/Temperaturverteilung",
     name: "Temperaturverteilung",
     description: "Abkühlung eines Quaders untersuchen, Temperaturfelder in verschiebbaren Schnitten betrachten und Biot- sowie Fourier-Zahlen vergleichen.",
