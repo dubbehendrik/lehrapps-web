@@ -2,6 +2,7 @@
   {
     "name": "ideal",
     "file": "Exp_Strahlbreite_Profil_ideal.xlsx",
+    "referenceSpeed": 300,
     "points": [
       {
         "position": 0.0,
@@ -412,6 +413,7 @@
   {
     "name": "real1",
     "file": "Exp_Strahlbreite_Profil_real1.xlsx",
+    "referenceSpeed": 300,
     "points": [
       {
         "position": 0.0,
@@ -698,6 +700,7 @@
   {
     "name": "real2",
     "file": "Exp_Strahlbreite_Profil_real2.xlsx",
+    "referenceSpeed": 300,
     "points": [
       {
         "position": 0.0,

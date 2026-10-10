@@ -46,6 +46,7 @@ function NumericControl({
   min,
   max,
   step = 0.1,
+  exclusiveMin = false,
 }: {
   label: ReactNode;
   value: string;
@@ -53,9 +54,10 @@ function NumericControl({
   min: number;
   max: number;
   step?: number;
+  exclusiveMin?: boolean;
 }) {
   const number = numeric(value),
-    valid = Number.isFinite(number) && number >= min && number <= max;
+    valid = Number.isFinite(number) && (exclusiveMin ? number > min : number >= min) && number <= max;
   return (
     <div className="numeric-control">
       <label>
@@ -119,6 +121,10 @@ export default function StrahlbreiteApp() {
   const factor = scaling?.value ?? 1;
   const total = coating?.value && !scaling?.error ? { ...coating.value, y: coating.value.y.map((v) => v * factor), maximum: coating.value.maximum * factor } : null;
   const interior = total && profile ? evaluateInterior(total, profile, numeric(tracks), delta) : null;
+  const referenceTotal = coating?.value;
+  const referenceInterior = referenceTotal && profile ? evaluateInterior(referenceTotal, profile, numeric(tracks), delta) : null;
+  const displayInterior = interior ?? referenceInterior;
+  const varied = !!total && !!scaling && !scaling.error && factor !== 1;
   function selectData(next: Measurement[] | null, label: string, reference: number | null = null) {
     loadId.current++;
     setLoading(false);
@@ -166,7 +172,8 @@ export default function StrahlbreiteApp() {
     try {
       const { default: write } = await import("write-excel-file/browser");
       const data = points ?? examples[0].points;
-      const validReference = Number.isFinite(numeric(referenceSpeed)) && numeric(referenceSpeed) > 0;
+      if (referenceSpeed !== "" && !(numeric(referenceSpeed) > 0 && numeric(referenceSpeed) <= 800)) throw new Error("Ungültige Messgeschwindigkeit");
+      const validReference = Number.isFinite(numeric(referenceSpeed)) && numeric(referenceSpeed) > 0 && numeric(referenceSpeed) <= 800;
       const rows = [
         [{ value: "Ort [mm]" }, { value: "Schichtdicke [µm]" }, null, { value: "Bahngeschwindigkeit [mm/s]" }, validReference ? { value: numeric(referenceSpeed) } : null],
         ...data.map((p) => [{ value: p.position }, { value: p.thickness }]),
@@ -203,10 +210,10 @@ export default function StrahlbreiteApp() {
     : [];
   const trackCount = numeric(tracks);
   const totalData: Data[] =
-    profile && total
+    profile && referenceTotal
       ? Array.from({ length: trackCount }, (_, i) => ({
           x: profile.x.map((v) => v + i * delta),
-          y: profile.y.map((v) => v * factor),
+          y: profile.y,
           type: "scatter",
           mode: "lines",
           name: `Einzelstrahl ${i + 1}`,
@@ -214,32 +221,34 @@ export default function StrahlbreiteApp() {
           line: { color: `hsl(${(i * 360) / trackCount},65%,38%)`, width: 1 },
         }))
       : [];
-  if (total)
+  if (referenceTotal)
     totalData.push({
-      x: total.x,
-      y: total.y,
+      x: referenceTotal.x,
+      y: referenceTotal.y,
       type: "scatter",
       mode: "lines",
-      name: "Totalbeschichtung",
-      line: { color: "#162c3c", width: 3 },
+      name: referenceSpeed === "" ? "Totalbeschichtung bei Messbedingungen" : `Referenz: ${referenceSpeed} mm/s`,
+      line: { color: "#164a87", width: 3 },
     });
-  if (interior)
+  if (referenceInterior)
     totalData.push({
-      x: [interior.start, interior.end],
-      y: [interior.mean, interior.mean],
+      x: [referenceInterior.start, referenceInterior.end],
+      y: [referenceInterior.mean, referenceInterior.mean],
       type: "scatter",
       mode: "lines",
-      name: `Mittlere Schichtdicke = ${format(interior.mean)} µm`,
-      line: { color: "#526674", dash: "dash", width: 2 },
+      name: `Referenzmittelwert = ${format(referenceInterior.mean)} µm`,
+      line: { color: "#164a87", dash: "dash", width: 2 },
     });
+  if (varied && total) totalData.push({ x: total.x, y: total.y, type: "scatter", mode: "lines", name: `Variation: ${format(numeric(speed))} mm/s`, line: { color: "#747474", width: 3 } });
+  if (varied && interior) totalData.push({ x: [interior.start, interior.end], y: [interior.mean, interior.mean], type: "scatter", mode: "lines", name: `Variierter Mittelwert = ${format(interior.mean)} µm`, line: { color: "#747474", dash: "dash", width: 2 } });
   const rectangles: Partial<Shape>[] =
-    profile && total
+    profile && referenceTotal
       ? Array.from({ length: Math.min(2, trackCount) }, (_, i) => ({
           type: "rect",
           x0: profile.peakPosition + i * delta - width / 2,
           x1: profile.peakPosition + i * delta + width / 2,
           y0: 0,
-          y1: profile.maximum * factor / 2,
+          y1: profile.maximum / 2,
           line: { color: i === 0 ? "#164a87" : "#007053", width: 1 },
           fillcolor: i === 0 ? "rgba(22,74,135,.15)" : "rgba(0,112,83,.15)",
           layer: "below",
@@ -327,6 +336,7 @@ export default function StrahlbreiteApp() {
                 selectData(
                   e.points,
                   `Beispiel ${i + 1}${i === 0 ? " (ideal)" : " (real)"}`,
+                  e.referenceSpeed,
                 )
               }
             >
@@ -357,7 +367,7 @@ export default function StrahlbreiteApp() {
       </section>
       <section className="controls" aria-label="Messgeschwindigkeit">
         <label>Bahngeschwindigkeit bei der Messung [mm/s]
-          <input type="number" min="0.001" step="any" value={referenceSpeed} onChange={(e) => { setReferenceSpeed(e.target.value); setSpeed(""); }} />
+          <input type="number" min="0" max="800" step="any" value={referenceSpeed} onChange={(e) => { setReferenceSpeed(e.target.value); setSpeed(""); }} aria-invalid={referenceSpeed !== "" && !(numeric(referenceSpeed) > 0 && numeric(referenceSpeed) <= 800)} />
         </label>
         <p>Keine dokumentierte Geschwindigkeit? Feld leer lassen. Das gemessene Profil bleibt auswertbar; die Geschwindigkeitsskalierung ist erst nach Eingabe verfügbar.</p>
         {scaling?.error && <p className="error" role="alert">{scaling.error}</p>}
@@ -483,24 +493,26 @@ export default function StrahlbreiteApp() {
                     {coating.error}
                   </p>
                 )}
-                {Number.isFinite(numeric(referenceSpeed)) && numeric(referenceSpeed) > 0 && <>
-                  <NumericControl label="Bahngeschwindigkeit der Totalbeschichtung [mm/s]" value={speed === "" ? referenceSpeed : speed} onChange={setSpeed} min={numeric(referenceSpeed) / 10} max={numeric(referenceSpeed) * 10} step={numeric(referenceSpeed) / 100} />
+                {Number.isFinite(numeric(referenceSpeed)) && numeric(referenceSpeed) > 0 && numeric(referenceSpeed) <= 800 && <>
+                  <NumericControl label="Bahngeschwindigkeit der Totalbeschichtung [mm/s]" value={speed === "" ? referenceSpeed : speed} onChange={setSpeed} min={0} exclusiveMin max={800} step={1} />
                   <button onClick={() => setSpeed("")}>Auf Messgeschwindigkeit zurücksetzen</button>
-                  <p>Messgeschwindigkeit: {format(numeric(referenceSpeed))} mm/s · Schichtdickenfaktor: {format(factor, 3)}. Reglerbereich: 0,1- bis 10-fache Messgeschwindigkeit.</p>
+                  <p>Messgeschwindigkeit: {format(numeric(referenceSpeed))} mm/s · Schichtdickenfaktor: {format(factor, 3)}. Zulässig: größer als 0 bis einschließlich 800 mm/s. Referenzkurven blau; Variation grau. Beide Mittelwerte verwenden denselben Auswertebereich.</p>
                 </>}
               </section>
-              {total && (
+              {referenceTotal && (
                 <>
                   <section className="result" aria-live="polite">
                     <strong>
-                      Überlappungsgrad: {format(total.overlapPercent)} %
+                      Überlappungsgrad: {format(referenceTotal.overlapPercent)} %
                     </strong>
-                    <p>ÜL [−] = {format(total.overlapFactor)}</p>
+                    <p>ÜL [−] = {format(referenceTotal.overlapFactor)}</p>
+                    {referenceInterior && <p>Referenzmittelwert bei Messgeschwindigkeit: {format(referenceInterior.mean)} µm</p>}
                     {interior ? <>
-                      <p>Mittlere Schichtdicke <IndexedSymbol base="h" index="ges" /> = {format(interior.mean)} µm</p>
+                      <p>{varied ? "Variierte mittlere Schichtdicke" : "Mittlere Schichtdicke"} <IndexedSymbol base="h" index="ges" /> = {format(interior.mean)} µm</p>
                       <p>Relative Welligkeit: {interior.waviness === null ? "nicht bestimmbar" : format(interior.waviness) + " %"} · Minimum / Maximum: {format(interior.minimum)} / {format(interior.maximum)} µm</p>
                       <p>Auswertebereich: {format(interior.start)} bis {format(interior.end)} mm</p>
-                    </> : <p>Kein ausreichend breiter innerer Auswertebereich vorhanden. Mittelwert und Welligkeit werden nicht ausgewiesen. Mehr Bahnen oder größeren Bahnversatz wählen.</p>}
+                      <p>Breite: {format(interior.end - interior.start)} mm. Beginn = rechter Profilrand − Bahnversatz; Ende = linker Profilrand + Bahnanzahl × Bahnversatz. Die volle Messprofilbreite wird berücksichtigt, auch sehr kleine Randbeiträge. Deshalb kann der Bereich schmal sein; für einen breiteren randfreien Bereich sind mehr Bahnen erforderlich.</p>
+                    </> : referenceInterior ? <p>Geschwindigkeitsvariation wegen ungültiger Eingabe nicht verfügbar. Die Referenzkurven bleiben sichtbar.</p> : <p>Kein ausreichend breiter innerer Auswertebereich vorhanden. Mittelwert und Welligkeit werden nicht ausgewiesen. Mehr Bahnen oder größeren Bahnversatz wählen.</p>}
                   </section>
                   <Chart
                     title="Totalbeschichtung"
@@ -513,7 +525,7 @@ export default function StrahlbreiteApp() {
                       </>
                     }
                     data={totalData}
-                    layout={{ ...axes, shapes: [...rectangles, ...(interior ? [{ type: "rect" as const, x0: interior.start, x1: interior.end, yref: "paper" as const, y0: 0, y1: 1, fillcolor: "rgba(0,112,83,.08)", line: { width: 0 }, layer: "below" as const }] : [])] }}
+                    layout={{ ...axes, shapes: [...rectangles, ...(displayInterior ? [{ type: "rect" as const, x0: displayInterior.start, x1: displayInterior.end, yref: "paper" as const, y0: 0, y1: 1, fillcolor: "rgba(0,112,83,.08)", line: { width: 0 }, layer: "below" as const }] : [])] }}
                   />
                 </>
               )}

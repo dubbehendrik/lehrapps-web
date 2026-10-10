@@ -169,14 +169,14 @@ export function referenceSpeedFromRows(rows: unknown[][]): number | null {
   if (matches.length > 1) throw new Error("Die Messgeschwindigkeit darf nur einmal angegeben werden.");
   const value = matches[0][4];
   if (value === null || value === undefined || value === "") return null;
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0)
-    throw new Error("Die Messgeschwindigkeit in mm/s muss eine positive Zahl sein.");
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || value > 800)
+    throw new Error("Die Messgeschwindigkeit muss größer als 0 und höchstens 800 mm/s sein.");
   return value;
 }
 
 export function speedFactor(reference: number, speed: number): number {
-  if (![reference, speed].every((v) => Number.isFinite(v) && v > 0))
-    throw new Error("Mess- und Bahngeschwindigkeit müssen positiv und endlich sein.");
+  if (![reference, speed].every((v) => Number.isFinite(v) && v > 0 && v <= 800))
+    throw new Error("Mess- und Bahngeschwindigkeit müssen größer als 0 und höchstens 800 mm/s sein.");
   const factor = reference / speed;
   if (!Number.isFinite(factor)) throw new Error("Das Geschwindigkeitsverhältnis ist zu groß.");
   return factor;
