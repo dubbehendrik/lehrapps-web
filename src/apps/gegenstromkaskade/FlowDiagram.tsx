@@ -2,9 +2,9 @@ import type { Parameters } from './logic';
 import { calculate } from './logic';
 export type LabelMode = 'values' | 'symbols' | 'both';
 import { fmt } from './format';
-export function FlowDiagram({ p, result, selected, onSelect, labels }: {
+export function FlowDiagram({ p, result, selected, onSelect, labels, actionLabel = 'Bilanz anzeigen' }: {
   p: Parameters; result: ReturnType<typeof calculate>; selected: number;
-  onSelect: (stage: number) => void; labels: LabelMode;
+  onSelect: (stage: number) => void; labels: LabelMode; actionLabel?: string;
 }) {
   const width = 360 + 310 * p.stages;
   const x = (i: number) => 170 + (i - 1) * 310;
@@ -26,13 +26,13 @@ export function FlowDiagram({ p, result, selected, onSelect, labels }: {
       <text x="20" y="55">{fmt(p.throughput)} pro Stunde</text>
       {Array.from({ length: p.stages }, (_, j) => {
         const i = j + 1;
-        return <g key={i} role="button" tabIndex={0} aria-label={`Bilanz für Stufe ${i} anzeigen`} aria-pressed={selected === i}
+        return <g key={i} role="button" tabIndex={0} aria-label={`${actionLabel}: Stufe ${i}`} aria-pressed={selected === i}
           onClick={() => onSelect(i)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(i); } }} className="cascade-tank">
           <rect x={x(i)} y="115" width="170" height="200" rx="8" fill={selected === i ? '#e5f2ed' : '#eff5fa'} stroke={selected === i ? '#007053' : '#70899a'} strokeWidth={selected === i ? 3 : 1.5} />
           <path d={`M ${x(i) + 5} 200 H ${x(i) + 165} V 310 H ${x(i) + 5} Z`} fill="#d7e8f4" />
           <text x={x(i) + 85} y="145" textAnchor="middle" fontWeight="700">Stufe {i}</text>
           <text x={x(i) + 85} y="229" textAnchor="middle">{label(`c${i}`, result.concentrations[i], 'g/L')}</text>
-          <text x={x(i) + 85} y="296" textAnchor="middle" fontSize="14">Bilanz anzeigen</text>
+          <text x={x(i) + 85} y="296" textAnchor="middle" fontSize="14">{actionLabel}</text>
         </g>;
       })}
       {Array.from({ length: p.stages + 1 }, (_, i) => {

@@ -8,11 +8,13 @@ import { flow, Symbol } from './Notation';
 import { ProgramDescription, ApproximationFormula } from './ProgramDescription';
 import { fmt } from './format';
 import { powerAxis } from './display';
+import { TransientPanel } from './TransientPanel';
 import './style.css';
 
 export default function App() {
   const [p, setP] = useState<Parameters>({ ...DEFAULTS });
   const basis = 'Bauteil';
+  const [transient, setTransient] = useState(false);
   const [selected, setSelected] = useState(1);
   const [labels, setLabels] = useState<LabelMode>('both');
   const [logarithmic, setLogarithmic] = useState(false);
@@ -75,12 +77,16 @@ export default function App() {
         <button aria-label="Eine Spülstufe entfernen" disabled={p.stages === 1} onClick={() => changeStages(-1)}>−</button>
         <output aria-live="polite" aria-label="Anzahl Spülstufen">{p.stages}</output>
         <button aria-label="Eine Spülstufe hinzufügen" disabled={p.stages === MAX_STAGES} onClick={() => changeStages(1)}>+</button>
-        <button onClick={() => { setP({ ...DEFAULTS }); setSelected(1); setLabels('both'); setLogarithmic(false); }}>Aufgabenbeispiel laden</button>
+        <button onClick={() => { setP({ ...DEFAULTS }); setTransient(false); setSelected(1); setLabels('both'); setLogarithmic(false); }}>Aufgabenbeispiel laden</button>
       </div>
-      <fieldset><legend>Betriebsart</legend>
+      <fieldset><legend>Berechnungsmodus</legend>
+        <label className="radio-label"><input type="radio" name="cascade-time-mode" checked={!transient} onChange={() => setTransient(false)} />Stationär</label>
+        <label className="radio-label"><input type="radio" name="cascade-time-mode" checked={transient} onChange={() => { changeMode('flow'); setTransient(true); }} />Instationär · aufeinanderfolgende Bauteile</label>
+      </fieldset>
+      {!transient && <fieldset><legend>Betriebsart</legend>
         <label className="radio-label"><input type="radio" name="cascade-mode" checked={p.mode === 'target'} onChange={() => changeMode('target')} />Spülkriterium vorgeben → erforderlichen Frischwasserstrom berechnen</label>
         <label className="radio-label"><input type="radio" name="cascade-mode" checked={p.mode === 'flow'} onChange={() => changeMode('flow')} />Frischwasserstrom vorgeben → erreichtes Spülkriterium berechnen</label>
-      </fieldset>
+      </fieldset>}
       <div className="input-grid cascade-inputs">
         {number('area', `Benetzte Oberfläche je ${basis} [m²]`, 0)}
         {number('throughput', 'Durchsatz [Bauteile/h]', 0)}
@@ -93,7 +99,7 @@ export default function App() {
       <p className="cascade-hint">Auch ein gemeinsam gespültes Paket kann als ein Bauteil gezählt werden. Dann ist die gesamte benetzte Oberfläche des Pakets anzugeben und der Durchsatz zählt Pakete pro Stunde. Oberfläche, Durchsatz, Verschleppung und c₀ müssen größer als 0 sein.</p>
     </section>
     {error && <p className="error" role="alert">{error}</p>}
-    {result && <>
+    {result && (transient ? <TransientPanel p={p} /> : <>
       <section className="result" aria-label="Berechnungsergebnisse">
         <dl className="cascade-metrics">
           <div><dt>{p.mode === 'target' ? 'Erforderlicher Frischwasserstrom' : 'Vorgegebener Frischwasserstrom'}</dt><dd>{fmt(result.freshFlow)} L/min</dd></div>
@@ -152,7 +158,7 @@ export default function App() {
         <p>Die Näherung berücksichtigt die Frischwasserkonzentration; für unbelastetes Frischwasser vereinfacht sie sich entsprechend.</p><ApproximationFormula />
         <p>Die Näherung lässt die kleineren Potenzen in der Summe weg und überschätzt den Mindestwasserbedarf. Sie ist nur bei hinreichend großem R brauchbar. Ein großes Spülkriterium allein garantiert dies bei vielen Stufen nicht.</p>
       </details>}
-    </>}
+    </>)}
     <SupportFooter appName="Gegenstromkaskade" reviewed={false} />
   </article>;
 }

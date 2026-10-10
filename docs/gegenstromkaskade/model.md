@@ -56,3 +56,32 @@ Browser-/Tablet-Sichtprüfung wurde in dieser Sitzung nicht durchgeführt; fachl
 ## Zahlenanzeige und Notation
 
 Normale Ergebniswerte werden mit einer Nachkommastelle angezeigt. Werte unter 0,1 behalten zwei signifikante Stellen; unter 0,001 und ab 10^6 wird eine Mantisse mit einer Nachkommastelle und eine Zehnerpotenz verwendet. Berechnung und CSV behalten die ungerundeten Werte. Plotly-Hovertexte verwenden dieselbe Anzeigeformatierung wie Tabellen und Fließbild. Status, Grenzwert, Spülverhältnis und Verbrauchswerte stehen auf separaten Zeilen. Punkte über Volumenströmen werden als native MathML-Akzente gesetzt (entsprechend LaTeX dot); im SVG übernimmt der Zeichensatz den regulären kombinierenden Punktakzent. Es gibt keine manuelle CSS- oder SVG-Verschiebung des Punktes.
+
+## Instationärer Modus
+
+Zusätzlicher Modus mit gleichen Flüssigkeitsvolumina B in allen Stufen, default 2744 L, einer Anfangskonzentration (default Frischwasserqualität) und 1–10000 ausgewerteten Bauteilen, default 1000. Der Wechselabstand beträgt 60/Durchsatz Minuten. Beim Umschalten wird der stationär berechnete Frischwasserstrom übernommen; instationär ist W vorgegeben. Die Anlage startet ohne Bauteile. Jede Stufe benötigt einen Wechselabstand; es gibt keinen separat aufgelösten Transport.
+
+### Diskrete Wechsel und kontinuierlicher Gegenstrom
+
+Vor jedem Wechsel verlässt das vorhandene Bauteil seine Stufe mit D Litern Film in der aktuellen Beckenkonzentration. Dieser Film wird der Herkunftsstufe entnommen. Die Filmkonzentration wird als Profilwert des betreffenden Bauteils gespeichert. Gleichzeitig tritt ein neues Bauteil ein und die anderen rücken weiter. Die eingehenden Filme stammen aus den Konzentrationen unmittelbar vor dem Wechsel, nicht aus den erst danach aktualisierten Konzentrationen. Die Becken werden anschließend ideal durchmischt.
+
+Beim Anfahren erhöht das zusätzliche Bauteil die Gesamtzahl der in der Anlage mitgeführten Filme. Der entsprechende Volumenzuwachs führt zu einem zusätzlichen Gegenstromüberlauf D aus den bereits erreichbaren Stufen bis zur ersten Stufe. Diese zeitlich diskreten Anfahrüberläufe werden separat vom kontinuierlichen Wasserstrom W bilanziert. Für ein Becken lautet die Wechselbilanz:
+
+(B + K_out)*c_new - K_in*c_next_new = (B - D_out)*c_old + D_in*c_source_old.
+
+Die rückwärts gerichteten Anfahrüberläufe K koppeln die Mischung und werden von der letzten zur ersten Stufe gelöst. Die Volumina der Becken bleiben B. Im gefüllten Betrieb verschwinden diese zusätzlichen Überläufe und c_new=(1-D/B)*c_old+(D/B)*c_source_old. Deshalb muss B>D gelten.
+
+Zwischen Wechseln: B*dc_i/dt=W*(c_(i+1)-c_i), Rand c_(N+1)=cf. Exakte Integration für gleiche B mit q=W*dt/B:
+c_i(t+dt)=cf+exp(-q)*Summe von q^k/k!*(c_(i+k)(t)-cf) für k=0 bis N-i.
+
+Nach Auswertung der angeforderten Bauteile werden weitere Bauteile zugeführt, bis das letzte ausgewertete Bauteil die letzte Stufe verlassen hat; die Anlage wird nicht leergefahren. Es werden nur die angeforderten Bauteile ausgegeben. Der erste Endaustritt findet nach N Wechselabständen statt.
+
+### Auswertung
+
+Das ausgewählte Bauteil ist schwarz mit Punkten, repräsentative andere Profile sind grau (höchstens 61), kontinuierliche Referenz blau gestrichelt. Alle Profile werden berechnet; die Auswahl ist unabhängig von der Darstellungsauswahl. Die Endkonzentrationskurve enthält alle Bauteile. Das Fließbild verwendet den gleichzeitigen Beckenzustand unmittelbar vor dem Endaustritt des ausgewählten Bauteils. Dies ist nicht dasselbe wie dessen Filmprofil mit aufeinanderfolgenden Austrittszeitpunkten.
+
+Konvergenzhinweis: maximale Änderung aller Beckenkonzentrationen zur selben Zyklusphase über die letzten zehn Bauteilwechsel, normiert mit der größten vorgegebenen Konzentration. Grenze 1e-5, mindestens elf vollständige Bauteile erforderlich. Dies prüft geringe Zyklusänderung, ist aber keine Garantie für Nähe zum unendlichen Grenzwert. Der Hinweis erklärt diesen Unterschied ausdrücklich.
+
+Periodisch eingeschwungener Zustand und kontinuierliche stationäre Referenz dürfen voneinander abweichen. Für B/D groß nähert sich das diskrete Modell dem kontinuierlichen Modell an. Als unabhängiger Referenzfall gilt für eine Stufe im gefüllten Betrieb mit a=exp(-W*dt/B): c_exit=[a*(D/B)*c0+cf*(1-a)]/[1-a*(1-D/B)].
+
+Tests in `tests/gegenstromkaskade-transient.test.ts`: analytische Wasserintegration für eine/zwei Stufen, diskreter Bilanzschluss einschließlich Anfahrüberläufen, erster Bauteilaustritt, unabhängiger periodischer Einzelbecken-Grenzwert, Bauteilzuordnung und Zeiten, ansteigendes Anfahren sauberer Becken, kontinuierlicher Grenzfall bei kleinen Filmanteilen, Nullwasser, gleiche Konzentrationen, Bilanzprüfung über 10000 Bauteile und Eingabegrenzen. Der stationäre Modus und seine Berechnungen bleiben erhalten.
