@@ -12,7 +12,7 @@ export function FlowDiagram({ p, result, selected, onSelect, labels }: {
     if (labels === 'values') return `${fmt(value)} ${unit}`;
     const dotted = symbol.startsWith('V̇');
     const index = symbol.slice(dotted ? 2 : 1);
-    return <>{dotted ? <><tspan>V</tspan><tspan dx="-0.6em" dy="-0.45em">•</tspan><tspan dx="0.35em" dy="0.45em" /></> : <tspan>c</tspan>}<tspan baselineShift="sub" fontSize="70%">{index}</tspan>{labels === 'both' && <tspan baselineShift="baseline"> = {fmt(value)} {unit}</tspan>}</>;
+    return <>{dotted ? <tspan>V̇</tspan> : <tspan>c</tspan>}<tspan baselineShift="sub" fontSize="70%">{index}</tspan>{labels === 'both' && <tspan baselineShift="baseline"> = {fmt(value)} {unit}</tspan>}</>;
   };
   return <div className="cascade-flow-scroll" tabIndex={0} aria-label="Fließbild, bei vielen Stufen horizontal verschiebbar">
     <svg className="cascade-flow" viewBox={`0 0 ${width} 435`} style={{ minWidth: width }} role="img" aria-labelledby="cascade-svg-title cascade-svg-description">

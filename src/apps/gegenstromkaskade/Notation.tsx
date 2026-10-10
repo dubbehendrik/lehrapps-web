@@ -1,8 +1,8 @@
 import { createElement, type ReactNode } from 'react';
 import { MathExpression, math as m } from '../../components/MathNotation';
-// Positioned dot avoids browser/font-dependent excess space above MathML accents.
-export const dot = (base: string) => createElement('mi', null,
-  <span className="cascade-dotted-symbol">{base}<span className="cascade-dot-mark" aria-hidden="true" /></span>);
+// Native MathML equivalent of \dot{V}; a baseline dot avoids a second built-in elevation.
+export const dot = (base: string) => createElement('mover', { accent: 'true' },
+  m.identifier(base), createElement('mo', { stretchy: 'false', accent: 'true' }, '.'));
 export const flow = (index: string) => createElement('msub', null, dot('V'), m.text(index));
 export const power = (base: ReactNode, exponent: ReactNode) => createElement('msup', null, base, exponent);
 export function Symbol({ base, index }: { base: string; index: string }) {
