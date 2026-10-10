@@ -46,6 +46,7 @@ function NumericControl({
   min,
   max,
   step = 0.1,
+  sliderStep = "any",
   exclusiveMin = false,
 }: {
   label: ReactNode;
@@ -54,6 +55,7 @@ function NumericControl({
   min: number;
   max: number;
   step?: number;
+  sliderStep?: number | "any";
   exclusiveMin?: boolean;
 }) {
   const number = numeric(value),
@@ -78,7 +80,7 @@ function NumericControl({
           type="range"
           min={min}
           max={max}
-          step="any"
+          step={sliderStep}
           value={valid ? number : min}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -381,7 +383,8 @@ export default function StrahlbreiteApp() {
               onChange={setSmoothing}
               min={0}
               max={20}
-              step={1}
+              step={0.1}
+              sliderStep={0.1}
             />
             {single?.error && (
               <p className="error" role="alert">
