@@ -161,3 +161,43 @@ export function measurementsFromRows(rows: unknown[][]): Measurement[] {
   if (error) throw new Error(error);
   return points;
 }
+
+/** Metadata lives in columns D/E, leaving legacy measurement columns intact. */
+export function referenceSpeedFromRows(rows: unknown[][]): number | null {
+  const matches = rows.filter((row) => row[3] === "Bahngeschwindigkeit [mm/s]");
+  if (!matches.length) return null;
+  if (matches.length > 1) throw new Error("Die Messgeschwindigkeit darf nur einmal angegeben werden.");
+  const value = matches[0][4];
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0)
+    throw new Error("Die Messgeschwindigkeit in mm/s muss eine positive Zahl sein.");
+  return value;
+}
+
+export function speedFactor(reference: number, speed: number): number {
+  if (![reference, speed].every((v) => Number.isFinite(v) && v > 0))
+    throw new Error("Mess- und Bahngeschwindigkeit müssen positiv und endlich sein.");
+  const factor = reference / speed;
+  if (!Number.isFinite(factor)) throw new Error("Das Geschwindigkeitsverhältnis ist zu groß.");
+  return factor;
+}
+
+/** Exclude every position at which a missing neighbouring track could contribute.
+ * Require at least one full spacing period. Integrate the piecewise linear curve.
+ */
+export function evaluateInterior(coating: Coating, profile: SingleProfile, tracks: number, spacing: number) {
+  const start = profile.x.at(-1)! - spacing;
+  const end = profile.x[0] + tracks * spacing;
+  if (tracks < 2 || end - start < spacing || start < coating.x[0] || end > coating.x.at(-1)!) return null;
+  const at = (position: number) => {
+    const local = position - coating.x[0], i = Math.floor(local), fraction = local - i;
+    return fraction === 0 ? coating.y[i] : coating.y[i] + fraction * (coating.y[i + 1] - coating.y[i]);
+  };
+  const x = [start, ...coating.x.filter((v) => v > start && v < end), end];
+  const y = x.map(at);
+  let area = 0;
+  for (let i = 1; i < x.length; i++) area += (x[i] - x[i - 1]) * (y[i] + y[i - 1]) / 2;
+  const mean = area / (end - start);
+  const minimum = Math.min(...y), maximum = Math.max(...y);
+  return { start, end, mean, minimum, maximum, waviness: mean > 0 ? 100 * (maximum - minimum) / mean : null };
+}

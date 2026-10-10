@@ -13,6 +13,9 @@ import {
   buildCoating,
   buildSingleProfile,
   measurementsFromRows,
+  referenceSpeedFromRows,
+  speedFactor,
+  evaluateInterior,
 } from "./logic";
 import type { Measurement } from "./types";
 const format = (v: number, digits = 2) =>
@@ -87,8 +90,8 @@ export default function StrahlbreiteApp() {
   const [smoothing, setSmoothing] = useState("0"),
     [tracks, setTracks] = useState("15"),
     [spacing, setSpacing] = useState("");
-  const [method, setMethod] = useState("automatic"),
-    [manual, setManual] = useState<string | null>(null);
+  const [referenceSpeed, setReferenceSpeed] = useState("");
+  const [speed, setSpeed] = useState("");
   const [fileError, setFileError] = useState(""),
     [loading, setLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null),
@@ -112,18 +115,11 @@ export default function StrahlbreiteApp() {
         : null,
     [profile, tracks, delta],
   );
-  const total = coating?.value;
-  const manualValue =
-    manual === null
-      ? (total?.automaticThickness ?? 0)
-      : Math.min(numeric(manual), total?.maximum ?? 0);
-  const manualError =
-    method === "manual" && (!Number.isFinite(manualValue) || manualValue < 0)
-      ? "Die manuelle Schichtdicke muss zwischen 0 und dem Maximum der Totalbeschichtung liegen."
-      : null;
-  const h =
-    method === "manual" ? manualValue : (total?.automaticThickness ?? 0);
-  function selectData(next: Measurement[] | null, label: string) {
+  const scaling = referenceSpeed === "" && speed === "" ? null : calculate(() => speedFactor(numeric(referenceSpeed), numeric(speed === "" ? referenceSpeed : speed)));
+  const factor = scaling?.value ?? 1;
+  const total = coating?.value && !scaling?.error ? { ...coating.value, y: coating.value.y.map((v) => v * factor), maximum: coating.value.maximum * factor } : null;
+  const interior = total && profile ? evaluateInterior(total, profile, numeric(tracks), delta) : null;
+  function selectData(next: Measurement[] | null, label: string, reference: number | null = null) {
     loadId.current++;
     setLoading(false);
     setPoints(next);
@@ -132,8 +128,8 @@ export default function StrahlbreiteApp() {
     setSmoothing("0");
     setTracks("15");
     setSpacing("");
-    setMethod("automatic");
-    setManual(null);
+    setReferenceSpeed(reference === null ? "" : String(reference));
+    setSpeed("");
     if (fileInput.current) fileInput.current.value = "";
   }
   async function upload(file: File | undefined) {
@@ -152,8 +148,9 @@ export default function StrahlbreiteApp() {
         );
       });
       const data = measurementsFromRows(rows);
+      const reference = referenceSpeedFromRows(rows);
       if (id !== loadId.current) return;
-      selectData(data, file.name);
+      selectData(data, file.name, reference);
     } catch (error) {
       if (id !== loadId.current) return;
       setFileError(
@@ -164,6 +161,18 @@ export default function StrahlbreiteApp() {
       setLoading(false);
       if (fileInput.current) fileInput.current.value = "";
     }
+  }
+  async function downloadTemplate() {
+    try {
+      const { default: write } = await import("write-excel-file/browser");
+      const data = points ?? examples[0].points;
+      const validReference = Number.isFinite(numeric(referenceSpeed)) && numeric(referenceSpeed) > 0;
+      const rows = [
+        [{ value: "Ort [mm]" }, { value: "Schichtdicke [µm]" }, null, { value: "Bahngeschwindigkeit [mm/s]" }, validReference ? { value: numeric(referenceSpeed) } : null],
+        ...data.map((p) => [{ value: p.position }, { value: p.thickness }]),
+      ];
+      await write([{ sheet: "Einzelstrahl", data: rows }]).toFile("Strahlbreite_Vorlage.xlsx");
+    } catch { setFileError("Die Excel-Vorlage konnte nicht erstellt werden."); }
   }
   const axes = {
     xaxis: { title: { text: "Position [mm]" } },
@@ -197,7 +206,7 @@ export default function StrahlbreiteApp() {
     profile && total
       ? Array.from({ length: trackCount }, (_, i) => ({
           x: profile.x.map((v) => v + i * delta),
-          y: profile.y,
+          y: profile.y.map((v) => v * factor),
           type: "scatter",
           mode: "lines",
           name: `Einzelstrahl ${i + 1}`,
@@ -214,13 +223,13 @@ export default function StrahlbreiteApp() {
       name: "Totalbeschichtung",
       line: { color: "#162c3c", width: 3 },
     });
-  if (total && !manualError)
+  if (interior)
     totalData.push({
-      x: [total.x[0], total.x.at(-1)!],
-      y: [h, h],
+      x: [interior.start, interior.end],
+      y: [interior.mean, interior.mean],
       type: "scatter",
       mode: "lines",
-      name: `<i>h</i><sub>ges</sub> = ${format(h)} µm`,
+      name: `Mittlere Schichtdicke = ${format(interior.mean)} µm`,
       line: { color: "#526674", dash: "dash", width: 2 },
     });
   const rectangles: Partial<Shape>[] =
@@ -230,7 +239,7 @@ export default function StrahlbreiteApp() {
           x0: profile.peakPosition + i * delta - width / 2,
           x1: profile.peakPosition + i * delta + width / 2,
           y0: 0,
-          y1: profile.maximum / 2,
+          y1: profile.maximum * factor / 2,
           line: { color: i === 0 ? "#164a87" : "#007053", width: 1 },
           fillcolor: i === 0 ? "rgba(22,74,135,.15)" : "rgba(0,112,83,.15)",
           layer: "below",
@@ -291,14 +300,9 @@ export default function StrahlbreiteApp() {
           Zwischen Rasterpunkten wird linear interpoliert, außerhalb des
           Messbereichs wird null angesetzt.
         </p>
-        <p>
-          <strong>
-            Automatisches <IndexedSymbol base="h" index="ges" />:
-          </strong>{" "}
-          Mittelwert aller Rasterwerte mit mindestens 95 % des Maximums der
-          Totalbeschichtung. Dieser Wert beschreibt den Bereich nahe dem
-          Maximum. Er ist kein Mittelwert über die gesamte beschichtete Breite.
-        </p>
+        <p>Die Geschwindigkeit skaliert die Schichtdicke mit Messgeschwindigkeit / aktueller Geschwindigkeit. Das Modell setzt konstanten Materialstrom und ein unverändertes Strahlprofil voraus; Beschleunigung und Bahnenden werden nicht modelliert.</p>
+        <p>Der innere Auswertebereich schließt Randzonen aus, in denen fehlende Nachbarbahnen beitragen könnten. Er muss mindestens einen vollständigen Bahnabstand umfassen. Der Mittelwert ist das Integral des linear interpolierten Verlaufs geteilt durch die Bereichsbreite. Relative Welligkeit: (Maximum − Minimum) / Mittelwert × 100 %, jeweils im selben Bereich.</p>
+        <p>Excel: Spalten A/B enthalten Messwerte. In D1 steht „Bahngeschwindigkeit [mm/s]“, E1 enthält die positive Messgeschwindigkeit. Alte Dateien bleiben ohne Geschwindigkeitsangabe lesbar.</p>
         <p>
           Excel-Dateien werden ausschließlich im Browser verarbeitet. Grenzen:
           10 MB, 2.000 Messpunkte, höchstens 50.000 Rasterpunkte.
@@ -329,13 +333,7 @@ export default function StrahlbreiteApp() {
               Beispiel {i + 1}
             </button>
           ))}
-          <a
-            className="button-link"
-            href="/strahlbreite/Exp_Strahlbreite_Profil_ideal.xlsx"
-            download
-          >
-            Excel-Vorlage herunterladen
-          </a>
+          <button onClick={() => void downloadTemplate()}>Excel-Vorlage herunterladen</button>
         </div>
         {loading && <p role="status">Excel-Datei wird gelesen …</p>}
         {fileError && (
@@ -356,6 +354,13 @@ export default function StrahlbreiteApp() {
             starten.
           </p>
         )}
+      </section>
+      <section className="controls" aria-label="Messgeschwindigkeit">
+        <label>Bahngeschwindigkeit bei der Messung [mm/s]
+          <input type="number" min="0.001" step="any" value={referenceSpeed} onChange={(e) => { setReferenceSpeed(e.target.value); setSpeed(""); }} />
+        </label>
+        <p>Keine dokumentierte Geschwindigkeit? Feld leer lassen. Das gemessene Profil bleibt auswertbar; die Geschwindigkeitsskalierung ist erst nach Eingabe verfügbar.</p>
+        {scaling?.error && <p className="error" role="alert">{scaling.error}</p>}
       </section>
       {points && (
         <>
@@ -478,67 +483,11 @@ export default function StrahlbreiteApp() {
                     {coating.error}
                   </p>
                 )}
-                {total && (
-                  <>
-                    <fieldset>
-                      <legend>
-                        Methode zur Ermittlung der Gesamtschichtdicke{" "}
-                        <IndexedSymbol base="h" index="ges" />
-                      </legend>
-                      <label className="radio-label">
-                        <input
-                          type="radio"
-                          name="method"
-                          value="automatic"
-                          checked={method === "automatic"}
-                          onChange={() => setMethod("automatic")}
-                        />{" "}
-                        Automatisch: Mittelwert der Werte ≥ 95 % des Maximums
-                      </label>
-                      <label className="radio-label">
-                        <input
-                          type="radio"
-                          name="method"
-                          value="manual"
-                          checked={method === "manual"}
-                          onChange={() => setMethod("manual")}
-                        />{" "}
-                        Manuell
-                      </label>
-                    </fieldset>
-                    {method === "manual" && (
-                      <NumericControl
-                        label={
-                          <>
-                            Manuelle Gesamtschichtdicke{" "}
-                            <IndexedSymbol base="h" index="ges" /> [µm]
-                          </>
-                        }
-                        value={
-                          manual === null
-                            ? String(manualValue)
-                            : Number.isFinite(manualValue)
-                              ? String(manualValue)
-                              : manual
-                        }
-                        onChange={setManual}
-                        min={0}
-                        max={total.maximum}
-                        step={total.maximum / 20}
-                      />
-                    )}
-                    <p>
-                      Die automatische Auswertung beschreibt den Bereich nahe
-                      dem Maximum; sie ist kein Mittelwert über die gesamte
-                      Fläche.
-                    </p>
-                    {manualError && (
-                      <p className="error" role="alert">
-                        {manualError}
-                      </p>
-                    )}
-                  </>
-                )}
+                {Number.isFinite(numeric(referenceSpeed)) && numeric(referenceSpeed) > 0 && <>
+                  <NumericControl label="Bahngeschwindigkeit der Totalbeschichtung [mm/s]" value={speed === "" ? referenceSpeed : speed} onChange={setSpeed} min={numeric(referenceSpeed) / 10} max={numeric(referenceSpeed) * 10} step={numeric(referenceSpeed) / 100} />
+                  <button onClick={() => setSpeed("")}>Auf Messgeschwindigkeit zurücksetzen</button>
+                  <p>Messgeschwindigkeit: {format(numeric(referenceSpeed))} mm/s · Schichtdickenfaktor: {format(factor, 3)}. Reglerbereich: 0,1- bis 10-fache Messgeschwindigkeit.</p>
+                </>}
               </section>
               {total && (
                 <>
@@ -547,13 +496,11 @@ export default function StrahlbreiteApp() {
                       Überlappungsgrad: {format(total.overlapPercent)} %
                     </strong>
                     <p>ÜL [−] = {format(total.overlapFactor)}</p>
-                    {!manualError && (
-                      <p>
-                        Gesamtschichtdicke{" "}
-                        <IndexedSymbol base="h" index="ges" /> = {format(h)} µm
-                        ({method === "manual" ? "manuell" : "automatisch"})
-                      </p>
-                    )}
+                    {interior ? <>
+                      <p>Mittlere Schichtdicke <IndexedSymbol base="h" index="ges" /> = {format(interior.mean)} µm</p>
+                      <p>Relative Welligkeit: {interior.waviness === null ? "nicht bestimmbar" : format(interior.waviness) + " %"} · Minimum / Maximum: {format(interior.minimum)} / {format(interior.maximum)} µm</p>
+                      <p>Auswertebereich: {format(interior.start)} bis {format(interior.end)} mm</p>
+                    </> : <p>Kein ausreichend breiter innerer Auswertebereich vorhanden. Mittelwert und Welligkeit werden nicht ausgewiesen. Mehr Bahnen oder größeren Bahnversatz wählen.</p>}
                   </section>
                   <Chart
                     title="Totalbeschichtung"
@@ -562,11 +509,11 @@ export default function StrahlbreiteApp() {
                         Dünne Linien: Einzelstrahlen; dicke Linie:
                         Totalbeschichtung. Rechtecke verdeutlichen{" "}
                         <IndexedSymbol base="Sb" index="50" /> der ersten beiden
-                        Bahnen.
+                        Bahnen. Die hinterlegte Fläche markiert den Auswertebereich; die gestrichelte Linie zeigt dessen Mittelwert.
                       </>
                     }
                     data={totalData}
-                    layout={{ ...axes, shapes: rectangles }}
+                    layout={{ ...axes, shapes: [...rectangles, ...(interior ? [{ type: "rect" as const, x0: interior.start, x1: interior.end, yref: "paper" as const, y0: 0, y1: 1, fillcolor: "rgba(0,112,83,.08)", line: { width: 0 }, layer: "below" as const }] : [])] }}
                   />
                 </>
               )}
