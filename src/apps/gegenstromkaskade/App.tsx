@@ -15,6 +15,7 @@ export default function App() {
   const [p, setP] = useState<Parameters>({ ...DEFAULTS });
   const basis = 'Bauteil';
   const [transient, setTransient] = useState(false);
+  const [editingFlow, setEditingFlow] = useState(false);
   const [selected, setSelected] = useState(1);
   const [labels, setLabels] = useState<LabelMode>('both');
   const [logarithmic, setLogarithmic] = useState(false);
@@ -24,7 +25,11 @@ export default function App() {
   const comparisons = result ? compareStages(p) : [];
   const update = (key: keyof Parameters, value: number) => setP(old => ({ ...old, [key]: value }));
   const number = (key: keyof Parameters, label: ReactNode, min: number, step: number | 'any' = 'any') => <label>{label}
-    <input type="number" min={min} step={step} value={Number.isNaN(Number(p[key])) ? '' : Number(p[key])}
+    <input type="number" min={min} step={step} value={Number.isNaN(Number(p[key])) ? '' : key === 'freshFlow' && !editingFlow && Number.isFinite(p.freshFlow)
+      ? Math.abs(p.freshFlow) >= 0.1 ? p.freshFlow.toFixed(1) : Number(p.freshFlow.toPrecision(2)).toString()
+      : Number(p[key])}
+      onFocus={() => { if (key === 'freshFlow') setEditingFlow(true); }}
+      onBlur={() => { if (key === 'freshFlow') setEditingFlow(false); }}
       onChange={e => update(key, e.target.value === '' ? NaN : Number(e.target.value))} />
   </label>;
   const changeStages = (delta: number) => {
