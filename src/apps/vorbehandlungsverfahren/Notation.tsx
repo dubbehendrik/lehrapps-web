@@ -1,0 +1,10 @@
+import { createElement as h, type ReactNode } from 'react';
+import { MathExpression,math as m } from '../../components/MathNotation';
+export const idx=m.index;
+export const dot=(base:string,index:string)=>h('msub',null,h('mover',{accent:'true'},h('mi',null,base),h('mo',null,'˙')),h('mtext',null,index));
+export const pow=(base:ReactNode,p:string)=>h('msup',null,base,h('mn',null,p));
+export const row=m.row,eq=m.operator('=');
+export const delta=(a:string,b:string)=>row(m.operator('('),idx('T',a),m.operator('−'),idx('T',b),m.operator(')'));
+export function Formula({children,label='Bilanzgleichung'}:{children:ReactNode;label?:string}){return <div className="vt-formula"><MathExpression label={label}>{children}</MathExpression></div>;}
+export function Balance(){return <Formula label="Gesamtenergiebilanz">{row(m.fraction(row(m.text('d'),m.identifier('U')),row(m.text('d'),m.identifier('t'))),eq,dot('Q','H'),m.operator('−'),dot('Q','Konv'),m.operator('−'),dot('Q','Str'),m.operator('+'),dot('H','F'),m.operator('−'),dot('H','S'),m.operator('−'),dot('H','D'),m.operator('+'),dot('H','W,in'),m.operator('−'),dot('H','W,out'))}</Formula>;}
+export function Term({index}:{index:number}){const terms=[row(dot('Q','W'),eq,dot('m','W'),idx('c','W'),delta('W,out','W,in')),row(dot('Q','F'),eq,dot('m','F'),idx('c','Wasser'),delta('B','F')),row(dot('Q','D'),eq,dot('m','D'),idx('Δh','v')),row(dot('Q','Konv'),eq,m.identifier('α'),idx('A','Bad'),delta('B','Halle')),row(dot('Q','Str'),eq,m.identifier('ε'),m.identifier('σ'),idx('A','Bad'),m.operator('('),pow(idx('T','B'),'4'),m.operator('−'),pow(idx('T','Umgebung'),'4'),m.operator(')')),row(dot('Q','Zusatz'),eq,m.identifier('ρ'),dot('V','Umlauf'),idx('c','Wasser'),idx('ΔT','Zusatz')),row(idx('P','Pumpe'),eq,m.fraction(row(dot('V','Umlauf'),m.operator('('),idx('Δp','D'),m.operator('+'),idx('Δp','Verlust'),m.operator('+'),m.identifier('ρ'),m.identifier('g'),m.identifier('h'),m.operator(')')),idx('η','Pumpe')))];return <Formula>{terms[index]}</Formula>;}

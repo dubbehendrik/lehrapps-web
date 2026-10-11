@@ -1,6 +1,12 @@
 import { lazy } from "react";
 export const appRegistry = [
   {
+    path: "/vorbehandlungsverfahren",
+    name: "Vorbehandlungsverfahren",
+    description: "Tauch- und Spritzentfettung auslegen, Energie- und Wasserbilanzen aufbauen und Schichtmodelle vergleichen.",
+    component: lazy(() => import("./apps/vorbehandlungsverfahren/App")),
+  },
+  {
     path: "/gegenstromkaskade",
     name: "Gegenstromkaskade",
     description: "Spülstufen ergänzen, Stoffströme und Konzentrationen verfolgen und den Frischwasserbedarf einer Gegenstromkaskade bestimmen.",
