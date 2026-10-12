@@ -1,6 +1,12 @@
 import { lazy } from "react";
 export const appRegistry = [
   {
+    path: "/waermeleitung-stab",
+    name: "Wärmeleitung im Stab",
+    description: "Instationäre und stationäre Temperaturprofile in segmentierten Stäben mit frei wählbaren Rand- und Kontaktbedingungen untersuchen.",
+    component: lazy(() => import("./apps/waermeleitung-stab/App")),
+  },
+  {
     path: "/vorbehandlungsverfahren",
     name: "Vorbehandlungsverfahren",
     description: "Tauch- und Spritzentfettung auslegen, Energie- und Wasserbilanzen aufbauen und Schichtmodelle vergleichen.",
