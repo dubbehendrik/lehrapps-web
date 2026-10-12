@@ -9,7 +9,7 @@ export function RodDiagram({p,exaggeration}:{p:Parameters;exaggeration:number}) 
  let start=100;
  const boundaryLabel=(side:0|1)=>{
   const b=side===0?p.left:p.right;
-  return b.kind==='dirichlet'?`T = ${f(b.temperature)} °C`:b.kind==='neumann'?(b.flux===0?'Adiabatisch':`q″ = ${f(b.flux)} W/m²`):`αE = ${f(endAlpha(p,side))} W/(m² K)`;
+  return b.kind==='dirichlet'?`T = ${f(b.temperature)} °C`:b.kind==='neumann'?(b.flux===0?'Adiabatisch':`q″ = ${f(b.flux)} W/m²`):<>α<tspan baselineShift="sub" fontSize="0.75em">E</tspan>{` = ${f(endAlpha(p,side))} W/(m² K)`}</>;
  };
  return <figure className="rod-diagram"><figcaption><h2>Geometrie und Bedingungen</h2><p>Längen maßstäblich. Durchmesserfaktor: {f(exaggeration)}. Gemeinsam: T<sub>∞</sub> = {f(p.ambient)} °C. Kontaktbedingungen unterhalb der Skizze.</p></figcaption><svg role="img" aria-label="Seitenansicht des segmentierten Stabs mit maßstäblichen Längen und Durchmessern sowie Rand- und Kontaktbedingungen" viewBox={`0 0 1040 ${height}`}>
  <defs><marker id="rod-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#425d70"/></marker></defs>
@@ -19,7 +19,7 @@ export function RodDiagram({p,exaggeration}:{p:Parameters;exaggeration:number}) 
   const compact=w<100;
   return <g key={s.id}><rect x={x} y={center-h/2} width={w} height={h} fill={colors[i%colors.length]} stroke="#164a87" strokeWidth="2"/><text x={x+w/2} y={center-h/2-14} textAnchor="middle" fontSize="17">S{i+1}</text>
   <line x1={x+3} x2={x+w-3} y1={center+maxHeight/2+38} y2={center+maxHeight/2+38} stroke="#425d70" markerStart="url(#rod-arrow)" markerEnd="url(#rod-arrow)"/>
-  <text x={x+w/2} y={center+maxHeight/2+63} textAnchor="middle" fontSize="16">{compact?`${i+1}`:`L${i+1} = ${f(s.length)} mm`}</text>
+  <text x={x+w/2} y={center+maxHeight/2+63} textAnchor="middle" fontSize="16">{compact?`${i+1}`:<>L<tspan baselineShift="sub" fontSize="0.75em">{i+1}</tspan>{` = ${f(s.length)} mm`}</>}</text>
   <line x1={x} x2={x} y1={center+h/2+4} y2={center+maxHeight/2+43} stroke="#70899a"/>
   <line x1={x+w} x2={x+w} y1={center+h/2+4} y2={center+maxHeight/2+43} stroke="#70899a"/>
   {h>40&&w>100&&<><line x1={x+w-20} x2={x+w-20} y1={center-h/2+4} y2={center+h/2-4} stroke="#425d70" markerStart="url(#rod-arrow)" markerEnd="url(#rod-arrow)"/><text x={x+w/2} y={center+6} textAnchor="middle" fontSize="16">d = {f(s.diameter)} mm</text></>}
