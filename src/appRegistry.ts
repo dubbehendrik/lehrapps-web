@@ -5,6 +5,7 @@ export const appCategories = [
   { id: "mathematik", label: "Fokus: Mathematik" },
 ] as const;
 export const appRegistry = [
+  { path: "/bayes-optimierung", category: "mathematik", overviewOrder: 1, name: "Bayes’sche Optimierung", description: "Messpunkte ergänzen, Modellunsicherheit untersuchen und nächste Versuche mit einem Gaußprozess vorschlagen lassen.", component: lazy(() => import("./apps/bayes-optimierung/App")) },
   {path: "/gitterschnitt", category: "labor", overviewOrder: 0, name: "Gitterschnitt", description: "Gitterschnittfotos entzerren, Abplatzungen auswerten und visuelle GT-Einstufungen mit Flächenanteilen vergleichen.", component: lazy(() => import("./apps/gitterschnitt/App"))},
   {
     path: "/waermeleitung-stab", category: "vorlesung", overviewOrder: 0,
