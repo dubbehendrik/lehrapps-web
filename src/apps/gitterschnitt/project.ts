@@ -21,6 +21,7 @@ export function decodeProject(bytes:Uint8Array):Project {
  const gt=(v:unknown)=>v===undefined||(Number.isInteger(v)&&Number(v)>=0&&Number(v)<=5);
  for(const s of p.shots){
  if(!s||![s.id,s.name,s.component,s.position,s.tool,s.removal,s.notes,s.comment].every(v=>typeof v==='string')||ids.has(s.id)||!files[s.path]||!/^image\/(jpeg|png|webp)$/.test(s.mime)||!Number.isInteger(s.width)||!Number.isInteger(s.height)||s.width<1||s.height<1||s.width*s.height>16000000||!validCorners(s.corners)||s.corners.some((a:{x:number;y:number})=>a.x<0||a.x>1||a.y<0||a.y>1)||![1,2,3].includes(s.spacing)||!['hard','soft'].includes(s.substrate)||!Number.isFinite(s.thickness)||s.thickness<=0||!Number.isFinite(s.tolerance)||s.tolerance<1||s.tolerance>100||!Number.isFinite(s.kerf)||s.kerf<0||s.kerf>10||!gt(s.blind)||!gt(s.final)||typeof s.revealed!=='boolean'||typeof s.synthetic!=='boolean'||(s.revealed&&s.blind===undefined))throw Error('Ungültige Aufnahme oder Geometrie.');
+ if(s.gridStatus!==undefined&&!['suggested','not-found','manual'].includes(s.gridStatus))throw Error('Ungültiger Gitterstatus.');
  ids.add(s.id);
  for(const refs of [s.coat,s.bare])if(!Array.isArray(refs)||refs.length>100||refs.some((r:unknown)=>!Array.isArray(r)||r.length!==3||r.some(v=>!Number.isFinite(v)||v<0||v>255)))throw Error('Ungültige Farbreferenzen.');
  if(s.dirty!==undefined&&typeof s.dirty!=='boolean')throw Error('Ungültiger Speicherstatus.');
