@@ -16,7 +16,7 @@ export function AppOverview() {
             .filter(app => app.category === category.id)
             .sort((a, b) => a.overviewOrder - b.overviewOrder);
           return (
-            <details key={category.id} className={`app-category app-category-${category.id}`} open>
+            <details key={category.id} className={`app-category app-category-${category.id}`}>
               <summary><h2>{category.label}</h2><span className="category-count">{apps.length} {apps.length === 1 ? 'App' : 'Apps'}</span></summary>
               <ul className="app-grid">
                 {apps.map(app => (
