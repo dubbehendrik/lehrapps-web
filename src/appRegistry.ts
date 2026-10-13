@@ -1,5 +1,6 @@
 import { lazy } from "react";
 export const appRegistry = [
+  {path: "/gitterschnitt", name: "Gitterschnitt-Inspector", description: "Gitterschnittfotos entzerren, Abplatzungen auswerten und visuelle GT-Einstufungen mit Flächenanteilen vergleichen.", component: lazy(() => import("./apps/gitterschnitt/App"))},
   {
     path: "/waermeleitung-stab",
     name: "Wärmeleitung im Stab",
