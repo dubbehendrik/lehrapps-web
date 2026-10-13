@@ -1,3 +1,4 @@
+import DetectionWorker from "./detection.worker?worker&inline";
 import { useRef, useState, useEffect } from "react";
 import type { PointerEvent } from "react";
 import type { Project, ImageRecord, Point, Fiber } from "./types";
@@ -230,7 +231,7 @@ export default function App() {
     }
   }
   async function example() {
-    const response = await fetch("/flock-inspector/beispiel.png");
+    const response = await fetch(import.meta.env.VITE_OFFLINE === "true" ? import.meta.env.VITE_OFFLINE_EXAMPLE : "/flock-inspector/beispiel.png");
     await loadImage(await response.blob(), "Beispiel – bitte kalibrieren");
   }
   useEffect(() => {
@@ -501,9 +502,7 @@ export default function App() {
       ctx.drawImage(image, 0, 0);
       const rgba = ctx.getImageData(0, 0, c.width, c.height).data;
       worker.current?.terminate();
-      const w = new Worker(new URL("./detection.worker.ts", import.meta.url), {
-        type: "module",
-      });
+      const w = new DetectionWorker();
       worker.current = w;
       w.onmessage = ({ data }) => {
         setBusy(false);
@@ -711,6 +710,9 @@ export default function App() {
         Faserlängen erkennen, kontrollieren und vergleichen. Gemessen wird die
         projizierte Länge entlang der Mittellinie.
       </p>
+      {import.meta.env.VITE_OFFLINE !== "true" && (
+        <p><a href="/downloads/Flock-Inspector-Offline.zip" download>Offline-Version herunterladen (ZIP)</a> · Für Firefox unter Windows 7 und neuer. ZIP entpacken und Start-Flock-Inspector.html mit Firefox öffnen.</p>
+      )}
       <section className="controls">
         <label>
           Projektname
