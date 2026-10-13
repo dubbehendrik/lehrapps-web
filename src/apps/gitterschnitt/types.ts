@@ -7,7 +7,7 @@ export interface Shot {
  thickness: number; substrate: 'hard' | 'soft'; tool: string; removal: string; notes: string;
  coat: RGB[]; bare: RGB[]; coatPoints?: (Point | null)[]; barePoints?: (Point | null)[];
  savedResult?: { component: string; position: string; name: string; blind: GT; proposal: GT; final: GT; percent: number; comment: string }; dirty?: boolean; tolerance: number; kerf: number;
- mask?: number[]; blind?: GT; final?: GT; comment: string; revealed: boolean;
+ baseMask?: number[]; mask?: number[]; blind?: GT; final?: GT; comment: string; revealed: boolean;
  synthetic: boolean;
 }
 export interface Project { format: 'gitterschnitt'; version: 1; name: string; shots: Shot[] }

@@ -5,8 +5,9 @@ export function encodeProject(project:Project) {
  const files:Record<string,Uint8Array>={};
  const shots=project.shots.map((s,i)=>{
  const [header,b64]=s.dataUrl.split(',');files[`images/${i}.bin`]=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+ if(s.baseMask)files[`basemasks/${i}.bin`]=new Uint8Array(s.baseMask);
  if(s.mask)files[`masks/${i}.bin`]=new Uint8Array(s.mask);
- return {...s,dataUrl:undefined,mask:undefined,path:`images/${i}.bin`,mime:header.slice(5,header.indexOf(';')),maskPath:s.mask?`masks/${i}.bin`:undefined};
+ return {...s,dataUrl:undefined,mask:undefined,baseMask:undefined,baseMaskPath:s.baseMask?`basemasks/${i}.bin`:undefined,path:`images/${i}.bin`,mime:header.slice(5,header.indexOf(';')),maskPath:s.mask?`masks/${i}.bin`:undefined};
  });
  files['project.json']=strToU8(JSON.stringify({...project,shots}));return zipSync(files);
 }
@@ -26,7 +27,8 @@ export function decodeProject(bytes:Uint8Array):Project {
  for(const [refs,points] of [[s.coat,s.coatPoints],[s.bare,s.barePoints]])if(points!==undefined&&(!Array.isArray(points)||points.length!==refs.length||points.some((a:any)=>a!==null&&(!a||!Number.isFinite(a.x)||!Number.isFinite(a.y)||a.x<0||a.x>1||a.y<0||a.y>1))))throw Error('Ungültige Referenzpunkte.');
  if(s.savedResult){const r=s.savedResult;if(![r.component,r.position,r.name,r.comment].every(v=>typeof v==='string')||![r.blind,r.proposal,r.final].every(v=>v!==undefined&&gt(v))||!Number.isFinite(r.percent)||r.percent<0||r.percent>100)throw Error('Ungültiger übernommener Ergebnisstand.');}
  if(s.maskPath){const m=files[s.maskPath];if(!m||m.length!==SIZE*SIZE||m.some(v=>v>3))throw Error('Ungültige Maske.');s.mask=Array.from(m);}
+ if(s.baseMaskPath){const m=files[s.baseMaskPath];if(!m||m.length!==SIZE*SIZE||m.some(v=>v>3))throw Error('Ungültige Ausgangsmaske.');s.baseMask=Array.from(m);}
  let binary='';for(const b of files[s.path])binary+=String.fromCharCode(b);s.dataUrl=`data:${s.mime};base64,${btoa(binary)}`;
- delete s.path;delete s.mime;delete s.maskPath;
+ delete s.path;delete s.mime;delete s.maskPath;delete s.baseMaskPath;
  }return p;
 }
