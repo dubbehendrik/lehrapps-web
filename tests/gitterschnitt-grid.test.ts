@@ -1,3 +1,5 @@
+import { gunzipSync } from 'fflate';
+import example from './fixtures/gitterschnitt/uebung2.json';
 import { describe,it,expect } from 'vitest';
 import { detectGrid } from '../src/apps/gitterschnitt/grid';
 import { homography,mapPoint } from '../src/apps/gitterschnitt/logic';
@@ -10,6 +12,7 @@ function render(corners:{x:number;y:number}[],count=6){
  return data;
 }
 describe('Gittervorschlag',()=>{
+ it('erkennt die tatsächliche Aufnahme Übungsbild 2',()=>{const bytes=Uint8Array.from(atob(example.rgbaGzip),c=>c.charCodeAt(0));const r=detectGrid(new Uint8ClampedArray(gunzipSync(bytes)),example.width,example.height);expect(r.status).toBe('suggested');const expected=[{x:.225,y:.13},{x:.775,y:.135},{x:.827,y:.795},{x:.175,y:.795}];r.corners!.forEach((p,i)=>expect(Math.hypot(p.x-expected[i].x,p.y-expected[i].y)).toBeLessThan(.015));});
  it('findet sechs Schnitte je Richtung und die äußeren Ecken',()=>{const c=[{x:45,y:40},{x:195,y:40},{x:195,y:190},{x:45,y:190}];const r=detectGrid(render(c),size,size);expect(r.status).toBe('suggested');r.corners!.forEach((p,i)=>{expect(p.x).toBeCloseTo(c[i].x/(size-1),1);expect(p.y).toBeCloseTo(c[i].y/(size-1),1)})});
  it('findet ein gedrehtes Gitter',()=>{const c=[{x:70,y:25},{x:210,y:70},{x:165,y:210},{x:25,y:165}];const r=detectGrid(render(c),size,size);expect(r.status).toBe('suggested');r.corners!.forEach((p,i)=>expect(Math.hypot(p.x-c[i].x/(size-1),p.y-c[i].y/(size-1))).toBeLessThan(.04))});
  it('erkennt leicht perspektivische Linien',()=>{const c=[{x:55,y:40},{x:185,y:48},{x:200,y:195},{x:40,y:190}];const r=detectGrid(render(c),size,size);expect(r.status).toBe('suggested');r.corners!.forEach((p,i)=>expect(Math.hypot(p.x-c[i].x/(size-1),p.y-c[i].y/(size-1))).toBeLessThan(.06))});
