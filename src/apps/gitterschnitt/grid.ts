@@ -34,12 +34,12 @@ export function detectGrid(pixels:Uint8ClampedArray,width:number,height:number):
  const i=y*width+x;
  const gx=gray[i-width+1]+2*gray[i+1]+gray[i+width+1]-gray[i-width-1]-2*gray[i-1]-gray[i+width-1];
  const gy=gray[i+width-1]+2*gray[i+width]+gray[i+width+1]-gray[i-width-1]-2*gray[i-width]-gray[i-width+1];
- const strength=Math.hypot(gx,gy);if(strength>35)edges.push({x,y,strength,angle:Math.atan2(gy,gx)});
+ const strength=Math.hypot(gx,gy);if(strength>20)edges.push({x,y,strength,angle:Math.atan2(gy,gx)});
  }
  if(edges.length<200)return{status:'not-found'};
  edges.sort((a,b)=>b.strength-a.strength);const usable=edges.slice(0,12000);
  const diagonal=Math.ceil(Math.hypot(width,height)),families:Family[]=[];
- for(let degrees=0;degrees<180;degrees+=2){const theta=degrees*Math.PI/180,cos=Math.cos(theta),sin=Math.sin(theta),hist=new Float32Array(diagonal*2+1);for(const e of usable)if(Math.abs(Math.cos(e.angle-theta))>.98)hist[Math.round(e.x*cos+e.y*sin)+diagonal]++;const f=family(hist,theta,diagonal,Math.min(width,height)*.065);if(f)families.push(f);}
+ for(let degrees=0;degrees<180;degrees+=2){const theta=degrees*Math.PI/180,cos=Math.cos(theta),sin=Math.sin(theta),hist=new Float32Array(diagonal*2+1);for(const e of usable)if(Math.abs(Math.cos(e.angle-theta))>.97)hist[Math.round(e.x*cos+e.y*sin)+diagonal]++;const f=family(hist,theta,diagonal,Math.min(width,height)*.065);if(f)families.push(f);}
  let pair:[Family,Family]|null=null,score=0;
  for(const a of families)for(const b of families){let difference=Math.abs(a.theta-b.theta)*180/Math.PI;if(difference>90)difference=180-difference;if(difference<72)continue;const s=Math.min(a.score,b.score);if(s>score){score=s;pair=[a,b]}}
  if(!pair)return{status:'not-found'};
