@@ -33,20 +33,19 @@ export function AppOverview() {
           );
         })}
       </section>
-      <section className="app-category" aria-labelledby="labor-downloads-title">
-        <h2 id="labor-downloads-title">Programme für den Laborrechner</h2>
+      <details className="app-category app-category-downloads">
+        <summary><h2>Software Downloads</h2><span className="category-count">1 Programm</span></summary>
         <ul className="app-grid">
           <li>
-            <a className="app-card" href="https://github.com/dubbehendrik/schichtdicken-messtisch/releases/latest" target="_blank" rel="noopener noreferrer">
+            <a className="app-card" href="https://github.com/dubbehendrik/schichtdicken-messtisch-downloads/releases/latest" target="_blank" rel="noopener noreferrer">
               <h3>Roboterschichtdicken Messtisch</h3>
               <p>Windows-Anwendung zur robotergestützten Schichtdickenmessung mit DOBOT Magician und MEGA-CHECK DX. Programmplanung, Einlernen, Messarchiv und Excel-Export.</p>
-              <span className="app-card-action">Aktuellen Windows-Installer auf GitHub laden →</span>
-              <p>Laborversion · GitHub-Anmeldung und Repository-Zugriff erforderlich.</p>
+              <p>Windows 10/11 · 64 Bit · Laborversion. Download und Updates ohne GitHub-Anmeldung.</p>
+              <span className="app-card-action">Aktuellen Windows-Installer herunterladen <span aria-hidden="true">→</span></span>
             </a>
-            <p><a href="https://github.com/dubbehendrik/schichtdicken-messtisch" target="_blank" rel="noopener noreferrer">Quellcode und Dokumentation im Repository</a></p>
           </li>
         </ul>
-      </section>
+      </details>
       <SupportFooter appName="Lehr-Apps" />
     </>
   );
