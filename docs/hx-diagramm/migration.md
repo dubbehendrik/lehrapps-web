@@ -1,5 +1,13 @@
 # Mollier h,x migration
 
+## Update 2026-10-16: selectable process endpoint variables
+
+New processes and existing connections support selectable endpoint constraints: heating/cooling T, φ, h; isothermal changes x, φ, h; isenthalpic humidification x, φ, T. Constant variables are not offered. The chosen variable is stored on the point and its exact value is retained among the input pair, so explicit recalculation after upstream/pressure changes preserves the user's constraint. Legacy points retain their original T/x target defaults. Changing a target in an existing connection requires explicit recalculation; later connections are revalidated, not silently adjusted.
+
+Cooling-by-enthalpy follows constant x to dew, then saturation with condensate removal. The inverse is bracketed on the admissible cooling path; liquid separation below zero remains excluded. φ = 100 % is rejected when a saturated path interval supplies infinitely many endpoints. Below-zero dew endpoints remain uniquely valid when further cooling would require the excluded ice model. Tiny ulp-level x changes from re-solving alternative input pairs are not reported as condensate.
+
+Validation: 643 tests, typecheck, production/offline build pass. All supported targets recover independently generated native-variable endpoints and retain direction/saturation checks. Browser tests cover isothermal 60 %, heating/cooling via φ, cooling via h with condensate, existing-target edits, explicit pressure recalculation, ambiguity rejection, tablet/phone overflow and zero runtime errors.
+
 Source: https://github.com/dubbehendrik/Mollier-h-x at cf727a3a0f92e1720722c1ef910f30070ae64a36. Frozen original app.py, thermo.py, chart.py and exports.py are included; the source repository is unchanged.
 
 Route: /hx-diagramm. Registered centrally for navigation and overview. React/TypeScript browser-only implementation; no new dependencies.

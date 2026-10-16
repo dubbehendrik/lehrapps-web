@@ -7,10 +7,12 @@ import {
   PROCESSES,
   FREE,
   HEAT,
-  COOL,
   solve,
   state,
-  processTarget,
+  processTargetBy,
+  processTargetKeys,
+  processRow,
+  storedProcessGoal,
   processPath,
   compatible,
   diagramTemperature,
@@ -20,6 +22,7 @@ import {
   type Process,
   type State,
   type PointRow,
+  type TargetKey,
 } from "./logic";
 import { svgChart, coordinates, pixel } from "./diagram";
 import { NumberInput } from "./NumberInput";
@@ -33,6 +36,12 @@ const defaults: Record<Key, number> = {
   h: 40,
 };
 type Draft = PointRow & { order: number; remove: boolean };
+const targetLabels: Record<TargetKey, string> = {
+  T: "Zieltemperatur [°C]",
+  x: "Ziel-Wasserbeladung [g/kg tr. Luft]",
+  phi: "Ziel-relative Feuchte [%]",
+  h: "Zielenthalpie [kJ/kg tr. Luft]",
+};
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 function Metrics({ s }: { s: State }) {
   return (
@@ -88,12 +97,17 @@ export default function App() {
     [kind, setKind] = useState<Process>(HEAT),
     [connection, setConnection] = useState<Process>(FREE),
     [target, setTarget] = useState(20),
+    [targetKey, setTargetKey] = useState<TargetKey>("T"),
+    [goalEdits, setGoalEdits] = useState<
+      Record<string, { key: TargetKey; value: number }>
+    >({}),
     [clickEnabled, setClickEnabled] = useState(true),
     [cursor, setCursor] = useState({ x: 8, y: 20 }),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
   const commit = (next: PointRow[]) => {
+    setGoalEdits({});
     setRows(next);
     setDraft(
       next.map((r, i) => ({
@@ -128,6 +142,9 @@ export default function App() {
     return { states, errors, ...chart };
   }, [rows, pressure]);
   const last = solved.states.at(-1);
+  const selectedTargetKey = processTargetKeys(kind).includes(targetKey)
+    ? targetKey
+    : processTargetKeys(kind)[0];
   let candidate: State | null = null,
     candidateError = "";
   try {
@@ -135,7 +152,7 @@ export default function App() {
       mode === "state"
         ? solve([first, second], [va, vb], pressure)
         : last
-          ? processTarget(last, kind, target, pressure)
+          ? processTargetBy(last, kind, selectedTargetKey, target, pressure)
           : null;
   } catch (e) {
     candidateError = message(e);
@@ -195,6 +212,17 @@ export default function App() {
           Zwei Zustandsgrößen vorgeben oder einen Punkt im Diagramm anklicken.
           Alternativ erzeugt eine Prozessart mit einer Zielgröße den nächsten
           Punkt. Die Tabelle bestimmt die Reihenfolge 1 → 2 → 3 → …
+        </p>
+        <p>
+          Bei „Prozess vorgeben“ und bei bestehenden Verbindungen ist die
+          Zielgröße auswählbar: Erwärmen/Kühlen über T, φ oder h; isotherme
+          Be-/Entfeuchtung über x, φ oder h; isenthalpe Befeuchtung über x, φ
+          oder T. Beispiel: isotherm auf 60 % relative Feuchte. Die App prüft
+          Prozessrichtung, Diagrammgrenzen, Sättigung und Eindeutigkeit. φ = 100
+          % bestimmt auf einem gesättigten Kühlabschnitt keinen eindeutigen
+          Endpunkt; dann T oder h wählen. Konstant bleibende Größen werden nicht
+          angeboten. Geänderte Ziele bestehender Verbindungen erst mit
+          „Zielpunkt neu berechnen“ übernehmen.
         </p>
         <p>
           x: g Wasserdampf/kg trockener Luft · h: kJ/kg trockener Luft · ρ: kg
@@ -469,7 +497,17 @@ export default function App() {
                     Zustandsänderung
                     <select
                       value={kind}
-                      onChange={(e) => setKind(e.target.value as Process)}
+                      onChange={(e) => {
+                        const next = e.target.value as Process;
+                        const nextKey = processTargetKeys(next).includes(
+                          targetKey,
+                        )
+                          ? targetKey
+                          : processTargetKeys(next)[0];
+                        setKind(next);
+                        setTargetKey(nextKey);
+                        setTarget(last[nextKey]);
+                      }}
                     >
                       {PROCESSES.slice(1).map((k) => (
                         <option key={k}>{k}</option>
@@ -477,9 +515,24 @@ export default function App() {
                     </select>
                   </label>
                   <label>
-                    {kind === HEAT || kind === COOL
-                      ? "Zieltemperatur [°C]"
-                      : "Ziel-Wasserbeladung [g/kg tr. Luft]"}
+                    Zielgröße
+                    <select
+                      value={selectedTargetKey}
+                      onChange={(e) => {
+                        const key = e.target.value as TargetKey;
+                        setTargetKey(key);
+                        setTarget(last[key]);
+                      }}
+                    >
+                      {processTargetKeys(kind).map((key) => (
+                        <option key={key} value={key}>
+                          {LABELS[key]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    {targetLabels[selectedTargetKey]}
                     <NumberInput value={target} onValueChange={setTarget} />
                   </label>
                   <button
@@ -488,11 +541,12 @@ export default function App() {
                       if (candidate)
                         commit([
                           ...rows,
-                          row(
-                            ["T", "x"],
-                            [candidate.T, candidate.x],
-                            name,
+                          processRow(
+                            candidate,
                             kind,
+                            selectedTargetKey,
+                            target,
+                            name,
                           ),
                         ]);
                     }}
@@ -682,11 +736,8 @@ export default function App() {
                 info = message(e);
               }
             }
-            const key = r.process === HEAT || r.process === COOL ? "T" : "x",
-              stored = Object.fromEntries(
-                r.pair.map((k, j) => [k, r.values[j]]),
-              ),
-              goal = b?.[key] ?? stored[key];
+            const saved = storedProcessGoal(r, b);
+            const goal = goalEdits[r.id] ?? saved;
             return (
               <div className="hx-process" key={r.id}>
                 <strong>
@@ -713,24 +764,78 @@ export default function App() {
                 </label>
                 <p>{info}</p>
                 {r.process !== FREE && (
-                  <button
-                    disabled={!a || goal === undefined}
-                    onClick={() =>
-                      run(() => {
-                        if (!a) return;
-                        const s = processTarget(a, r.process, goal, pressure);
-                        commit(
-                          rows.map((v) =>
-                            v.id === r.id
-                              ? { ...v, pair: ["T", "x"], values: [s.T, s.x] }
-                              : v,
-                          ),
-                        );
-                      })
-                    }
-                  >
-                    Zielpunkt neu berechnen
-                  </button>
+                  <>
+                    <label>
+                      Zielgröße
+                      <select
+                        aria-label={`Zielgröße ${i} → ${i + 1}`}
+                        value={goal.key}
+                        onChange={(e) => {
+                          const key = e.target.value as TargetKey;
+                          setGoalEdits((old) => ({
+                            ...old,
+                            [r.id]: { key, value: b?.[key] ?? defaults[key] },
+                          }));
+                        }}
+                      >
+                        {processTargetKeys(r.process).map((key) => (
+                          <option key={key} value={key}>
+                            {LABELS[key]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {targetLabels[goal.key]}
+                      <NumberInput
+                        aria-label={`Zielwert ${i} → ${i + 1}`}
+                        value={goal.value ?? NaN}
+                        onValueChange={(value) =>
+                          setGoalEdits((old) => ({
+                            ...old,
+                            [r.id]: { key: goal.key, value },
+                          }))
+                        }
+                      />
+                    </label>
+                    <button
+                      disabled={
+                        !a ||
+                        goal.value === undefined ||
+                        !Number.isFinite(goal.value)
+                      }
+                      onClick={() =>
+                        run(() => {
+                          if (!a || goal.value === undefined) return;
+                          const s = processTargetBy(
+                            a,
+                            r.process,
+                            goal.key,
+                            goal.value,
+                            pressure,
+                          );
+                          commit(
+                            rows.map((v) =>
+                              v.id === r.id
+                                ? {
+                                    ...processRow(
+                                      s,
+                                      r.process,
+                                      goal.key,
+                                      goal.value,
+                                      r.name,
+                                    ),
+                                    id: r.id,
+                                  }
+                                : v,
+                            ),
+                          );
+                        })
+                      }
+                    >
+                      Zielpunkt neu berechnen
+                    </button>
+                  </>
                 )}
               </div>
             );
