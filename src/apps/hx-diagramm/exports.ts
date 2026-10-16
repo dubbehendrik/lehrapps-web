@@ -1,3 +1,5 @@
+import { svgChart } from "./diagram";
+import { appendPdfTables } from "./pdfTables";
 import { excelNumberFormat, formatNumber } from "./numbers";
 import { download } from "../../lib/download";
 import { processPath, FREE, type PointRow, type State } from "./logic";
@@ -73,7 +75,7 @@ export function exportFrames(rows: PointRow[], states: State[], p: number) {
   ].map(([Thema, Beschreibung]) => ({ Thema, Beschreibung }));
   return { points, processes, notes };
 }
-export async function exportExcel(
+export async function createExcel(
   rows: PointRow[],
   states: State[],
   p: number,
@@ -86,36 +88,75 @@ export async function exportExcel(
     ],
     names = ["Zustände", "Prozesse", "Modell und Hinweise"];
   const { default: write } = await import("write-excel-file/browser");
-  await write(
-    tables.map((table, i) => {
-      const keys = table.length
-        ? Object.keys(table[0])
-        : ["Von", "Nach", "Prozess", "Status"];
-      return {
-        sheet: names[i],
-        stickyRowsCount: 1,
-        data: [
-          keys,
-          ...table.map((r) =>
-            keys.map((k) => {
-              const value = r[k] ?? null;
-              return typeof value === "number"
-                ? { value, type: Number, format: excelNumberFormat(value) }
-                : value;
-            }),
-          ),
+  const sheets = tables.map((table, i) => {
+    const keys = table.length
+      ? Object.keys(table[0])
+      : ["Von", "Nach", "Prozess", "Status"];
+    return {
+      sheet: names[i],
+      stickyRowsCount: 1,
+      data: [
+        keys,
+        ...table.map((r) =>
+          keys.map((k) => {
+            const value = r[k] ?? null;
+            return typeof value === "number"
+              ? { value, type: Number, format: excelNumberFormat(value) }
+              : value;
+          }),
+        ),
+      ],
+    };
+  });
+  const svg = svgChart(
+    p,
+    states,
+    rows.map((r) => r.process),
+  ).svg;
+  const png = await diagramPng(svg);
+  return write([
+    ...sheets,
+    {
+      sheet: "Diagramm",
+      data: [
+        ["Mollier h,x-Diagramm"],
+        [
+          `p = ${formatNumber(p)} hPa · Zustände und Übergänge wie in den Tabellen`,
         ],
-      };
-    }),
-  ).toFile("Mollier-h-x.xlsx");
+      ],
+      images: [
+        {
+          content: png,
+          contentType: "image/png",
+          width: 800,
+          height: 920,
+          dpi: 96,
+          anchor: { row: 4, column: 1 },
+          title: "Mollier h,x-Diagramm",
+          description:
+            "Diagramm mit allen übernommenen Zustandspunkten und Prozessübergängen",
+        },
+      ],
+    },
+  ]).toBlob();
+}
+export async function exportExcel(
+  rows: PointRow[],
+  states: State[],
+  p: number,
+) {
+  download(await createExcel(rows, states, p), "Mollier-h-x.xlsx");
 }
 export async function exportImage(svg: string, format: "svg" | "png") {
-  const blob = new Blob([svg], { type: "image/svg+xml" });
-  if (format === "svg") {
-    download(blob, "Mollier-h-x.svg");
-    return;
-  }
-  const url = URL.createObjectURL(blob);
+  download(
+    format === "svg"
+      ? new Blob([svg], { type: "image/svg+xml" })
+      : await diagramPng(svg),
+    `Mollier-h-x.${format}`,
+  );
+}
+export async function diagramPng(svg: string): Promise<Blob> {
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   try {
     const img = new Image();
     img.src = url;
@@ -134,14 +175,19 @@ export async function exportImage(svg: string, format: "svg" | "png") {
         "image/png",
       ),
     );
-    download(png, "Mollier-h-x.png");
+    return png;
   } finally {
     URL.revokeObjectURL(url);
   }
 }
 
 /** Browser-only vector PDF, same trusted SVG scene as screen/PNG/SVG. */
-export async function createPdf(svg: string): Promise<Blob> {
+export async function createPdf(
+  svg: string,
+  rows: PointRow[] = [],
+  states: State[] = [],
+  p = 950,
+): Promise<Blob> {
   const [{ jsPDF }, , regularUrl, boldUrl] = await Promise.all([
     import("jspdf"),
     import("svg2pdf.js"),
@@ -188,14 +234,14 @@ export async function createPdf(svg: string): Promise<Blob> {
     .forEach((node) => node.setAttribute("font-family", "HxSans"));
   // svg2pdf does not implement SVG paint-order. Draw the white text halo
   // first and the colored glyphs second, otherwise the outline hides labels.
-  element.querySelectorAll('text[paint-order="stroke"]').forEach(node => {
+  element.querySelectorAll('text[paint-order="stroke"]').forEach((node) => {
     const halo = node.cloneNode(true) as Element;
-    halo.removeAttribute('paint-order');
-    halo.setAttribute('fill', 'none');
+    halo.removeAttribute("paint-order");
+    halo.setAttribute("fill", "none");
     node.before(halo);
-    node.removeAttribute('paint-order');
-    node.removeAttribute('stroke');
-    node.removeAttribute('stroke-width');
+    node.removeAttribute("paint-order");
+    node.removeAttribute("stroke");
+    node.removeAttribute("stroke-width");
   });
   element.setAttribute("width", "800");
   element.setAttribute("height", "920");
@@ -213,11 +259,17 @@ export async function createPdf(svg: string): Promise<Blob> {
       subject: "A4-Diagramm – Feuchte bezogen auf Wasser",
       author: "Hochschule Esslingen",
     });
+    if (rows.length) appendPdfTables(doc, exportFrames(rows, states, p));
     return doc.output("blob");
   } finally {
     host.remove();
   }
 }
-export async function exportPdf(svg: string) {
-  download(await createPdf(svg), "Mollier-h-x-A4.pdf");
+export async function exportPdf(
+  svg: string,
+  rows: PointRow[],
+  states: State[],
+  p: number,
+) {
+  download(await createPdf(svg, rows, states, p), "Mollier-h-x-A4.pdf");
 }
