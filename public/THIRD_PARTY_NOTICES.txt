@@ -44,3 +44,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 `read-excel-file` is used for local browser parsing of `.xlsx` workbooks.
 Its MIT license and dependencies' licenses are shipped in the npm package.
+
+PDF export uses jsPDF and svg2pdf.js (MIT). Embedded font: DejaVu Sans,
+Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved.
+Bitstream Vera is a trademark of Bitstream, Inc. DejaVu changes are public domain.
+Full license: /fonts/LICENSE-DejaVu.txt

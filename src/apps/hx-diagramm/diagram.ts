@@ -1,4 +1,6 @@
+import { formatNumber as fmt } from "./numbers";
 import {
+  checkPressure,
   linspace,
   saturationX,
   properties,
@@ -119,7 +121,7 @@ function grid(p: number) {
       labels.push({
         x: x + 0.12,
         y: y + 0.55,
-        text: `ρ = ${rho.toFixed(2)}`,
+        text: `ρ = ${fmt(rho)}`,
         color: colors.rho,
         rotation: 0,
       });
@@ -133,6 +135,7 @@ export function svgChart(
   states: (State | null)[],
   kinds: Process[],
 ) {
+  checkPressure(p);
   const base = grid(p),
     lines = [...base.lines],
     arrows: string[] = [],
@@ -178,7 +181,7 @@ export function svgChart(
     }
   }
   const out = [
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 920" role="img" aria-label="Mollier h-x-Diagramm"><defs><clipPath id="hx-plot"><rect x="65" y="76" width="645" height="760"/></clipPath></defs><rect width="800" height="920" rx="12" fill="white"/><g font-family="Arial, sans-serif"><text x="65" y="27" fill="#17343c" font-size="19" font-weight="bold">Mollier h,x-Diagramm</text><text x="65" y="48" fill="#67757b" font-size="12">p = ${p} hPa · Feuchte bezogen auf Wasser</text><g clip-path="url(#hx-plot)">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 920" role="img" aria-label="Mollier h-x-Diagramm"><defs><clipPath id="hx-plot"><rect x="65" y="76" width="645" height="760"/></clipPath></defs><rect width="800" height="920" rx="12" fill="white"/><g font-family="Arial, sans-serif"><text x="65" y="27" fill="#17343c" font-size="19" font-weight="bold">Mollier h,x-Diagramm</text><text x="65" y="48" fill="#67757b" font-size="12">p = ${fmt(p)} hPa · Feuchte bezogen auf Wasser</text><g clip-path="url(#hx-plot)">`,
   ];
   for (const line of lines)
     out.push(
@@ -215,7 +218,7 @@ export function svgChart(
     if (!s) return;
     const [a, b] = pixel(s.x, diagramY(s.T, s.x));
     out.push(
-      `<g><title>Punkt ${i + 1}: T = ${s.T.toFixed(2)} °C | x = ${s.x.toFixed(3)} g/kg | φ = ${s.phi.toFixed(2)} % | h = ${s.h.toFixed(2)} kJ/kg | ρ = ${s.rho.toFixed(4)} kg/m³</title><circle cx="${a}" cy="${b}" r="7" fill="#007b83" stroke="white" stroke-width="2"/><text x="${a + 11}" y="${b - 9}" fill="#00585e" font-size="15" font-weight="bold" stroke="white" stroke-width="3" paint-order="stroke">${i + 1}</text></g>`,
+      `<g><title>Punkt ${i + 1}: T = ${fmt(s.T)} °C | x = ${fmt(s.x)} g/kg | φ = ${fmt(s.phi)} % | h = ${fmt(s.h)} kJ/kg | ρ = ${fmt(s.rho)} kg/m³</title><circle cx="${a}" cy="${b}" r="7" fill="#007b83" stroke="white" stroke-width="2"/><text x="${a + 11}" y="${b - 9}" fill="#00585e" font-size="15" font-weight="bold" stroke="white" stroke-width="3" paint-order="stroke">${i + 1}</text></g>`,
     );
   });
   out.push(
