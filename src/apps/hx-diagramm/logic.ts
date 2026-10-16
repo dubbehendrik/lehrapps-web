@@ -2,6 +2,7 @@
  * %, kg/m³ moist air, kJ/kg dry air, hPa. Saturation refers to liquid water. */
 export const KEYS = ["T", "x", "phi", "rho", "h"] as const;
 export type Key = (typeof KEYS)[number];
+export type TargetKey = Exclude<Key, "rho">;
 export const LABELS: Record<Key, string> = {
   T: "T · Temperatur [°C]",
   x: "x · Wasserbeladung [g/kg tr. Luft]",
@@ -30,6 +31,8 @@ export interface PointRow {
   pair: [Key, Key];
   values: [number, number];
   process: Process;
+  /** Selected endpoint constraint; absent for legacy/manual state rows. */
+  targetKey?: TargetKey;
 }
 export function linspace(a: number, b: number, n: number) {
   return Array.from({ length: n }, (_, i) => a + ((b - a) * i) / (n - 1));
@@ -248,6 +251,112 @@ export function processTarget(
   }
   throw Error("Eine freie Verbindung benötigt zwei vorgegebene Zustände.");
 }
+export function processTargetKeys(kind: Process): TargetKey[] {
+  if (kind === HEAT || kind === COOL) return ["T", "phi", "h"];
+  if (kind === ISOTHERM) return ["x", "phi", "h"];
+  if (kind === ISENTHALP) return ["x", "phi", "T"];
+  return [];
+}
+
+/** Resolve an endpoint along the selected physical path, not an arbitrary pair.
+ * Cooling h includes continuous condensate removal; x is NOT constant after dew.
+ * Relative humidity on the saturated part is constant and cannot specify a stop.
+ */
+export function processTargetBy(
+  start: State,
+  kind: Process,
+  key: TargetKey,
+  value: number,
+  p: number,
+): State {
+  checkPressure(p);
+  if (!processTargetKeys(kind).includes(key))
+    throw Error(
+      "Diese Zielgröße bestimmt bei dieser Prozessart keinen Endpunkt.",
+    );
+  if (!Number.isFinite(value))
+    throw Error("Bitte eine endliche Zielgröße eingeben.");
+  if (key === "phi" && (value < 0 || value > 100))
+    throw Error("Die relative Feuchte muss zwischen 0 und 100 % liegen.");
+  const nativeKey = kind === HEAT || kind === COOL ? "T" : "x";
+  if (key === nativeKey) return processTarget(start, kind, value, p);
+  if (kind === ISOTHERM) {
+    const end = solve(["T", key], [start.T, value], p);
+    return processTarget(start, kind, end.x, p);
+  }
+  if (kind === ISENTHALP) {
+    const end = solve(["h", key], [start.h, value], p);
+    return processTarget(start, kind, end.x, p);
+  }
+  if (key === "phi" && start.x === 0)
+    throw Error(
+      "Bei trockener Luft bleibt φ = 0 %. Die relative Feuchte bestimmt hier keinen eindeutigen Endpunkt. Bitte T oder h wählen.",
+    );
+  if (kind === HEAT) {
+    const end = solve(["x", key], [start.x, value], p);
+    return processTarget(start, kind, end.T, p);
+  }
+  // Lowest admissible cooling temperature: stop at dew below 0 °C,
+  // otherwise at 0 °C when condensate forms. Dry cold cooling remains allowed.
+  const minimumT = Math.min(
+    start.T,
+    Math.max(-15, start.dew === null ? -15 : Math.min(0, start.dew)),
+  );
+  if (
+    key === "phi" &&
+    value === 100 &&
+    start.dew !== null &&
+    start.dew > minimumT + 1e-7
+  )
+    throw Error(
+      "φ = 100 % ist beim Kühlen ab dem Taupunkt über einen ganzen Abschnitt erfüllt und damit nicht eindeutig. Bitte eine Zieltemperatur oder Enthalpie wählen.",
+    );
+  const at = (t: number) => processTarget(start, COOL, t, p);
+  const residual = (t: number) => at(t)[key] - value;
+  const lo = residual(minimumT),
+    hi = residual(start.T);
+  const tolerance = 1e-8 * Math.max(1, Math.abs(value));
+  if (Math.abs(lo) <= tolerance) return at(minimumT);
+  if (Math.abs(hi) <= tolerance) return at(start.T);
+  if (lo * hi > 0)
+    throw Error(
+      "Das Ziel ist auf diesem Kühlprozess im festen Diagrammbereich nicht erreichbar. Wasserabscheidung unter 0 °C wird nicht berechnet.",
+    );
+  return at(root(residual, minimumT, start.T));
+}
+
+/** Store the user's chosen constraint explicitly, without rounding. */
+export function processRow(
+  end: State,
+  kind: Process,
+  key: TargetKey,
+  value: number,
+  name = "",
+): PointRow {
+  const invariant: Key =
+    kind === ISOTHERM
+      ? "T"
+      : kind === ISENTHALP
+        ? "h"
+        : kind === HEAT
+          ? "x"
+          : "T";
+  const pair: [Key, Key] =
+    key === "T" ? ["T", kind === ISENTHALP ? "h" : "x"] : [invariant, key];
+  const values: [number, number] = pair.map((k) =>
+    k === key ? value : end[k],
+  ) as [number, number];
+  return { ...row(pair, values, name, kind), targetKey: key };
+}
+
+export function storedProcessGoal(item: PointRow, end: State | null) {
+  const keys = processTargetKeys(item.process);
+  const key =
+    item.targetKey && keys.includes(item.targetKey) ? item.targetKey : keys[0];
+  const index = item.pair.indexOf(key);
+  return { key, value: index >= 0 ? item.values[index] : end?.[key] };
+}
+
 export function processPath(
   start: State,
   end: State,
@@ -280,7 +389,14 @@ export function processPath(
   }
   return {
     points: values.map((v) => processTarget(start, kind, v, p)),
-    water: kind === COOL ? Math.max(0, start.x - end.x) : null,
+    // Re-solving a T/φ endpoint can perturb x by a few ulps. That is not
+    // physical condensate on an otherwise constant-x cooling segment.
+    water:
+      kind === COOL
+        ? start.x - end.x > 64 * Number.EPSILON * Math.max(1, start.x, end.x)
+          ? start.x - end.x
+          : 0
+        : null,
   };
 }
 export function compatible(start: State, end: State, p: number) {
