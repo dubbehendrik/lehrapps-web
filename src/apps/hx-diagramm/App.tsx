@@ -213,6 +213,16 @@ export default function App() {
           Enthalpieänderung der Luft; Kondensatenthalpie und Verluste sind nicht
           bilanziert.
         </p>
+        <p>
+          <strong>Export:</strong> Das A4-PDF enthält auf Seite 1 das Diagramm.
+          Mit Zustandspunkten folgen ab Seite 2 Tabellen mit Vorgaben,
+          berechneten Zuständen, Übergängen und Modellhinweisen; bei Bedarf auf
+          weiteren Seiten. Ohne Punkte wird ausschließlich die Diagrammseite
+          ausgegeben, ohne zusätzliche Annahmenseite. Excel enthält das
+          Gesamtpaket: Zustände, Prozesse, Modellhinweise und den Reiter
+          „Diagramm“ mit eingebetteter Abbildung einschließlich Zustandspunkten
+          und Übergängen. Exportiert werden nur übernommene Tabellenänderungen.
+        </p>
         <div className="formula-list">
           <MathExpression label="Dampfdruck gleich relative Feuchte mal Sättigungsdruck">
             {m.row(
@@ -731,17 +741,24 @@ export default function App() {
         <h2>Ergebnisse exportieren</h2>
         <p>
           Exportiert werden die übernommenen Tabellenwerte. Excel enthält
-          Zustände, Vorgaben, Prozesse und Modellbeschreibung. Ungültige Punkte
-          oder Prozesse sperren den Export. Das Diagramm kann auch ohne Punkte
-          exportiert werden. Zahlen: Dezimalkomma, Punkt zur Tausendertrennung,
-          maximal zwei Nachkommastellen; wissenschaftliche Schreibweise ab
-          |Wert| ≥ 10⁵ und bei 0 &lt; |Wert| &lt; 0,005. Excel behält die
-          ungerundeten Zahlenwerte.
+          Zustände, Vorgaben, Prozesse, Modellbeschreibung und die eingebettete
+          Abbildung im Reiter „Diagramm“. Das PDF enthält mit Punkten
+          zusätzliche Tabellenseiten; ohne Punkte ausschließlich die
+          Diagrammseite. Ungültige Punkte oder Prozesse sperren den Export. Das
+          Diagramm kann auch ohne Punkte exportiert werden. Zahlen:
+          Dezimalkomma, Punkt zur Tausendertrennung, maximal zwei
+          Nachkommastellen; wissenschaftliche Schreibweise ab |Wert| ≥ 10⁵ und
+          bei 0 &lt; |Wert| &lt; 0,005. Excel behält die ungerundeten
+          Zahlenwerte.
         </p>
         <div className="button-row">
           <button
             disabled={exportDisabled}
-            onClick={() => void asyncRun(() => exportPdf(solved.svg))}
+            onClick={() =>
+              void asyncRun(() =>
+                exportPdf(solved.svg, rows, solved.states as State[], pressure),
+              )
+            }
           >
             ↓ Diagramm als PDF (A4)
           </button>
