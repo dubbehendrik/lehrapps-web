@@ -35,9 +35,9 @@ function doubleArrow(ctx:CanvasRenderingContext2D,x:number,y:number,xx:number,yy
 }
 export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Slice,selected:number[]|null=null) {
   canvas.width=WIDTH;canvas.height=HEIGHT;const ctx=canvas.getContext('2d')!;
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,WIDTH,HEIGHT);ctx.fillStyle='#162c3c';ctx.font='bold 26px system-ui';ctx.fillText('Temperaturverteilung',30,35);
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,WIDTH,HEIGHT);ctx.fillStyle='#162c3c';ctx.font='bold 26px system-ui';ctx.fillText(`Temperaturverteilung · ${s.numerical?.radiation?'mit':'ohne'} Strahlung`,30,35);
   ctx.font='20px system-ui';ctx.fillText(`${view.plane} · ${s.normal} = ${fmt(view.position)} mm · t = ${fmt(view.time)} s`,30,66);
-  const r=mapBounds(p,view),lo=Math.min(p.initial,p.ambient),hi=Math.max(p.initial,p.ambient);
+  const r=mapBounds(p,view),lo=Math.min(p.initial,p.ambient,...(s.numerical&&p.radiation?[p.radiation.ambient]:[])),hi=Math.max(p.initial,p.ambient,...(s.numerical&&p.radiation?[p.radiation.ambient]:[]));
   const nx=s.u.length,ny=s.v.length;
   const off=document.createElement('canvas');off.width=Math.max(1,Math.ceil(r.width));off.height=Math.max(1,Math.ceil(r.height));
   const oc=off.getContext('2d')!,image=oc.createImageData(off.width,off.height);
@@ -92,7 +92,7 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   for(let x=0;x<lw;x++){ctx.fillStyle=`rgb(${color(lo+(hi-lo)*x/(lw-1),lo,hi).join(',')})`;ctx.fillRect(lx+x,ly,1,20);}
   ctx.fillStyle='#162c3c';ctx.font='18px system-ui';ctx.textAlign='left';ctx.fillText(`${fmt(lo)} °C`,lx,ly+44);ctx.textAlign='right';ctx.fillText(`${fmt(hi)} °C`,lx+lw,ly+44);ctx.textAlign='center';ctx.fillText('Temperatur [°C] · feste Skala',lx+lw/2,ly+44);
   ctx.textAlign='left';ctx.font='18px system-ui';ctx.fillText(`${view.smooth?'Bilinear geglättet':'Farbfelder ohne Glättung'} · Geometrie maßstabsgerecht`,30,752);
-  ctx.fillText(s.converged?'Reihenfehler ≤ 0,01 K (konservative Abschätzung)': 'ACHTUNG: Genauigkeitsziel nicht erreicht – Termlimit.',30,781);
+  ctx.fillText(s.numerical?`Numerisch ${s.numerical.grid.join(' × ')} · ${s.numerical.radiation?'mit':'ohne'} Strahlung · Gitter-/Zeitfehler nicht begrenzt`:s.converged?'Reihenfehler ≤ 0,01 K (konservative Abschätzung)': 'ACHTUNG: Genauigkeitsziel nicht erreicht – Termlimit.',30,781);
   // Orthographic isometric projection, one common scale for all dimensions.
   const project=cuboidProjection(p.size);
   const proj=(x:number,y:number,z:number)=>project([x*p.size[0],y*p.size[1],z*p.size[2]]);
@@ -126,11 +126,12 @@ export function drawDiagram(canvas:HTMLCanvasElement,p:Parameters,view:View,s:Sl
   text(`λ = ${fmt(p.conductivity)} W/(m K)`,329);text(`ρ = ${fmt(p.density)} kg/m³`,355);
   subscriptText(ctx,[['c','p'],[` = ${fmt(p.cp)} J/(kg K)`]],818,381);
   subscriptText(ctx,[['T','0'],[` = ${fmt(p.initial)} °C; `],['T','∞'],[` = ${fmt(p.ambient)} °C`]],818,407);
-  text(`Endzeit: ${fmt(p.endTime)} s`,433);
+  if(s.numerical?.radiation)subscriptText(ctx,[[`Ende: ${fmt(p.endTime)} s · `],['T','U'],[` = ${fmt(p.radiation!.ambient)} °C`]],818,433);
+  else text(`Endzeit: ${fmt(p.endTime)} s`,433);
   axes.forEach((axis,i)=>{
     const y=469+i*92;ctx.strokeStyle='#cad5dd';line(ctx,[[817,y-16],[1068,y-16]]);
-    subscriptText(ctx,[['α',`${axis},−`],[` = ${fmt(p.alphas[2*i])} W/(m² K)`]],818,y);
-    subscriptText(ctx,[['α',`${axis},+`],[` = ${fmt(p.alphas[2*i+1])} W/(m² K)`]],818,y+18);
+    subscriptText(ctx,[['α',`${axis},−`],[` = ${fmt(p.alphas[2*i])} W/(m² K)${s.numerical?.radiation?` · ε = ${fmt(p.radiation!.emissivities[2*i])}`:''}`]],818,y);
+    subscriptText(ctx,[['α',`${axis},+`],[` = ${fmt(p.alphas[2*i+1])} W/(m² K)${s.numerical?.radiation?` · ε = ${fmt(p.radiation!.emissivities[2*i+1])}`:''}`]],818,y+18);
     subscriptText(ctx,[['L',`${axis},char`],[` = ${fmt(p.size[i]/2)} mm`]],818,y+36);
     subscriptText(ctx,[['Bi',`${axis},−`],[` = ${fmt(s.bi[2*i])}; `],['Bi',`${axis},+`],[` = ${fmt(s.bi[2*i+1])}`]],818,y+54);
     subscriptText(ctx,[['Fo',axis],[` = ${fmt(s.fo[i])}`]],818,y+72);

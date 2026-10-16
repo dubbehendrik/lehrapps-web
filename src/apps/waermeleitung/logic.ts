@@ -14,6 +14,12 @@ export function validate(p: Parameters) {
     if(!Number.isFinite(v)||v<min||v>max) throw new Error(`${name}: zulässiger Bereich ${min}–${max}.`);
   if(!Number.isFinite(p.initial)||!Number.isFinite(p.ambient)||Math.min(p.initial,p.ambient)<-273.15||Math.max(p.initial,p.ambient)>2000) throw new Error('Temperaturen müssen zwischen −273,15 und 2000 °C liegen.');
   if(!Number.isFinite(p.endTime)||p.endTime<=0||p.endTime>1e7) throw new Error('Endzeit muss größer als 0 und höchstens 10.000.000 s sein.');
+  if(p.radiation) {
+    const r=p.radiation;
+    if(r.emissivities.length!==6||r.emissivities.some(e=>!Number.isFinite(e)||e<0||e>1))throw new Error('Emissionsgrade müssen zwischen 0 und 1 liegen.');
+    if(!Number.isFinite(r.ambient)||r.ambient< -273.15||r.ambient>2000)throw new Error('Strahlungsumgebung: −273,15 bis 2000 °C.');
+    if(!['coarse','standard','fine'].includes(r.resolution))throw new Error('Ungültige Rechengitter-Auflösung.');
+  }
 }
 // On s in [0,1], phi = cos(q*s-phase), phase=atan(Bi_left_full/q).
 // Robin conditions phi'(0)=Bi_left_full*phi(0), phi'(1)=-Bi_right_full*phi(1).

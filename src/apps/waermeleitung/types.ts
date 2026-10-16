@@ -6,6 +6,7 @@ export interface Parameters {
   alphas: [number, number, number, number, number, number]; // x-,x+,y-,y+,z-,z+
   conductivity: number; density: number; cp: number;
   initial: number; ambient: number; endTime: number; material: string;
+  radiation?: { enabled: boolean; emissivities: [number,number,number,number,number,number]; ambient: number; resolution: 'coarse'|'standard'|'fine'; refinedTime?: boolean };
 }
 export interface View { plane: Plane; position: number; time: number; smooth: boolean }
 export interface AxisSolution { q: number[]; phase: number[]; coefficient: number[]; fo: number; tailBound: number; adiabatic: boolean }
@@ -15,9 +16,11 @@ export interface Slice {
   terms: number[]; errorBound: number; converged: boolean;
   bi: number[]; fo: number[]; center: number;
   profiles: { x: number[]; temperature: number[] }[];
+  numerical?: { grid: number[]; steps: number; radiation: boolean; energyChange: number; boundaryEnergy: number };
 }
 export const defaults: Parameters = {
   size: [70,70,5], points: [101,101,41], alphas: [10,10,10,10,10,10],
   conductivity: 50, density: 7850, cp: 477, initial: 180, ambient: 20,
   endTime: 600, material: 'Stahl (unlegiert, Lehrwert)',
+  radiation: {enabled:false,emissivities:[.8,.8,.8,.8,.8,.8],ambient:20,resolution:'standard'},
 };

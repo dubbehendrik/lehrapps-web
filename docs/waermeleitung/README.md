@@ -6,11 +6,11 @@ Route: `/Temperaturverteilung`; `/waermeleitung` leitet auf die neue Adresse wei
 
 Homogener isotroper Quader, einheitliche Anfangstemperatur, konstante λ, ρ, cₚ.
 Jede Außenfläche hat einen konstanten räumlich homogenen Wärmeübergangskoeffizienten α ≥ 0;
-alle Flächen teilen dieselbe Umgebungstemperatur. Keine Strahlung, Kontaktstellen,
+alle Flächen teilen dieselbe Lufttemperatur. Optional Strahlung (siehe unten), keine Kontaktstellen,
 Phasenwechsel oder Wärmequellen. Eine konstante Stoffwertnäherung über 20–180 °C
 ist ausdrücklich ein Lehrmodell, kein Werkstoffnachweis.
 
-Dreidimensionale Übertemperatur als Produkt dreier 1-D-Eigenfunktionslösungen.
+Im analytischen Modus: dreidimensionale Übertemperatur als Produkt dreier 1-D-Eigenfunktionslösungen.
 Das ist unter den Voraussetzungen ein separierbares analytisches Modell, kein
 zeitintegrierter numerischer 3-D-Gittersolver. Asymmetrische Bedingungen benötigen
 die volle Länge D; die Benutzerkennzahlen beziehen sich konsistent auf L=D/2:
@@ -44,7 +44,7 @@ Zentrierte Koordinaten, XY/XZ/YZ, kontinuierlich verschiebbare Ebenen. Die Karte
 sind geometrisch maßstabsgerecht. Der kleine Quader hat eine orthografische isometrische Projektion mit einem gemeinsamen geometrischen Maßstab; die eingegebenen Seitenverhältnisse bleiben erhalten.
 Farbfelder sind den nächstliegenden Auswertepunkten zugeordnet, keine FVM-Zellen.
 Glättung: bilineare Interpolation der Temperaturmatrix, keine künstlichen Extrema.
-Blau-Rot-Skala mit festen physikalischen Temperaturgrenzen min/max(T₀,T∞).
+Blau-Cyan-Gelb-Orange-Rot-Skala mit festen physikalischen Temperaturgrenzen min/max(T₀,T∞), im numerischen Modus einschließlich TU.
 Alle sichtbaren Werte und Exporte in °C, keine dimensionslose Übertemperatur.
 
 Klick/Touch: nächster Auswertepunkt im Farbfeldmodus; analytische Auswertung am
@@ -69,6 +69,49 @@ Unabhängige Referenz: `reference.py` (401 Knoten, Crank-Nicolson, ΔFo=10⁻⁵
 Resultate in `reference.json`. Fünf symmetrische, asymmetrische und einseitig
 adiabatische Fälle, fünf Orte pro Fall; zulässige Abweichung dimensionslos 10⁻⁵.
 Python wird ausschließlich für reproduzierbare Offline-Referenzen verwendet.
+
+## Optionale Wärmestrahlung und Vergleich
+
+Ohne Strahlung und ohne Vergleich bleibt die analytische Produktlösung aktiv.
+Mit Strahlung oder Vergleich verwendet `radiation.ts` einen numerischen 3D-Solver:
+knotenbasierte Finite Volumen mit halben Randkontrollvolumen, implizite
+Richtungsschritte (Backward Euler / Lie-Splitting, zeitlich erster Ordnung).
+Die nichtlineare Randbedingung wird pro Linie mit Newton und tridiagonaler
+Jacobi-Matrix gelöst; kein eingefrorener Strahlungskoeffizient.
+
+Randfluss nach außen: α(T−T∞) + εσ[(T+273,15)^4−(TU+273,15)^4].
+σ=5,670374419·10⁻⁸ W/(m² K⁴). Große isotherme Strahlungsumgebung,
+Sichtfaktor 1, sechs konstante Emissionsgrade 0…1. ε=0,8 ist ein frei gewählter
+Startwert, kein aus dem Material abgeleiteter Kennwert. TU kann von T∞ abweichen.
+α=0 allein bedeutet bei aktivierter Strahlung nicht adiabatisch.
+Physikalische Grundlage: https://doc.comsol.com/6.4/doc/com.comsol.help.comsol/comsol_ref_heattransfer.30.34.html
+
+Gitter unabhängig von Auswertepunkten: 13×13×7, 21×21×9 oder 33×33×13.
+Maximale Zeitschrittweite Endzeit/600, optional /1200; zusätzlich Begrenzung
+der Randzellenrelaxation. 121 gespeicherte Felder; Zwischenzeitpunkte werden
+vom letzten gespeicherten Zustand weiterintegriert (nicht zeitlich interpoliert).
+Trilineare räumliche Interpolation. Maximal 18.000 Schritte, 30 Newtoniterationen
+pro Linie, Laufzeitlimit; keine nachträgliche Temperaturbegrenzung.
+Worker wird bei Parameteränderungen beendet und neu gestartet, um veraltete
+Rechnungen abzubrechen. Maximal zwei numerische Szenarien im Worker-Cache.
+
+Beide Vergleichsszenarien nutzen denselben numerischen Ansatz und dasselbe Gitter.
+Zwei synchronisierte Karten mit identischer fester Skala; überlagerte Profile und
+Abkühlkurven durchgezogen/gestrichelt. Bi enthält nur den konvektiven Anteil.
+PNG enthält bei aktivem Vergleich beide Karten; Excel zusätzlich den Vergleich
+und die Differenz Hauptszenario minus Vergleich. Strahlungsparameter und
+Numerikmetadaten werden exportiert.
+
+Wichtig: Die analytische Reihenfehlergrenze von 0,01 K gilt NICHT für numerische
+Ergebnisse. Gitter- und Zeitfehler sind nicht automatisch begrenzt. Feineres Gitter
+und halbierte Zeitschritte müssen zur Beurteilung verglichen werden. Die Energiebilanz
+prüft Konservativität, nicht die Genauigkeit der Temperaturverteilung.
+
+`tests/waermeleitung-radiation.test.ts`: Kelvin/Vorzeichen, Gleichgewicht,
+vollständige Adiabasie, ε=0-Vergleich, unabhängige analytische Robin-Referenz
+an Mittelpunkt/Oberflächen/Ecken, Konvektion+Strahlung-Energiebilanz, einseitige
+Bestrahlung, unabhängiger RK4-Lumped-Grenzfall, räumliche und zeitliche Konvergenz,
+Schnitt-/Profilkonsistenz, Exportmetadaten und vollständiger Standardfall.
 
 Diagramme wurden mit einer Canvas-Laufzeit gerendert und visuell geprüft,
 einschließlich 70×5 mm und vertikal dünner Geometrien. Das ist keine Browserprüfung.
