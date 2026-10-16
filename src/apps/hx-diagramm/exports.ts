@@ -1,3 +1,4 @@
+import { excelNumberFormat, formatNumber } from "./numbers";
 import { download } from "../../lib/download";
 import { processPath, FREE, type PointRow, type State } from "./logic";
 export const WINTER_NOTE =
@@ -43,7 +44,7 @@ export function exportFrames(rows: PointRow[], states: State[], p: number) {
       "Einheiten",
       "x und h beziehen sich auf 1 kg trockene Luft; ρ auf die gesamte feuchte Luft pro m³.",
     ],
-    ["Druck [hPa]", String(p)],
+    ["Druck [hPa]", formatNumber(p)],
     [
       "Diagramm",
       "Fest: −15 bis 40 °C; 0 bis 20 g/kg trockene Luft. Linke Temperaturskala gilt bei x = 0; geneigte Isothermen beachten.",
@@ -93,7 +94,17 @@ export async function exportExcel(
       return {
         sheet: names[i],
         stickyRowsCount: 1,
-        data: [keys, ...table.map((r) => keys.map((k) => r[k] ?? null))],
+        data: [
+          keys,
+          ...table.map((r) =>
+            keys.map((k) => {
+              const value = r[k] ?? null;
+              return typeof value === "number"
+                ? { value, type: Number, format: excelNumberFormat(value) }
+                : value;
+            }),
+          ),
+        ],
       };
     }),
   ).toFile("Mollier-h-x.xlsx");
@@ -127,4 +138,86 @@ export async function exportImage(svg: string, format: "svg" | "png") {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/** Browser-only vector PDF, same trusted SVG scene as screen/PNG/SVG. */
+export async function createPdf(svg: string): Promise<Blob> {
+  const [{ jsPDF }, , regularUrl, boldUrl] = await Promise.all([
+    import("jspdf"),
+    import("svg2pdf.js"),
+    import("../../assets/fonts/HxSans.ttf?url"),
+    import("../../assets/fonts/HxSans-Bold.ttf?url"),
+  ]);
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+    compress: true,
+    putOnlyUsedFonts: true,
+  });
+  for (const [style, url] of [
+    ["normal", regularUrl.default],
+    ["bold", boldUrl.default],
+  ] as const) {
+    const response = await fetch(url);
+    if (!response.ok)
+      throw Error("Die PDF-Schrift konnte nicht geladen werden.");
+    const buffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 8192)
+      binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    const filename = `HxSans-${style}.ttf`;
+    doc.addFileToVFS(filename, btoa(binary));
+    doc.addFont(filename, "HxSans", style);
+    // SVG text measurement must use the very same font as PDF output.
+    const face = new FontFace("HxSans", buffer, {
+      weight: style === "bold" ? "700" : "400",
+    });
+    await face.load();
+    document.fonts.add(face);
+  }
+  const element = new DOMParser().parseFromString(
+    svg,
+    "image/svg+xml",
+  ).documentElement;
+  if (element.tagName !== "svg" || element.querySelector("parsererror"))
+    throw Error("Das Diagramm konnte nicht als PDF gelesen werden.");
+  element
+    .querySelectorAll("[font-family]")
+    .forEach((node) => node.setAttribute("font-family", "HxSans"));
+  // svg2pdf does not implement SVG paint-order. Draw the white text halo
+  // first and the colored glyphs second, otherwise the outline hides labels.
+  element.querySelectorAll('text[paint-order="stroke"]').forEach(node => {
+    const halo = node.cloneNode(true) as Element;
+    halo.removeAttribute('paint-order');
+    halo.setAttribute('fill', 'none');
+    node.before(halo);
+    node.removeAttribute('paint-order');
+    node.removeAttribute('stroke');
+    node.removeAttribute('stroke-width');
+  });
+  element.setAttribute("width", "800");
+  element.setAttribute("height", "920");
+  const host = document.createElement("div");
+  host.style.cssText =
+    "position:absolute;left:-10000px;top:0;width:800px;height:920px;pointer-events:none";
+  host.append(element);
+  document.body.append(host);
+  try {
+    const width = 190,
+      height = (width * 920) / 800;
+    await doc.svg(element, { x: 10, y: (297 - height) / 2, width, height });
+    doc.setProperties({
+      title: "Mollier h,x-Diagramm",
+      subject: "A4-Diagramm – Feuchte bezogen auf Wasser",
+      author: "Hochschule Esslingen",
+    });
+    return doc.output("blob");
+  } finally {
+    host.remove();
+  }
+}
+export async function exportPdf(svg: string) {
+  download(await createPdf(svg), "Mollier-h-x-A4.pdf");
 }

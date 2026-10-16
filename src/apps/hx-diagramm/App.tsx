@@ -22,7 +22,9 @@ import {
   type PointRow,
 } from "./logic";
 import { svgChart, coordinates, pixel } from "./diagram";
-import { WINTER_NOTE, exportExcel, exportImage } from "./exports";
+import { NumberInput } from "./NumberInput";
+import { formatNumber as fmt } from "./numbers";
+import { WINTER_NOTE, exportExcel, exportImage, exportPdf } from "./exports";
 const defaults: Record<Key, number> = {
   T: 20,
   x: 8,
@@ -36,12 +38,12 @@ function Metrics({ s }: { s: State }) {
   return (
     <dl className="hx-metrics">
       {[
-        ["T", `${s.T.toFixed(2)} °C`],
-        ["x", `${s.x.toFixed(3)} g/kg`],
-        ["φ", `${s.phi.toFixed(2)} %`],
-        ["h", `${s.h.toFixed(2)} kJ/kg`],
-        ["ρ", `${s.rho.toFixed(4)} kg/m³`],
-        ["Taupunkt (Wasser)", s.dew === null ? "—" : `${s.dew.toFixed(2)} °C`],
+        ["T", `${fmt(s.T)} °C`],
+        ["x", `${fmt(s.x)} g/kg`],
+        ["φ", `${fmt(s.phi)} %`],
+        ["h", `${fmt(s.h)} kJ/kg`],
+        ["ρ", `${fmt(s.rho)} kg/m³`],
+        ["Taupunkt (Wasser)", s.dew === null ? "—" : `${fmt(s.dew)} °C`],
       ].map(([k, v]) => (
         <div key={k}>
           <dt>{k}</dt>
@@ -180,7 +182,7 @@ export default function App() {
     }
   };
   const exportDisabled =
-    busy || !rows.length || !!solved.errors.length || !!solved.messages.length;
+    busy || !solved.svg || !!solved.errors.length || !!solved.messages.length;
   return (
     <article className="hx-app">
       <h1>Mollier h,x-Diagramm</h1>
@@ -270,14 +272,7 @@ export default function App() {
       <section className="controls hx-bar">
         <label>
           Luftdruck [hPa]
-          <input
-            type="number"
-            min={500}
-            max={1200}
-            step={1}
-            value={Number.isNaN(pressure) ? "" : pressure}
-            onChange={(e) => setPressure(e.target.valueAsNumber)}
-          />
+          <NumberInput value={pressure} onValueChange={setPressure} />
         </label>
         <div className="button-row">
           <button onClick={() => setPressure(950)}>↺ 950 hPa</button>
@@ -349,8 +344,8 @@ export default function App() {
             )}
           </div>
           <p className="hx-readout">
-            T ≈ {diagramTemperature(cursor.y, cursor.x).toFixed(2)} °C · x ≈{" "}
-            {cursor.x.toFixed(3)} g/kg
+            T ≈ {fmt(diagramTemperature(cursor.y, cursor.x))} °C · x ≈{" "}
+            {fmt(cursor.x)} g/kg
           </p>
           <p>
             Blau: x · Grau: T · Schwarz: φ · Rot: h · Grün: ρ · Türkis:
@@ -408,12 +403,7 @@ export default function App() {
               />
               <label>
                 {LABELS[first]}
-                <input
-                  type="number"
-                  step="any"
-                  value={Number.isNaN(va) ? "" : va}
-                  onChange={(e) => setVa(e.target.valueAsNumber)}
-                />
+                <NumberInput value={va} onValueChange={setVa} />
               </label>
               <KeySelect
                 label="Zweite Vorgabe"
@@ -425,12 +415,7 @@ export default function App() {
               />
               <label>
                 {LABELS[second]}
-                <input
-                  type="number"
-                  step="any"
-                  value={Number.isNaN(vb) ? "" : vb}
-                  onChange={(e) => setVb(e.target.valueAsNumber)}
-                />
+                <NumberInput value={vb} onValueChange={setVb} />
               </label>
               <label>
                 Prozess vom vorherigen Punkt
@@ -485,12 +470,7 @@ export default function App() {
                     {kind === HEAT || kind === COOL
                       ? "Zieltemperatur [°C]"
                       : "Ziel-Wasserbeladung [g/kg tr. Luft]"}
-                    <input
-                      type="number"
-                      step="any"
-                      value={Number.isNaN(target) ? "" : target}
-                      onChange={(e) => setTarget(e.target.valueAsNumber)}
-                    />
+                    <NumberInput value={target} onValueChange={setTarget} />
                   </label>
                   <button
                     disabled={!candidate}
@@ -609,27 +589,21 @@ export default function App() {
                           .flatMap((select, j) => [
                             select,
                             <td key={`value${j}`}>
-                              <input
+                              <NumberInput
                                 aria-label={`Wert ${j + 1} Punkt ${i + 1}`}
-                                type="number"
-                                step="any"
-                                value={
-                                  Number.isNaN(r.values[j]) ? "" : r.values[j]
-                                }
-                                onChange={(e) => {
+                                value={r.values[j]}
+                                onValueChange={(value) => {
                                   const values: [number, number] = [
                                     ...r.values,
                                   ];
-                                  values[j] = e.target.valueAsNumber;
+                                  values[j] = value;
                                   changeDraft(r.id, { values });
                                 }}
                               />
                             </td>,
                           ])}
                         {KEYS.map((k) => (
-                          <td key={k}>
-                            {s ? s[k].toFixed(k === "rho" ? 4 : 3) : "—"}
-                          </td>
+                          <td key={k}>{s ? fmt(s[k]) : "—"}</td>
                         ))}
                         <td>
                           <input
@@ -693,7 +667,7 @@ export default function App() {
                 info =
                   r.process === FREE
                     ? "Geometrische Verbindung, kein Prozessmodell."
-                    : `ΔT = ${(b.T - a.T).toFixed(2)} K · Δh = ${(b.h - a.h).toFixed(2)} kJ/kg${water !== null ? ` · Kondensat: ${water.toFixed(3)} g/kg trockene Luft` : ""}`;
+                    : `ΔT = ${fmt(b.T - a.T)} K · Δh = ${fmt(b.h - a.h)} kJ/kg${water !== null ? ` · Kondensat: ${fmt(water)} g/kg trockene Luft` : ""}`;
               } catch (e) {
                 info = message(e);
               }
@@ -758,9 +732,19 @@ export default function App() {
         <p>
           Exportiert werden die übernommenen Tabellenwerte. Excel enthält
           Zustände, Vorgaben, Prozesse und Modellbeschreibung. Ungültige Punkte
-          oder Prozesse sperren den Export.
+          oder Prozesse sperren den Export. Das Diagramm kann auch ohne Punkte
+          exportiert werden. Zahlen: Dezimalkomma, Punkt zur Tausendertrennung,
+          maximal zwei Nachkommastellen; wissenschaftliche Schreibweise ab
+          |Wert| ≥ 10⁵ und bei 0 &lt; |Wert| &lt; 0,005. Excel behält die
+          ungerundeten Zahlenwerte.
         </p>
         <div className="button-row">
+          <button
+            disabled={exportDisabled}
+            onClick={() => void asyncRun(() => exportPdf(solved.svg))}
+          >
+            ↓ Diagramm als PDF (A4)
+          </button>
           <button
             disabled={exportDisabled}
             onClick={() => void asyncRun(() => exportImage(solved.svg, "png"))}
@@ -774,7 +758,7 @@ export default function App() {
             ↓ Diagramm als SVG
           </button>
           <button
-            disabled={exportDisabled}
+            disabled={exportDisabled || !rows.length}
             onClick={() =>
               void asyncRun(() =>
                 exportExcel(rows, solved.states as State[], pressure),

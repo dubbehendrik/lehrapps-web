@@ -44,3 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 `read-excel-file` is used for local browser parsing of `.xlsx` workbooks.
 Its MIT license and dependencies' licenses are shipped in the npm package.
+
+## Vector PDF export
+
+The Mollier h,x app lazily loads jsPDF (MIT) and svg2pdf.js (MIT) to export its own diagram as A4 vector PDF. Licenses are included in the respective npm packages. Subsets of DejaVu Sans regular/bold are embedded for Greek symbols and superscripts; the full Bitstream Vera / DejaVu license is in `src/assets/fonts/LICENSE-DejaVu.txt`. DejaVu modifications are public domain. These fonts are only loaded for PDF export.
