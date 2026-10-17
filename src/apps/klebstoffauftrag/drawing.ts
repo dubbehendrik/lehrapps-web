@@ -51,6 +51,10 @@ export function drawingSvg(g:Geometry,part:Part='assembly',detail=false):string{
  text(40,748,'Werkstattentwurf · Passungen, Senkungen und Gewindebohrtiefe vor Fertigung abstimmen.',15);
  return `<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="780" viewBox="0 0 1000 780"><defs><pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#f5f7f8"/><path d="M0 10L10 0" stroke="#b6c2ca" stroke-width=".8"/></pattern></defs><rect width="1000" height="780" fill="white"/><g font-family="sans-serif">${items.join('')}</g></svg>`;
 }
+/** Axial portions outside the opaque moving tool, including the conical tip. */
+export function exposedPencilRanges(g:Geometry,toolTop:number,toolBottom:number):[number,number][]{
+ return [[g.embedDepth,Math.min(g.pencilLength,toolTop)],[Math.max(g.embedDepth,toolBottom),g.pencilLength]].filter(([a,b])=>b>a) as [number,number][];
+}
 export interface Camera{yaw:number;tilt:number}
 export function drawScene(canvas:HTMLCanvasElement,g:Geometry,s:Simulation,f:Frame,kind:'2d'|'3d',camera:Camera={yaw:.65,tilt:.2},exaggeration=1){
  const ctx=canvas.getContext('2d');if(!ctx)return;
@@ -100,9 +104,14 @@ export function drawScene(canvas:HTMLCanvasElement,g:Geometry,s:Simulation,f:Fra
    for(const sign of [-1,1])edge([project(sign*g.reservoirDiameter/2*Math.cos(camera.yaw),-sign*g.reservoirDiameter/2*Math.sin(camera.yaw),top+g.reservoirDepth),project(sign*g.pencilDiameter/2*Math.cos(camera.yaw),-sign*g.pencilDiameter/2*Math.sin(camera.yaw),floor)],true);
    if(f.remaining>0){const r=surface<=top+g.reservoirDepth?g.reservoirDiameter/2:g.pencilDiameter/2+(floor-surface)*Math.tan(g.pointAngle*Math.PI/360);ring(r,surface,true,colors.glue);}
    shell(g.bodyDiameter/2,top-g.lidThickness,top,'#c8d5de');ring(g.lidOpening/2,top-g.lidThickness);ring(g.lidOpening/2,top,true);sides(g.lidOpening/2,top-g.lidThickness,top,true);
-   // Re-expose only the rod outside the opaque moving tool.
-   rod(g.embedDepth,Math.min(top-g.lidThickness,g.pencilLength-g.tipLength),colors.wood);
-   if(f.deposited>0)rod(Math.max(g.embedDepth,s.start),Math.min(top-g.lidThickness,f.front,g.pencilLength-g.tipLength),colors.glue,g.pencilDiameter/2+s.wet/1000*exaggeration);
+   // Repaint each exposed axial portion after the opaque shells, including
+   // the cone. Previously only the cylindrical shaft was repainted.
+   const coneSegment=(a:number,b:number)=>{const ra=pencilRadius(g,a),rb=pencilRadius(g,b);poly([project(-ra*Math.cos(camera.yaw),ra*Math.sin(camera.yaw),a),project(ra*Math.cos(camera.yaw),-ra*Math.sin(camera.yaw),a),project(rb*Math.cos(camera.yaw),-rb*Math.sin(camera.yaw),b),project(-rb*Math.cos(camera.yaw),rb*Math.sin(camera.yaw),b)],colors.wood);};
+   for(const [a,b] of exposedPencilRanges(g,top-g.lidThickness,bottom)){
+     rod(a,Math.min(b,g.pencilLength-g.tipLength),colors.wood);
+     if(f.deposited>0)rod(Math.max(a,s.start),Math.min(b,f.front,g.pencilLength-g.tipLength),colors.glue,g.pencilDiameter/2+s.wet/1000*exaggeration);
+     const ca=Math.max(a,g.pencilLength-g.tipLength);if(g.tipLength>0&&b>ca)coneSegment(ca,b);
+   }
    for(const angle of [0,Math.PI]){const x=g.boltCircle/2*Math.cos(angle),y=g.boltCircle/2*Math.sin(angle);const ellipse=(r:number,z:number,hidden:boolean)=>edge(Array.from({length:49},(_,j)=>project(x+r*Math.cos(j*Math.PI/24),y+r*Math.sin(j*Math.PI/24),z)),hidden);ellipse(g.boltDiameter,top-g.lidThickness,false);ellipse(g.boltDiameter/2,top+g.threadDepth,true);for(const sign of [-1,1])edge([project(x+sign*g.boltDiameter/2,y,top),project(x+sign*g.boltDiameter/2,y,top+g.threadDepth)],true);}
    shell(g.holderDiameter/2,g.embedDepth-g.holderHeight,g.embedDepth,colors.steel);
    ring(g.pencilDiameter/2,0,true);ring(g.pencilDiameter/2,g.embedDepth,true);sides(g.pencilDiameter/2,0,g.embedDepth,true);
@@ -115,6 +124,6 @@ export function drawScene(canvas:HTMLCanvasElement,g:Geometry,s:Simulation,f:Fra
 
  }
  // Schematic fixed stand.
- ctx.strokeStyle=colors.steel;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(180,75);ctx.lineTo(180,650);ctx.moveTo(145,650);ctx.lineTo(220,650);ctx.moveTo(180,85);ctx.lineTo(360,85);ctx.stroke();ctx.lineWidth=1;
+ ctx.strokeStyle=colors.steel;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(180,75);ctx.lineTo(180,650);ctx.moveTo(145,650);ctx.lineTo(220,650);const mountY=origin+scale*(g.embedDepth-g.holderHeight/2)*(kind==='3d'?Math.cos(camera.tilt):1);ctx.moveTo(180,mountY);ctx.lineTo(px(-g.holderDiameter/2),mountY);ctx.stroke();ctx.lineWidth=1;
  ctx.fillStyle=colors.ink;ctx.font='17px system-ui';ctx.fillText(`t = ${format(f.time)} s · Hub ${format(f.travel)} mm`,25,695);ctx.fillText(`Reservoir ${format(f.remaining/1000)} ml · Film ${exaggeration}× dargestellt`,25,724);ctx.restore();
 }
