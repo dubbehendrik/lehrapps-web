@@ -107,4 +107,16 @@ export function simulate(g:Geometry,p:Process,steps=1200):Simulation{
  if(initialVolume===0)warnings.push('Leeres Reservoir: kein Auftrag.');
  return{frames,profile,capacity,initialVolume,start,speed,stroke,wet,dry:wet*target.volumeSolids,volumeSolids:target.volumeSolids,targetWet:target.wet,targetDry:target.dry,consumed:dep,finalVolume:V,balanceError:initialVolume-dep-V,end:front,ca,warnings,modelValid};
 }
-export const format=(x:number)=>Number.isFinite(x)?new Intl.NumberFormat('de-DE',Math.abs(x)>=1?{minimumFractionDigits:1,maximumFractionDigits:1}:{maximumSignificantDigits:4}).format(x):'–';
+/** One decimal maximum; retain two significant digits for small nonzero values. */
+export function format(x:number):string{
+ if(!Number.isFinite(x))return '–';
+ const a=Math.abs(x);
+ if(a!==0&&(a<.1||a>=1e5)){
+  const [m,e]=x.toExponential(1).split('e');
+  const superscript:Record<string,string>={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+  return m.replace('.',',')+' · 10'+String(Number(e)).split('').map(c=>superscript[c]).join('');
+ }
+ return new Intl.NumberFormat('de-DE',{maximumFractionDigits:1}).format(x);
+}
+
+export function inputNumber(x:number):string{if(!Number.isFinite(x))return '';const a=Math.abs(x);return a!==0&&(a<.1||a>=1e5)?x.toExponential(1):String(Number(x.toFixed(1)));}
