@@ -5,6 +5,7 @@ export const appCategories = [
   { id: "mathematik", label: "Fokus: Mathematik" },
 ] as const;
 export const appRegistry = [
+  { path: "/filmstroemung-glockenteller", category: "vorlesung", overviewOrder: 6, name: "Filmströmung auf Glockenteller", description: "Filmdicke, Geschwindigkeit und Rheologie vergleichen und die strukturviskose Filmströmung schrittweise iterieren.", component: lazy(() => import("./apps/filmstroemung-glockenteller/App")) },
   { path: "/klebstoffauftrag", category: "labor", overviewOrder: 5, name: "Klebstoffauftrag", description: "Beflockungsvorrichtungen bemaßen, Werkstattzeichnungen exportieren und Klebstoffvorlagen in Auftragsszenarien untersuchen.", component: lazy(() => import("./apps/klebstoffauftrag/App")) },
   { path: "/neuronale-netze", category: "mathematik", overviewOrder: 2, name: "Neuronale Netze", description: "Messdaten trainieren, Netzstrukturen verändern und Prognosen mit linearer Regression vergleichen.", component: lazy(() => import("./apps/neuronale-netze/App")) },
   { path: "/bayes-optimierung", category: "mathematik", overviewOrder: 1, name: "Bayes’sche Optimierung", description: "Messpunkte ergänzen, Modellunsicherheit untersuchen und nächste Versuche mit einem Gaußprozess vorschlagen lassen.", component: lazy(() => import("./apps/bayes-optimierung/App")) },
