@@ -1,0 +1,27 @@
+import {useRef,useState} from 'react';
+import type {Point} from './types';
+import {editor,templates,validatePolygon,roundedPolygon} from './geometry';
+import {format} from './Scene';
+const X=(x:number)=>30+(x-editor.x0)*1400,Y=(y:number)=>30+(editor.y1-y)*1400;
+export function Editor({polygon,onChange,radius}:{polygon:Point[];onChange:(v:Point[])=>void;radius:number}){
+ const svg=useRef<SVGSVGElement>(null),[selected,setSelected]=useState(0),[drag,setDrag]=useState<number|null>(null),[draft,setDraft]=useState<Point[]|null>(null),[error,setError]=useState(''),[snap,setSnap]=useState(true),[drawing,setDrawing]=useState<Point[]|null>(null);
+ const current=draft??polygon,index=Math.min(selected,polygon.length-1);
+ const commit=(poly:Point[])=>{const e=validatePolygon(poly);setError(e??'');if(!e)onChange(poly);};
+ const coord=(clientX:number,clientY:number)=>{const s=svg.current!,pt=new DOMPoint(clientX,clientY).matrixTransform(s.getScreenCTM()!.inverse());let x=editor.x0+(pt.x-30)/1400,y=editor.y1-(pt.y-30)/1400;if(snap){x=Math.round(x/.005)*.005;y=Math.round(y/.005)*.005;}return {x:Math.max(editor.x0,Math.min(editor.x1,x)),y:Math.max(editor.y0,Math.min(editor.y1,y))};};
+ const setPoint=(axis:'x'|'y',value:number)=>{const poly=polygon.map((v,i)=>i===index?{...v,[axis]:value/1000}:v);commit(poly);};
+ return <details className="tf-editor"><summary>Bauteil bearbeiten · Vorlagen und Zeicheneditor</summary>
+ <p>Zeichenfläche: x = 80…450 mm, y = −150…150 mm. Punkte ziehen oder numerisch bearbeiten. Neue Kontur: Eckpunkte anklicken, anschließend schließen.</p>
+ <div className="button-row">{Object.keys(templates).map(name=><button key={name} onClick={()=>{onChange(templates[name].map(p=>({...p})));setDrawing(null);setSelected(0);setError('');}}>{name}</button>)}</div>
+ <div className="button-row"><button onClick={()=>{setDrawing([]);setError('');}}>Neue Kontur zeichnen</button>{drawing&&<><button onClick={()=>{const e=validatePolygon(drawing);if(e)setError(e);else{onChange(drawing);setDrawing(null);setSelected(0);setError('');}}}>Kontur schließen ({drawing.length} Punkte)</button><button onClick={()=>setDrawing(null)}>Abbrechen</button></>}<label className="tf-check"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/>5-mm-Rasterfang</label></div>
+ <svg ref={svg} className="tf-editor-svg" viewBox="0 0 578 480" aria-label="Zeicheneditor für geerdetes Werkstück" onPointerDown={e=>{if(drawing){setDrawing([...drawing,coord(e.clientX,e.clientY)]);return;}const n=(e.target as Element).getAttribute('data-index');if(n!==null){const i=Number(n);setSelected(i);setDrag(i);setDraft(polygon.map(p=>({...p})));e.currentTarget.setPointerCapture(e.pointerId);}}} onPointerMove={e=>{if(drag!==null)setDraft(current.map((v,i)=>i===drag?coord(e.clientX,e.clientY):v));}} onPointerUp={e=>{if(drag!==null){commit(current);setDraft(null);setDrag(null);e.currentTarget.releasePointerCapture(e.pointerId);}}} onPointerCancel={()=>{setDraft(null);setDrag(null);}}>
+ <defs><pattern id="tf-editor-grid" x="30" y="30" width="14" height="14" patternUnits="userSpaceOnUse"><path d="M 14 0 L 0 0 0 14" fill="none" stroke="#d4e0e6" strokeWidth="1"/></pattern></defs><rect x="30" y="30" width="518" height="420" fill="url(#tf-editor-grid)" stroke="#7792a1"/>
+ <polygon points={roundedPolygon(current,radius/1000).map(p=>`${X(p.x)},${Y(p.y)}`).join(' ')} fill="#d6e9df" stroke="#007053" strokeWidth="2"/>
+ <polyline points={current.map(p=>`${X(p.x)},${Y(p.y)}`).join(' ')} fill="none" stroke="#729485" strokeDasharray="4 4"/>
+ {current.map((p,i)=><g key={i}><circle data-index={i} cx={X(p.x)} cy={Y(p.y)} r={i===index?9:7} fill={i===index?'#a34c00':'#164a87'} stroke="white" strokeWidth="2" style={{cursor:'grab'}}/><text x={X(p.x)+10} y={Y(p.y)-10} fontSize="14" pointerEvents="none">{i+1}</text></g>)}
+ {drawing&&<><polyline points={drawing.map(p=>`${X(p.x)},${Y(p.y)}`).join(' ')} fill="none" stroke="#b12850" strokeWidth="3"/>{drawing.map((p,i)=><circle key={i} cx={X(p.x)} cy={Y(p.y)} r="5" fill="#b12850"/>)}</>}
+ <text x="30" y="473" fontSize="14">80 mm</text><text x="548" y="473" textAnchor="end" fontSize="14">450 mm</text></svg>
+ <div className="tf-inputs"><label>Eckpunkt<select value={index} onChange={e=>setSelected(Number(e.target.value))}>{polygon.map((_,i)=><option key={i} value={i}>Punkt {i+1}</option>)}</select></label><label>x [mm]<input type="number" min="80" max="450" step="5" value={Math.round(polygon[index].x*1000)} onChange={e=>setPoint('x',Number(e.target.value))}/></label><label>y [mm]<input type="number" min="-150" max="150" step="5" value={Math.round(polygon[index].y*1000)} onChange={e=>setPoint('y',Number(e.target.value))}/></label></div>
+ <div className="button-row"><button disabled={polygon.length<=3} onClick={()=>{commit(polygon.filter((_,i)=>i!==index));setSelected(Math.max(0,index-1));}}>Eckpunkt löschen</button><button disabled={polygon.length>=40} onClick={()=>{const a=polygon[index],b=polygon[(index+1)%polygon.length],poly=[...polygon];poly.splice(index+1,0,{x:(a.x+b.x)/2,y:(a.y+b.y)/2});commit(poly);}}>Punkt nach Auswahl einfügen</button></div>
+ {error&&<p role="alert" className="error">{error} Die gültige Kontur bleibt erhalten.</p>}<p className="tf-caption">Aktiver Punkt: {index+1} · {format(polygon[index].x*1000)} / {format(polygon[index].y*1000)} mm. Mindestens 10 mm Kantenlänge. Abrundung und schmale Spalte sind gitterabhängig aufgelöst.</p>
+ </details>;
+}
