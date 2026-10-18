@@ -1,7 +1,8 @@
+import {solveElectric,electricAt} from './electrostatics';
 import type {Grid,Point,Parameters} from './types';
 import {domain,inside,bellPolygon,electrodes} from './geometry';
 /** Uniform-grid Laplace solver. Solid faces are omitted for homogeneous Neumann (air),
- * fixed for electrostatics. Far air boundary Phi=x; electric boundary 0 V.
+ * fixed in the Dirichlet reference branch. Production electrostatics uses BEM. Far air boundary Phi=x.
  * Residual is max local algebraic defect in normalized potential units. */
 export function solveLaplace(nx:number,ny:number,solid:Uint8Array,values:Float64Array,air:boolean,tolerance=1e-7){
  const omega=1.78;let residual=Infinity,iterations=0;
@@ -29,11 +30,14 @@ export function buildFields(p:Parameters,geometry:Point[],resolution=1):Grid{
  solid[k]=inside(pt,geometry)?1:inside(pt,bell)?2:es.some(e=>inside(pt,e))?3:0;
  potential[k]=solid[k]===3||(solid[k]===2&&p.charging==='contact')?1:0;phi[k]=pt.x;
  }
- const e=p.charging==='off'?{residual:0,iterations:0}:solveLaplace(nx,ny,solid,potential,false);
- const a=solveLaplace(nx,ny,solid,phi,true),g={nx,ny,h,solid},eg=gradients(potential,g,false),ag=gradients(phi,g,true);
+ const electric=p.charging==='off'?undefined:solveElectric([{contour:geometry,potential:0},{contour:bell,potential:p.charging==='contact'?1:0},...es.map(contour=>({contour,potential:1}))],.006/resolution);
+ const e={residual:electric?.residual??0,iterations:1};
+ const a=solveLaplace(nx,ny,solid,phi,true),g={nx,ny,h,solid},eg={x:new Float64Array(nx*ny),y:new Float64Array(nx*ny)},ag=gradients(phi,g,true);
  const volts=p.charging==='off'?0:p.voltage*1000;
- for(let k=0;k<potential.length;k++){potential[k]=potential[k]===0?0:potential[k]*volts;eg.x[k]*=-volts;eg.y[k]*=-volts;ag.x[k]*=p.airSpeed;ag.y[k]*=p.airSpeed;}
- return {...g,x0:domain.x0,y0:domain.y0,potential,ex:eg.x,ey:eg.y,ux:ag.x,uy:ag.y,electricResidual:e.residual,airResidual:a.residual,electricIterations:e.iterations,airIterations:a.iterations};
+ if(electric){electric.panels.forEach(panel=>{panel.density*=volts;panel.potential*=volts;});electric.reference*=volts;}
+ for(let k=0;k<potential.length;k++){if(!solid[k]&&electric){const field=electricAt(electric,{x:domain.x0+(k%nx)*h,y:domain.y0+Math.floor(k/nx)*h});eg.x[k]=field.x;eg.y[k]=field.y;potential[k]=field.potential;}else potential[k]*=volts;ag.x[k]*=p.airSpeed;ag.y[k]*=p.airSpeed;}
+
+ return {...g,x0:domain.x0,y0:domain.y0,potential,electric,ex:eg.x,ey:eg.y,ux:ag.x,uy:ag.y,electricResidual:e.residual,airResidual:a.residual,electricIterations:e.iterations,airIterations:a.iterations};
 }
 /** Interpolate fluid nodes only. Solid values never leak into sampled velocity/field. */
 export function sample(g:Grid,values:Float64Array,p:Point):number{

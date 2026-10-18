@@ -5,6 +5,7 @@ export const templates:Record<string,Point[]>={
  'Ebene Platte':[{x:.25,y:-.12},{x:.27,y:-.12},{x:.27,y:.12},{x:.25,y:.12}],
  'Winkel':[{x:.22,y:.12},{x:.32,y:.12},{x:.32,y:-.12},{x:.30,y:-.12},{x:.30,y:.10},{x:.22,y:.10}],
  'U-Profil':[{x:.20,y:.12},{x:.32,y:.12},{x:.32,y:-.12},{x:.20,y:-.12},{x:.20,y:-.10},{x:.30,y:-.10},{x:.30,y:.10},{x:.20,y:.10}],
+ 'Abschirmtasche (Vorlesung)':[{x:.18,y:.13},{x:.32,y:.13},{x:.32,y:-.13},{x:.22,y:-.13},{x:.22,y:-.075},{x:.24,y:-.075},{x:.24,y:-.11},{x:.30,y:-.11},{x:.30,y:.11},{x:.18,y:.11}],
  'Tasche':[{x:.22,y:.13},{x:.33,y:.13},{x:.33,y:-.13},{x:.22,y:-.13},{x:.22,y:-.07},{x:.29,y:-.07},{x:.29,y:.07},{x:.22,y:.07}],
 };
 export const inside=(p:Point,poly:Point[])=>{let yes=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){
@@ -36,6 +37,12 @@ export function roundedPolygon(poly:Point[],radius:number):Point[]{
  for(let j=0;j<=6;j++){const t=j/6;result.push({x:(1-t)**2*p.x+2*t*(1-t)*b.x+t*t*q.x,y:(1-t)**2*p.y+2*t*(1-t)*b.y+t*t*q.y});}});return result;
 }
 export function bellPolygon(p:Parameters):Point[]{const r=p.bellDiameter/2000;return [{x:-.075,y:-r*.55},{x:-.025,y:-r*.55},{x:0,y:-r},{x:0,y:r},{x:-.025,y:r*.55},{x:-.075,y:r*.55}];}
+/** Two right-facing needles. Fixed 30 mm body and 3 mm shaft diameter;
+ * circular tip radius is independent of the overall electrode dimensions. */
 export function electrodes(p:Parameters):Point[][]{
- return p.charging!=='external'?[]:[-1,1].map(sign=>Array.from({length:40},(_,i)=>({x:p.electrodeX/1000+p.electrodeRadius/1000*Math.cos(i*Math.PI/20),y:sign*p.electrodeY/1000+p.electrodeRadius/1000*Math.sin(i*Math.PI/20)})));
+ if(p.charging!=='external')return [];
+ return [-1,1].map(sign=>{const x=p.electrodeX/1000,y=sign*p.electrodeY/1000,r=p.tipRadius/1000,tip=x+.03;
+ const poly:Point[]=[{x,y:y-.0015},{x:x+.018,y:y-.0015}];
+ for(let i=0;i<=20;i++){const a=-Math.PI/2+i*Math.PI/20;poly.push({x:tip-r+r*Math.cos(a),y:y+r*Math.sin(a)});}
+ poly.push({x:x+.018,y:y+.0015},{x,y:y+.0015});return poly;});
 }

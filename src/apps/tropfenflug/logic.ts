@@ -1,3 +1,4 @@
+import {electricAt} from './electrostatics';
 import type {Parameters,Vec,Frame,Grid,Result,Request,EndReason} from './types';
 import {bellPolygon,electrodes,domain,polygonHit,roundedPolygon,validatePolygon} from './geometry';
 import {buildFields,sample} from './fields';
@@ -18,13 +19,13 @@ export function initialState(p:Parameters):number[]{const r=p.bellDiameter/2000,
 }
 export function forces(p:Parameters,g:Grid,state:number[],charge=dropCharge(p)):Omit<Frame,'t'>{
  const position={x:state[0],y:state[1],z:state[2]},velocity={x:state[3],y:state[4],z:state[5]};
- const field={x:sample(g,g.ex,position),y:sample(g,g.ey,position),z:0},air={x:sample(g,g.ux,position),y:sample(g,g.uy,position),z:0};
+ const exact=g.electric?electricAt(g.electric,position):{x:0,y:0};const field={x:exact.x,y:exact.y,z:0},air={x:sample(g,g.ux,position),y:sample(g,g.uy,position),z:0};
  const electric={x:charge*field.x,y:charge*field.y,z:0},drag=dragForce({x:air.x-velocity.x,y:air.y-velocity.y,z:-velocity.z},p.diameter*1e-6);
  const mg=p.gravity?dropMass(p.diameter*1e-6,p.density)*9.81:0,a=p.gravityAngle*Math.PI/180,gravity={x:mg*Math.cos(a),y:mg*Math.sin(a),z:0};
  return {position,velocity,field,air,electric,drag,gravity,total:{x:electric.x+drag.x+gravity.x,y:electric.y+drag.y+gravity.y,z:drag.z}};
 }
 export function rk4(state:number[],dt:number,derivative:(s:number[])=>number[]):number[]{const a=derivative(state),b=derivative(state.map((v,i)=>v+dt*a[i]/2)),c=derivative(state.map((v,i)=>v+dt*b[i]/2)),d=derivative(state.map((v,i)=>v+dt*c[i]));return state.map((v,i)=>v+dt*(a[i]+2*b[i]+2*c[i]+d[i])/6);}
-const bounds:Partial<Record<keyof Parameters,[number,number]>>={voltage:[-100,0],diameter:[5,150],density:[500,2500],surfaceTension:[10,80],chargePercent:[0,100],chargePc:[-10,0],bellDiameter:[40,80],rpm:[0,70000],speedFactor:[0,100],meridionalSpeed:[0,10],azimuth:[-180,180],airSpeed:[0,30],gravityAngle:[-180,180],maxTime:[.01,.5],electrodeX:[-40,40],electrodeY:[60,130],electrodeRadius:[6,15],cornerRadius:[0,15]};
+const bounds:Partial<Record<keyof Parameters,[number,number]>>={voltage:[-100,0],diameter:[5,150],density:[500,2500],surfaceTension:[10,80],chargePercent:[0,100],chargePc:[-10,0],bellDiameter:[40,80],rpm:[0,70000],speedFactor:[0,100],meridionalSpeed:[0,10],azimuth:[-180,180],airSpeed:[0,30],gravityAngle:[-180,180],maxTime:[.01,.5],electrodeX:[-40,40],electrodeY:[60,130],tipRadius:[.1,.3],cornerRadius:[0,15]};
 export function validateParameters(p:Parameters):string|null{
  for(const [key,range] of Object.entries(bounds)){const v=p[key as keyof Parameters];if(typeof v!=='number'||!Number.isFinite(v)||v<range![0]||v>range![1])return `Ungültiger Parameter: ${key}. Zulässig: ${range![0]} bis ${range![1]}.`;}
  if(!['contact','external','off'].includes(p.charging)||!['fraction','manual'].includes(p.chargeMode))return 'Ungültiger Aufladungsmodus.';return null;
@@ -51,5 +52,5 @@ export function simulate(request:Request):Result{
  if(hit){reason=hit;break;}
  }
  if(steps>=100000)throw Error('Maximale Schrittzahl erreicht.');
- return {grid,geometry,frames,reason,charge,mass,rayleigh};
+ return {grid,geometry,frames,reason,charge,mass,rayleigh,parameters:{...p},polygon:polygon.map(v=>({...v})),resolution:request.resolution??1};
 }
