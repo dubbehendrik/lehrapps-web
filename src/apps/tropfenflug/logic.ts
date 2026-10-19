@@ -37,7 +37,7 @@ export function forces(p:Parameters,g:Grid,state:number[],target=dropCharge(p)):
  return {position,velocity,field,air,charge,chargePath,electric,drag,gravity,total:{x:electric.x+drag.x+gravity.x,y:electric.y+drag.y+gravity.y}};
 }
 export function rk4(state:number[],dt:number,derivative:(s:number[])=>number[]):number[]{const a=derivative(state),b=derivative(state.map((v,i)=>v+dt*a[i]/2)),c=derivative(state.map((v,i)=>v+dt*b[i]/2)),d=derivative(state.map((v,i)=>v+dt*c[i]));return state.map((v,i)=>v+dt*(a[i]+2*b[i]+2*c[i]+d[i])/6);}
-const bounds:Partial<Record<keyof Parameters,[number,number]>>={voltage:[-100,0],diameter:[5,150],density:[500,2500],surfaceTension:[10,80],chargePercent:[0,100],chargePc:[-10,0],bellDiameter:[40,80],rpm:[0,70000],speedFactor:[0,100],axialSpeed:[0,10],airSpeed:[0,30],gravityAngle:[-180,180],maxTime:[.01,.5],electrodeX:[-40,40],electrodeY:[60,130],tipRadius:[.1,.3],cornerRadius:[0,15],chargeLength:[1,300],initialChargePercent:[0,100]};
+const bounds:Partial<Record<keyof Parameters,[number,number]>>={voltage:[-100,0],diameter:[5,150],density:[500,2500],surfaceTension:[10,80],chargePercent:[0,100],chargePc:[-10,0],bellDiameter:[40,80],rpm:[0,70000],speedFactor:[0,100],axialSpeed:[0,10],airSpeed:[0,30],gravityAngle:[-180,180],maxTime:[.01,3],electrodeX:[-40,40],electrodeY:[60,130],tipRadius:[.1,.3],cornerRadius:[0,15],chargeLength:[1,300],initialChargePercent:[0,100]};
 export function validateParameters(p:Parameters):string|null{
  for(const [key,range] of Object.entries(bounds)){const v=p[key as keyof Parameters];if(typeof v!=='number'||!Number.isFinite(v)||v<range![0]||v>range![1])return `Ungültiger Parameter: ${key}. Zulässig: ${range![0]} bis ${range![1]}.`;}
  if(!['contact','external','off'].includes(p.charging)||!['fraction','manual'].includes(p.chargeMode)||!['top','bottom'].includes(p.releaseSide))return 'Ungültiger Modus.';return null;
@@ -49,8 +49,9 @@ export function integrateFlight(p:Parameters,grid:Grid,geometry:Result['geometry
  const frames:Frame[]=[{t,...forces(p,grid,state,charge)}];
  const obstacles:[EndReason,typeof geometry][]=[['workpiece',geometry],['atomizer',bellPolygon(p)],...electrodes(p).map(e=>['electrode',e] as [EndReason,typeof geometry])];
  const derivative=(s:number[])=>{const f=forces(p,grid,s,charge),speed=magnitude(f.velocity);return [s[2],s[3],f.total.x/mass,f.total.y/mass,p.charging==='external'&&insideChargingZone(p,f.position)?speed:0];};
+ const outputInterval=Math.max(.0002,p.maxTime/2000);
  let steps=0;
- while(t<p.maxTime&&steps++<100000){
+ while(t<p.maxTime&&steps++<1000000){
   const f=forces(p,grid,state,charge),speed=magnitude(f.velocity),slip=magnitude({x:f.air.x-state[2],y:f.air.y-state[3]});
   const relaxation=slip>1e-12?mass*slip/Math.max(magnitude(f.drag),1e-30):mass/(3*Math.PI*1.81e-5*p.diameter*1e-6);
   const chargingStep=p.charging==='external'&&state[4]<p.chargeLength/1000&&insideChargingZone(p,f.position)?p.chargeLength/1000*.1/Math.max(speed,1):Infinity;
@@ -61,10 +62,10 @@ export function integrateFlight(p:Parameters,grid:Grid,geometry:Result['geometry
   const limits=[[domain.x0,domain.x1],[domain.y0,domain.y1]];
   for(let k=0;k<2;k++){const [lo,hi]=limits[k];if(next[k]<lo||next[k]>hi){const s=((next[k]<lo?lo:hi)-state[k])/(next[k]-state[k]);if(s<=fraction){fraction=s;hit='escaped';exitBoundary=(k===0?(next[k]<lo?'xMin':'xMax'):(next[k]<lo?'yMin':'yMax'));}}}
   state=state.map((v,i)=>v+fraction*(next[i]-v));t+=dt*fraction;
-  if(t-frames[frames.length-1].t>=.0002||hit||t>=p.maxTime)frames.push({t,...forces(p,grid,state,charge)});
+  if(t-frames[frames.length-1].t>=outputInterval||hit||t>=p.maxTime)frames.push({t,...forces(p,grid,state,charge)});
   if(hit){reason=hit;break;}
  }
- if(steps>=100000)throw Error('Maximale Schrittzahl erreicht.');
+ if(steps>=1000000)throw Error('Maximale Schrittzahl erreicht.');
  return {frames,reason,exitBoundary};
 }
 export function simulate(request:Request):Result{

@@ -20,7 +20,7 @@ Elektrische Kraft und Feldlinien werden direkt aus der Randelementlösung ausgew
 
 ## Effektive Aufladung
 
-Zielladung direkt in pC oder als Anteil von q_R = 8π√(ε₀σr³). Standard 5 % von q_R. Bei d = 30 µm und σ = 30 mN/m: q_R ≈ 0,753 pC, |q_Ziel| ≈ 0,038 pC. Für Kontaktaufladung etwa 1–8 % als Literaturorientierung, kein universeller technischer Bereich. Für Außenaufladung sind 5 % ein frei gewähltes Vergleichsszenario. Keine automatische Skalierung des Ladungsbetrags mit U; im Anteilmodus folgt das Vorzeichen der Spannung. Oberhalb der Rayleigh-Grenze erscheint ein Stabilitätshinweis.
+Zielladung direkt in pC oder als Anteil von q_R = 8π√(ε₀σr³). Standard 5 % von q_R. Bei d = 30 µm und σ = 30 mN/m: q_R ≈ 0,753 pC, |q_Ziel| ≈ 0,038 pC. Für Kontaktaufladung 5 % als Literaturbeispiel unter bestimmten Betriebsbedingungen, kein universeller typischer Wert. Die tatsächliche Ladung wird weder bei Kontakt- noch bei Außenaufladung aus Spannung und Lackeigenschaften vorhergesagt. Für Außenaufladung sind 5 % ein frei gewähltes Vergleichsszenario. Keine automatische Skalierung des Ladungsbetrags mit U; im Anteilmodus folgt das Vorzeichen der Spannung. Oberhalb der Rayleigh-Grenze erscheint ein Stabilitätshinweis.
 
 - Kontaktaufladung: Zielladung ab Start.
 - Außenaufladung: q(s) = q₀ + (q_Ziel − q₀) min(s/L_q, 1). q₀ ist ein einstellbarer Startanteil (Default 0 %), L_q eine einstellbare Strecke (Default 50 mm). s ist ausschließlich der innerhalb der effektiven Zone zurückgelegte Weg, einschließlich senkrechter Bewegung. Keine horizontale Projektion und kein Rücksetzen/Entladen beim Verlassen. Die Wegvariable wird als fünfte Zustandskomponente mitintegriert; sie ist keine räumliche Koordinate.
@@ -68,3 +68,9 @@ Numerische Verifikation ersetzt keine experimentelle Validierung dieses Lehrmode
 - https://www.durr.com/fileadmin/durr.com/08_Special_Events/03_ready2integrate_2019/duerr-Station-Showcase-of-automated-bell-painting-system.pdf — EcoBell2-SL-Varianten.
 - https://doi.org/10.3390/app12199652 — Potentialströmung und Grenzen bei Ablösung.
 - https://doc.comsol.com/5.4/doc/com.comsol.help.acdc/acdc_ug_electric_fields.07.031.html — 2D-Fernfeldbedingungen, methodische Referenz; keine COMSOL-Komponente in der App.
+
+## Bedienung und lange Flugzeiten
+
+Unter der Programmbeschreibung stehen die vollbreiten einklappbaren Bereiche „Modellparameter“ und „Bauteilgeometrie und Numerik“, darunter die Ergebnisse. Die maximale Simulationsdauer ist bereits vor der ersten Rechnung im zweiten Bereich einstellbar: 0,01–3 s, Standard 0,15 s. Aufprall und sichtbarer Gebietsaustritt beenden früher. Die Integrationsschritte bleiben unabhängig vom Ausgabeintervall; höchstens rund 2.002 Punkte werden gespeichert, einschließlich Start und Endereignis. Ein stationärer 5-µm-Tropfen wird im Regressionstest bis 3 s integriert.
+
+Feldlinienregler und aktuelle Werte von |u|, |E| und q stehen unter Aktualisieren oberhalb der Abbildung. Die Tropfengeschwindigkeit heißt in Formeln, Diagrammen und CSV u. Änderungen erhalten den vollständigen vorherigen Berechnungsstand bis zur expliziten Aktualisierung.
