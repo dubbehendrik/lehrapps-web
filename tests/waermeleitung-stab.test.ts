@@ -153,3 +153,55 @@ describe('Segmententfernung und Wechsel gemeinsamer/segmentweiser Vorgaben',()=>
   expect(setPerSegment(segmented,'initialPerSegment',false).initial).toBe(50);
  });
 });
+
+describe('Segmentweise Umgebungstemperaturen',()=>{
+ const twoEnvironments=()=>{
+  const p=isolated();p.segments=[{...defaultSegment(1),length:100,ambient:0},{...defaultSegment(2),length:100,ambient:100}];p.contacts=[defaultContact()];p.ambientPerSegment=true;p.ambient=333;return p;
+ };
+ it('reproduziert das analytische Rippenprofil für zwei unterschiedliche Umgebungen',()=>{
+  const p=twoEnvironments();p.alpha=10;
+  const r=simulate(p),m=Math.sqrt(4*10/(50*.01));
+  const exact=(x:number)=>x<=.1?50*Math.cosh(m*x)/Math.cosh(m*.1):100-50*Math.cosh(m*(.2-x))/Math.cosh(m*.1);
+  expect(Math.max(...r.stationary!.map((T,i)=>Math.abs(T-exact(r.mesh.x[i]))))).toBeLessThan(.001);
+  expect(r.stationary![0]).toBeLessThan(50);expect(r.stationary!.at(-1)).toBeGreaterThan(50);
+ });
+ it('verwendet an Robin-Enden die lokale Umgebung und rekonstruiert die Stirntemperatur korrekt',()=>{
+  const p=twoEnvironments();p.left={...p.left,kind:'robin',alpha:12,inheritAlpha:false};p.right={...p.right,kind:'robin',alpha:30,inheritAlpha:false};
+  const r=simulate(p),area=Math.PI*.01**2/4;
+  const q=(0-100)/(1/(12*area)+.2/(50*area)+1/(30*area));
+  const line=profile(r.mesh,p,r.stationary!);
+  expect(line.temperature[0]).toBeCloseTo(0-q/(12*area),8);
+  expect(line.temperature.at(-1)).toBeCloseTo(100+q/(30*area),8);
+  const firstFaceFlux=r.mesh.conductance[0]*(r.stationary![0]-r.stationary![1]);
+  expect(firstFaceFlux).toBeCloseTo(q,9);
+ });
+ it.each([0,1])('verwendet an der Schulter die Umgebung des größeren Segments (%s)',larger=>{
+  const p=twoEnvironments();p.segments[larger].diameter=20;p.contacts[0]={...defaultContact(),shoulder:'convection',inheritAlpha:false,alpha:10};
+  const r=simulate(p);
+  r.stationary!.forEach(T=>expect(T).toBeCloseTo(p.segments[larger].ambient,8));
+ });
+ it('erhält den Gleichgewichtszustand bei identischen lokalen Umgebungstemperaturen',()=>{
+  const p=twoEnvironments();p.initial=75;p.segments.forEach(s=>s.ambient=75);p.alpha=10;
+  const r=simulate(p,{steps:200,frames:21});
+  for(const t of r.temperatures)for(const T of t)expect(T).toBeCloseTo(75,8);
+ });
+ it('erhält die diskrete transiente Gesamtenergiebilanz mit verschiedenen Umgebungen',()=>{
+  const p=twoEnvironments();p.alpha=10;const r=simulate(p,{steps:20,frames:21}),dt=p.endTime/r.steps;
+  const energy=(t:number[])=>t.reduce((sum,T,i)=>sum+T*r.mesh.capacity[i],0);
+  for(let k=1;k<r.times.length;k++){
+   const power=r.temperatures[k].reduce((sum,T,i)=>sum+r.mesh.source[i]-r.mesh.sink[i]*T,0);
+   expect((energy(r.temperatures[k])-energy(r.temperatures[k-1]))/dt).toBeCloseTo(power,9);
+  }
+ });
+ it('übernimmt gemeinsame Vorgaben und erhält beim Entfernen die Umgebung des verbleibenden Segments',async()=>{
+  const {setPerSegment,removeSegment,segmentAmbient}=await import('../src/apps/waermeleitung-stab/logic');
+  const p=twoEnvironments();p.ambientPerSegment=false;p.ambient=60;
+  const changed=setPerSegment(p,'ambientPerSegment',true);
+  expect(changed.segments.map(s=>s.ambient)).toEqual([60,60]);changed.segments[1].ambient=80;
+  const single=removeSegment(changed,0);expect(single.ambientPerSegment).toBe(false);expect(segmentAmbient(single,0)).toBe(80);
+  changed.segments[0].ambient=40;expect(setPerSegment(changed,'ambientPerSegment',false).ambient).toBe(40);
+ });
+ it.each([NaN,-300,2001])('weist ungültige lokale Umgebungstemperatur %s zurück',ambient=>{
+  const p=twoEnvironments();p.segments[1].ambient=ambient;expect(()=>validate(p)).toThrow('Segment 2, Umgebungstemperatur');
+ });
+});
