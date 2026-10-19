@@ -4,7 +4,7 @@ Route: `/waermeleitung-stab`. Neue 1D-Lehr-App; fachliche/didaktische Abnahme du
 
 ## Modell
 
-Konservative Finite Volumes für axialen Wärmetransport, konstante Eigenschaften je Segment, zellweise Mantelkonvektion zur gemeinsamen Umgebung. Querschnittstemperatur wird als einheitlich angenommen. Mindestens acht Zellen je Segment, etwa 160 insgesamt. Impliziter Euler mit 2.000 Schritten, 201 gespeicherten Zeitpunkten, Berechnung in einem Web Worker. Nicht als allgemeine Simulationssoftware gedacht.
+Konservative Finite Volumes für axialen Wärmetransport, konstante Eigenschaften je Segment, zellweise Mantelkonvektion zur gemeinsamen oder segmentweise vorgegebenen Umgebung. Querschnittstemperatur wird als einheitlich angenommen. Mindestens acht Zellen je Segment, etwa 160 insgesamt. Impliziter Euler mit 2.000 Schritten, 201 gespeicherten Zeitpunkten, Berechnung in einem Web Worker. Nicht als allgemeine Simulationssoftware gedacht.
 
 Zwischen Zellen werden die beiden halben Leitungswiderstände und gegebenenfalls `R_K / min(A_left,A_right)` in Serie geschaltet. `R_K` bezeichnet ausdrücklich den FLÄCHENBEZOGENEN Kontaktwiderstand in m² K/W. Stirnkonvektion wird einschließlich des halben Zellenleitungswiderstands berücksichtigt. Neumann-Wärmestromdichten sind an beiden Enden nach außen positiv. Schulterkonvektion wirkt näherungsweise an der Randzelle des größeren Segments. Zusätzlicher makroskopischer Wärmeausbreitungswiderstand an Durchmessersprüngen wird nicht berechnet.
 
@@ -43,3 +43,14 @@ Tests in `tests/waermeleitung-stab.test.ts`:
 Lokale Prüfung: 534 Tests bestanden, TypeScript-Prüfung bestanden, Vite-Produktionsbuild bestanden. Keine neuen Abhängigkeiten. Browser-/Desktop-/Tablet-Prüfung in dieser Sitzung nicht durchgeführt: Unterstützte Browsersteuerung war nicht verfügbar. Deshalb keine Aussage über eine bestandene visuelle oder interaktive Browserabnahme.
 
 Materialquelle Messing: https://alloys.copper.org/alloy/C26000 (Raumtemperatur; gerundete SI-Werte: 121 W/(m K), 8530 kg/m³, 377 J/(kg K)). Kontaktorientierung: https://ntrs.nasa.gov/citations/20230013900. Alle weiteren Materialquellen stehen in der gemeinsamen Tabelle.
+
+
+## Erweiterung: segmentweise Umgebungstemperatur (2026-10-19)
+
+`Umgebungstemperatur je Segment` wird bei mehreren Segmenten angeboten. Beim Einschalten wird der gemeinsame Wert in alle Segmente übernommen; beim Zurückschalten dient der Wert des ersten Segments als gemeinsame Vorgabe. Neue Segmente übernehmen die effektive Umgebung des letzten Segments. Beim Reduzieren auf ein Segment bleibt dessen Umgebung erhalten.
+
+Mantelkonvektion verwendet T∞ des jeweiligen Segments. Robin-Stirnflächen verwenden T∞ des zugehörigen Endsegments; Schulterkonvektion verwendet die Umgebung des größeren Segments (bei gleichen Durchmessern ist die Schulterfläche null). Dirichlet- und Neumann-Vorgaben bleiben davon unberührt. Numerische Quellen und rekonstruierte Stirntemperaturen verwenden dieselbe Zuordnung. Skizze, Formelerläuterungen und Segmenttabelle zeigen die lokalen Werte. Der CSV-Export enthält die zugehörige Umgebungstemperatur je Rechenzelle als zusätzliche Spalte.
+
+Zusätzliche Referenzen: analytische zweiteilige Rippe mit zwei unterschiedlichen Umgebungen, Serienwiderstand mit verschiedenen Robin-Umgebungstemperaturen, Schulterkonvektion bei beiden möglichen größeren Segmenten, diskrete transiente Gesamtenergiebilanz, gemeinsamer Gleichgewichtszustand, Umschaltung/Entfernung und unzulässige Temperaturen.
+
+Prüfung der Erweiterung: 714 Tests bestanden; TypeScript, Produktionsbuild und Offline-Paketbuild bestanden. Keine zusätzlichen Abhängigkeiten. Browserprüfung weiterhin nicht durchgeführt.

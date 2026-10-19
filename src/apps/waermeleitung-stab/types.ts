@@ -7,6 +7,7 @@ export interface Segment {
   density: number;
   cp: number;
   initial: number; // °C
+  ambient: number; // °C, local environment
   alpha: number; // W/(m² K)
 }
 export interface Contact {
@@ -31,17 +32,18 @@ export interface Parameters {
   ambient: number;
   initial: number;
   alpha: number;
+  ambientPerSegment: boolean;
   initialPerSegment: boolean;
   alphaPerSegment: boolean;
   endTime: number;
 }
 export const defaultContact = (): Contact => ({perfect: true, resistance: 1e-3, shoulder: 'adiabatic', inheritAlpha: true, alpha: 10});
-export const defaultSegment = (id = 1): Segment => ({id, length: 200, diameter: 10, material: 'steel', conductivity: 50, density: 7850, cp: 477, initial: 20, alpha: 10});
+export const defaultSegment = (id = 1): Segment => ({id, length: 200, diameter: 10, material: 'steel', conductivity: 50, density: 7850, cp: 477, initial: 20, ambient: 100, alpha: 10});
 export const defaults = (): Parameters => ({
   segments: [defaultSegment()], contacts: [],
   left: {kind:'dirichlet',temperature:20,flux:0,inheritAlpha:true,alpha:10},
   right: {kind:'neumann',temperature:20,flux:0,inheritAlpha:true,alpha:10},
-  ambient:100, initial:20, alpha:10, initialPerSegment:false, alphaPerSegment:false, endTime:1800,
+  ambient:100, initial:20, alpha:10, ambientPerSegment:false, initialPerSegment:false, alphaPerSegment:false, endTime:1800,
 });
 export interface Mesh {
   x: number[]; // m, cell centers

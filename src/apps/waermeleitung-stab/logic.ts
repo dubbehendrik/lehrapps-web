@@ -11,20 +11,28 @@ export function format(value: number): string {
 }
 export function segmentAlpha(p: Parameters, i:number):number {return p.alphaPerSegment && p.segments.length>1 ? p.segments[i].alpha : p.alpha;}
 export function segmentInitial(p: Parameters, i:number):number {return p.initialPerSegment && p.segments.length>1 ? p.segments[i].initial : p.initial;}
+export function segmentAmbient(p:Parameters,i:number):number {return p.ambientPerSegment && p.segments.length>1 ? p.segments[i].ambient : p.ambient;}
+export function endAmbient(p:Parameters,side:0|1):number {return segmentAmbient(p,side===0?0:p.segments.length-1);}
+export function shoulderAmbient(p:Parameters,i:number):number {
+  const larger=p.segments[i].diameter>=p.segments[i+1].diameter?i:i+1;
+  return segmentAmbient(p,larger);
+}
 export function removeSegment(p:Parameters,index:number):Parameters {
   if(p.segments.length===1)return p;
   const segments=p.segments.filter((_,i)=>i!==index),contacts=[...p.contacts];
   if(index===0)contacts.shift();else if(index===p.segments.length-1)contacts.pop();else contacts.splice(index-1,2,defaultContact());
   const survivorIndex=index===0?1:0;
   return {...p,segments,contacts,
+    ambient:segments.length===1?segmentAmbient(p,survivorIndex):p.ambient,
+    ambientPerSegment:segments.length>1&&p.ambientPerSegment,
     initial:segments.length===1?segmentInitial(p,survivorIndex):p.initial,
     alpha:segments.length===1?segmentAlpha(p,survivorIndex):p.alpha,
     initialPerSegment:segments.length>1&&p.initialPerSegment,
     alphaPerSegment:segments.length>1&&p.alphaPerSegment};
 }
-export function setPerSegment(p:Parameters,key:'initialPerSegment'|'alphaPerSegment',enabled:boolean):Parameters {
-  const field=key==='initialPerSegment'?'initial':'alpha';
-  const effective=(i:number)=>key==='initialPerSegment'?segmentInitial(p,i):segmentAlpha(p,i);
+export function setPerSegment(p:Parameters,key:'initialPerSegment'|'alphaPerSegment'|'ambientPerSegment',enabled:boolean):Parameters {
+  const field=key==='initialPerSegment'?'initial':key==='ambientPerSegment'?'ambient':'alpha';
+  const effective=(i:number)=>key==='initialPerSegment'?segmentInitial(p,i):key==='ambientPerSegment'?segmentAmbient(p,i):segmentAlpha(p,i);
   return {...p,[key]:enabled,[field]:!enabled?effective(0):p[field],
     segments:enabled?p.segments.map((s,i)=>({...s,[field]:effective(i)})):p.segments};
 }
@@ -53,6 +61,7 @@ export function validate(p:Parameters):void {
     finiteRange(s.conductivity,.001,10000,`${name}, Wärmeleitfähigkeit`);
     finiteRange(s.density,1,30000,`${name}, Dichte`);
     finiteRange(s.cp,1,20000,`${name}, Wärmekapazität`);
+    finiteRange(segmentAmbient(p,i),-273.15,2000,`${name}, Umgebungstemperatur`);
     finiteRange(segmentInitial(p,i),-273.15,2000,`${name}, Anfangstemperatur`);
     finiteRange(segmentAlpha(p,i),0,1e5,`${name}, Mantelwärmeübergang`);
   });
@@ -96,7 +105,7 @@ export function buildMesh(p:Parameters,targetCells=160):Mesh {
       mesh.capacity.push(s.density*s.cp*area*dx);mesh.segment.push(i);
       mesh.conductivity.push(s.conductivity);mesh.initial.push(segmentInitial(p,i));
       const h=segmentAlpha(p,i)*Math.PI*s.diameter/1000*dx;
-      mesh.sink.push(h);mesh.source.push(h*p.ambient);
+      mesh.sink.push(h);mesh.source.push(h*segmentAmbient(p,i));
     }
     x+=s.length/1000;
   });
@@ -110,7 +119,7 @@ export function buildMesh(p:Parameters,targetCells=160):Mesh {
       if(c.shoulder==='convection') {
         const larger=mesh.area[j]>=mesh.area[j+1]?j:j+1;
         const h=shoulderAlpha(p,k)*Math.abs(mesh.area[j]-mesh.area[j+1]);
-        mesh.sink[larger]+=h;mesh.source[larger]+=h*p.ambient;
+        mesh.sink[larger]+=h;mesh.source[larger]+=h*shoulderAmbient(p,k);
       }
     }
     mesh.conductance.push(1/resistance);
@@ -122,7 +131,7 @@ export function buildMesh(p:Parameters,targetCells=160):Mesh {
       const alpha=endAlpha(p,side as 0|1);
       const g=b.kind==='dirichlet'?2*mesh.conductivity[j]*mesh.area[j]/mesh.dx[j]:alpha===0?0:1/(mesh.dx[j]/(2*mesh.conductivity[j]*mesh.area[j])+1/(alpha*mesh.area[j]));
       mesh.boundaryConductance[side]=g;mesh.sink[j]+=g;
-      mesh.source[j]+=g*(b.kind==='dirichlet'?b.temperature:p.ambient);
+      mesh.source[j]+=g*(b.kind==='dirichlet'?b.temperature:endAmbient(p,side as 0|1));
     }
   });
   return mesh;
@@ -179,7 +188,7 @@ export function profile(mesh:Mesh,p:Parameters,t:number[],initial=false):Profile
     const j=side===0?0:t.length-1;
     if(initial)return t[j];
     if(b.kind==='dirichlet')return b.temperature;
-    const q=b.kind==='neumann'?b.flux*mesh.area[j]:mesh.boundaryConductance[side]*(t[j]-p.ambient);
+    const q=b.kind==='neumann'?b.flux*mesh.area[j]:mesh.boundaryConductance[side]*(t[j]-endAmbient(p,side));
     return t[j]-q*mesh.dx[j]/(2*mesh.conductivity[j]*mesh.area[j]);
   };
   add(0,boundaryTemp(p.left,0),0);
