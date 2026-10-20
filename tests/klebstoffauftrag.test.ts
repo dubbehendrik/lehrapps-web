@@ -41,10 +41,11 @@ describe('Klebstoffauftrag: Geometrie und Mengenbilanz',()=>{
   expect(simulate(g,{...p,viscosity:.5}).wet).toBe(simulate(g,p).wet);
  });
  it('blockiert Kollisionen, unrealistische Werte und nicht endliche Eingaben',()=>{
-  for(const patch of [{pencilLength:3e6},{reservoirDiameter:70},{reservoirDiameter:6},{lidOpening:7},{boltCircle:15},{pencilLength:NaN},{holderHeight:11}])expect(validate({...g,...patch},p).length).toBeGreaterThan(0);
+  for(const patch of [{pencilLength:3e6},{reservoirDiameter:70},{reservoirDiameter:6},{lidOpening:6},{boltCircle:15},{pencilLength:NaN},{holderHeight:11}])expect(validate({...g,...patch},p).length).toBeGreaterThan(0);
   expect(validate(g,{...p,viscosity:NaN}).length).toBeGreaterThan(0);
  });
  it('erzeugt vier unterschiedliche Zeichnungen mit Maßeinheit und Konstruktionshinweisen',()=>{
   for(const part of ['assembly','body','lid','holder'] as const){const svg=drawingSvg(g,part);expect(svg).toContain('viewBox="0 0 1000 780"');expect(svg).not.toContain('NaN');expect(svg).toContain('Werkstattentwurf');}
  });
 });
+

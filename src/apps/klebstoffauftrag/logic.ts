@@ -1,8 +1,8 @@
 import type {Geometry,Process,Simulation,Frame} from './types';
 // Geometry: millimetres, mm³ internally; material model in SI.
-export const defaultGeometry:Geometry={pencilLength:170,pencilDiameter:7,tipLength:15,embedDepth:10,holderDiameter:40,holderHeight:25,clampDiameter:4,bodyDiameter:60,reservoirDiameter:14,reservoirDepth:10,guideLength:50,pointAngle:118,lidThickness:5,lidOpening:14,boltCircle:36,boltDiameter:4,threadDepth:12,grooveWidth:2,grooveDepth:2,freeLength:15,overlap:1};
+export const defaultGeometry:Geometry={pencilLength:170,pencilDiameter:7,tipLength:15,embedDepth:10,holderDiameter:40,holderHeight:25,clampDiameter:4,clampHeadSpan:18,clampProjection:12,bodyDiameter:60,lidDiameter:60,reservoirDiameter:14,reservoirDepth:10,guideLength:50,pointAngle:118,lidThickness:5,lidOpening:7,boltCircle:26,boltDiameter:4,threadDepth:12,grooveWidth:2,grooveDepth:2,freeLength:15,overlap:1};
 export const defaultProcess:Process={fillPercent:100,duration:3,viscosity:5,surfaceTension:40,density:1.11,solidsMass:44,solidDensity:1.2,waterAddition:10,flockLength:.5,scenarioThickness:150,mode:'target'};
-export const bounds:Record<keyof Geometry,[number,number]>={pencilLength:[40,500],pencilDiameter:[3,20],tipLength:[0,40],embedDepth:[2,50],holderDiameter:[15,120],holderHeight:[8,100],clampDiameter:[2,8],bodyDiameter:[20,150],reservoirDiameter:[3.1,100],reservoirDepth:[1,100],guideLength:[3,150],pointAngle:[90,140],lidThickness:[2,25],lidOpening:[3.1,105],boltCircle:[10,130],boltDiameter:[3,6],threadDepth:[5,30],grooveWidth:[.5,8],grooveDepth:[.5,8],freeLength:[1,60],overlap:[0,3]};
+export const bounds:Record<keyof Geometry,[number,number]>={pencilLength:[40,500],pencilDiameter:[3,20],tipLength:[0,40],embedDepth:[2,50],holderDiameter:[15,120],holderHeight:[8,100],clampDiameter:[2,8],clampHeadSpan:[10,50],clampProjection:[3,40],bodyDiameter:[20,150],lidDiameter:[15,150],reservoirDiameter:[3.1,100],reservoirDepth:[1,100],guideLength:[3,150],pointAngle:[90,140],lidThickness:[2,25],lidOpening:[3,20],boltCircle:[10,130],boltDiameter:[3,6],threadDepth:[5,30],grooveWidth:[.5,8],grooveDepth:[.5,8],freeLength:[1,60],overlap:[0,3]};
 export const processBounds:Record<keyof Omit<Process,'mode'>,[number,number]>={fillPercent:[0,100],duration:[.2,60],viscosity:[.05,20],surfaceTension:[20,75],density:[.9,1.5],solidsMass:[10,80],solidDensity:[1,2],waterAddition:[0,30],flockLength:[.1,3],scenarioThickness:[1,2000]};
 export function validate(g:Geometry,p:Process):string[]{
  const e:string[]=[];
@@ -13,13 +13,14 @@ export function validate(g:Geometry,p:Process):string[]{
  if(![2,3,4,5,6,8].includes(g.clampDiameter))e.push('Klemmschraube: Nenngröße M2, M3, M4, M5, M6 oder M8 wählen.');
  if(g.reservoirDiameter<=g.pencilDiameter)e.push('Die Reservoirbohrung muss größer als der Stift sein.');
  if(g.reservoirDiameter+4>g.bodyDiameter)e.push('Zwischen Reservoir und Außenfläche sind mindestens 2 mm Wand erforderlich (Planungsgrenze).');
- if(g.lidOpening<=g.pencilDiameter)e.push('Die Deckelöffnung muss größer als der Stift sein.');
- if(g.lidOpening+4>g.bodyDiameter)e.push('Die Deckelöffnung lässt weniger als 2 mm Rand stehen.');
- if(g.lidOpening<g.reservoirDiameter)e.push('Die Deckelöffnung muss mindestens so groß wie das Reservoir sein (Modell ohne überdeckte Kammer).');
+ if(Math.abs(g.lidOpening-g.pencilDiameter)>1e-9)e.push('Die feste Deckelbohrung muss nominal dem Stiftdurchmesser entsprechen. Reales Spiel mit der Werkstatt abstimmen.');
+ if(g.lidDiameter<g.reservoirDiameter+2)e.push('Der feste Deckel muss die Reservoiröffnung mit mindestens 1 mm radialem Überstand abdecken.');
  const head=2*g.boltDiameter;
- if(g.boltCircle-head<Math.max(g.lidOpening,g.reservoirDiameter)+2)e.push('Schraubensenkung und innere Bohrung überschneiden sich oder haben weniger als 1 mm Abstand.');
- if(g.boltCircle+head>g.bodyDiameter-2)e.push('Schraubensenkung liegt zu nahe an der Außenkante.');
- if(g.threadDepth+2>bodyHeight(g))e.push('Gewindesackloch lässt weniger als 2 mm Boden stehen.');
+ if(g.boltCircle-head<g.lidOpening+2)e.push('Schraubensenkung und Deckelbohrung haben weniger als 1 mm Abstand.');
+ if(g.boltCircle+head>g.lidDiameter-2)e.push('Schraubensenkung liegt zu nahe an der Deckelaußenkante.');
+ if(g.boltCircle+g.boltDiameter>g.holderDiameter-2)e.push('Gewindebohrungen passen nicht mit mindestens 1 mm Rand in die Edelstahlaufnahme.');
+ if(g.threadDepth+2>g.holderHeight)e.push('Gewindesackloch in Edelstahl lässt weniger als 2 mm Boden stehen.');
+ if(g.boltCircle/2<g.boltDiameter/2+g.clampDiameter/2+1)e.push('Gewindebohrungen und querliegende Flügelschraubenbohrung liegen zu dicht beieinander.');
  if(g.lidThickness<(head-(g.boltDiameter+.5))/2+.5)e.push('Der Deckel ist für die angenommene 90°-Senkung zu dünn.');
  if(g.holderDiameter<=g.pencilDiameter+6)e.push('Die Edelstahlhalterung benötigt mehr Wandstärke.');
  if(g.embedDepth+3>g.holderHeight)e.push('Die Aufnahmebohrung benötigt mindestens 3 mm Boden.');
@@ -27,7 +28,7 @@ export function validate(g:Geometry,p:Process):string[]{
  if(g.tipLength+g.freeLength>=g.pencilLength)e.push('Spitze und freier Abschnitt lassen keine zylindrische Beschichtungsfläche übrig.');
  if(g.overlap>g.freeLength)e.push('Die zulässige Überlappung ist größer als die freie Länge.');
  if(g.grooveDepth>=g.reservoirDepth)e.push('Die Dosiernut muss flacher als die zylindrische Reservoirbohrung sein.');
- if(g.grooveWidth>=g.boltCircle-2*g.boltDiameter)e.push('Dosiernut ist für den Schraubenabstand zu breit.');
+ if(g.grooveWidth>=g.reservoirDiameter)e.push('Dosiernut ist für die Reservoiröffnung zu breit.');
  const volumeSolids=p.solidsMass/100/p.solidDensity/(1/p.density+p.waterAddition/100);
  if(volumeSolids<=0||volumeSolids>=1)e.push('Aus Dichten und Feststoffanteil ergibt sich kein plausibler Volumenfestkörperanteil.');
  return e;
@@ -36,6 +37,26 @@ export const coneHeight=(g:Geometry)=>(g.reservoirDiameter-g.pencilDiameter)/2/M
 export const bodyHeight=(g:Geometry)=>g.guideLength+coneHeight(g)+g.reservoirDepth;
 export const reservoirHeight=(g:Geometry)=>g.reservoirDepth+coneHeight(g);
 export const reservoirArea=(g:Geometry)=>Math.PI/4*(g.reservoirDiameter**2-g.pencilDiameter**2);
+export function toolPose(g:Geometry,travel:number){return {lidTop:g.embedDepth,lidBottom:g.embedDepth+g.lidThickness,bodyTop:g.embedDepth+g.lidThickness+travel,bodyBottom:g.embedDepth+g.lidThickness+travel+bodyHeight(g)};}
+/** Conservative swept envelope, not a precise purchased-screw CAD collision. */
+export function collisionWarnings(g:Geometry):string[]{
+ const e:string[]=[],innerHeadRadius=g.holderDiameter/2+g.clampProjection-.75*g.clampDiameter;
+ if(g.clampHeadSpan/2>g.embedDepth/2&&g.lidDiameter/2>innerHeadRadius)e.push('Mögliche Kollision zwischen Flügelschraube und festem Deckel (Hüllraumprüfung). Deckeldurchmesser verringern oder Kopfabstand erhöhen; reale Schraube prüfen.');
+ if(g.clampHeadSpan/2>g.embedDepth/2+g.lidThickness&&g.bodyDiameter/2>innerHeadRadius)e.push('Mögliche Kollision der Flügelschraube mit dem Reservoirkörper in Startposition (Hüllraumprüfung).');
+ return e;
+}
+/** Explicit migration: a version-1 moving lid becomes the new fixed shield. */
+export function readProject(data:unknown):{geometry:Geometry;process:Process;migrated:boolean}{
+ if(!data||typeof data!=='object')throw Error('Keine Parameterdatei dieser App.');
+ const d=data as {version?:number;geometry?:Record<string,unknown>;process?:Record<string,unknown>};
+ if(![1,2].includes(d.version??0)||!d.geometry||!d.process)throw Error('Keine unterstützte Parameterdatei dieser App.');
+ const migrated=d.version===1,gg={} as Geometry,pp={} as Process;
+ for(const k of Object.keys(defaultGeometry) as (keyof Geometry)[]){let v=d.geometry[k];if(migrated&&['lidDiameter','clampHeadSpan','clampProjection'].includes(k))v=k==='lidDiameter'?d.geometry.bodyDiameter:defaultGeometry[k];if(typeof v!=='number')throw Error(`Geometriewert ${k} fehlt.`);gg[k]=v;}
+ if(migrated){gg.lidOpening=gg.pencilDiameter;if(gg.boltCircle+gg.boltDiameter>gg.holderDiameter-2)gg.boltCircle=defaultGeometry.boltCircle;}
+ for(const k of Object.keys(processBounds) as (keyof typeof processBounds)[]){const v=d.process[k];if(typeof v!=='number')throw Error(`Prozesswert ${k} fehlt.`);pp[k]=v;}
+ if(!['target','manual','lld'].includes(String(d.process.mode)))throw Error('Unbekannter Berechnungsmodus.');pp.mode=d.process.mode as Process['mode'];
+ const errors=validate(gg,pp);if(errors.length)throw Error(errors.join(' '));return {geometry:gg,process:pp,migrated};
+}
 export function reservoirVolume(g:Geometry,h=reservoirHeight(g)):number{
  const c=Math.min(Math.max(0,h),coneHeight(g)),r=g.pencilDiameter/2,t=Math.tan(g.pointAngle*Math.PI/360);
  return Math.PI*(r*t*c*c+t*t*c**3/3)+reservoirArea(g)*Math.max(0,Math.min(h,reservoirHeight(g))-c);
@@ -61,8 +82,8 @@ export function simulate(g:Geometry,p:Process,steps=1200):Simulation{
  const initialLevel=H*p.fillPercent/100,initialVolume=reservoirVolume(g,initialLevel);
  const floor=g.embedDepth+g.lidThickness+H;
  const start=floor-initialLevel;
- // Upper tool edge must pass the tip. Lower guide clears earlier.
- const stroke=g.pencilLength-g.embedDepth+2,speed=stroke/p.duration;
+ // Only the open reservoir body moves. Its upper edge must pass the tip.
+ const stroke=g.pencilLength-g.embedDepth-g.lidThickness+2,speed=stroke/p.duration;
  const ca=p.viscosity*(speed/1000)/(p.surfaceTension/1000);
  const lc=Math.sqrt((p.surfaceTension/1000)/(p.density*1000*9.81));
  const lld=.94*lc*Math.pow(ca,2/3)*1e6;
@@ -71,8 +92,8 @@ export function simulate(g:Geometry,p:Process,steps=1200):Simulation{
  const warnings:string[]=[];
  if(p.mode!=='lld')warnings.push('Planungsszenario: Die Nassfilmdicke ist vorgegeben, nicht aus Viskosität und Meniskus vorhergesagt.');
  else if(!modelValid)warnings.push('LLD außerhalb der konservativen Prüfgrenzen: keine Schichtdickenprognose und keine Auftragsanimation verfügbar.');
- if(g.lidOpening<g.pencilDiameter+2*wet/1000)warnings.push('Die angenommene Filmschicht passt nicht berührungsfrei durch den Deckel.');
- if(start>g.freeLength+.05)warnings.push(`Beschichtungsbeginn ${start.toFixed(2)} mm: unbeflockter Spalt unter der Radiergummikappe.`);
+ warnings.push(...collisionWarnings(g));
+ if(start>g.freeLength+.05)warnings.push(`Beschichtungsbeginn ${format(start)} mm: unbeflockter Spalt unter der Radiergummikappe.`);
  if(start<g.freeLength-g.overlap-.05)warnings.push('Die berechnete Startbenetzung überschreitet die zulässige Überlappung unter die Kappe.');
  if(p.waterAddition>5)warnings.push('Wasserzugabe über 5 %: oberhalb der Verdünnungsangabe im Datenblatt. Die Viskosität wird unabhängig eingestellt.');
  warnings.push('Kein Wandfilmverlust, keine Holzaufnahme, kein Ablaufen und keine lokale Benetzungsstörung; Spitze nur als geometrischer Kegel angenähert.');
@@ -120,3 +141,4 @@ export function format(x:number):string{
 }
 
 export function inputNumber(x:number):string{if(!Number.isFinite(x))return '';const a=Math.abs(x);return a!==0&&(a<.1||a>=1e5)?x.toExponential(1):String(Number(x.toFixed(1)));}
+

@@ -2,7 +2,7 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {Chart} from '../../components/Chart';
 import {SupportFooter} from '../../components/SupportFooter';
 import {ProgramDescription} from './ProgramDescription';
-import {defaultGeometry,defaultProcess,bounds,processBounds,validate,simulate,format,reservoirHeight,reservoirVolume,levelFromVolume,inputNumber} from './logic';
+import {defaultGeometry,defaultProcess,bounds,processBounds,validate,simulate,format,reservoirHeight,reservoirVolume,levelFromVolume,inputNumber,readProject} from './logic';
 import {geometryGroups,processFields} from './fields';
 import {drawScene,drawingSvg,type Part,type Camera} from './drawing';
 import {exportDrawing,exportProject,exportResults,exportVideo,exportImage,videoMime} from './exports';
@@ -17,7 +17,7 @@ export default function App(){
  const errors=useMemo(()=>validate(g,p),[g,p]);
  const result=useMemo(()=>errors.length?null:simulate(g,p),[g,p,errors]);
  const disabled=busy;
- const updateG=(key:keyof Geometry,value:number)=>{setPlaying(false);setTime(0);setG(a=>({...a,[key]:value}));};
+ const updateG=(key:keyof Geometry,value:number)=>{setPlaying(false);setTime(0);setG(a=>({...a,[key]:value,...(key==='pencilDiameter'?{lidOpening:value}:{})}));};
  const updateP=(key:keyof Process,value:number|string)=>{setPlaying(false);setTime(0);setP(a=>({...a,[key]:value}));};
  useEffect(()=>{if(!playing)return;const start=performance.now(),initial=time;let raf=0;const tick=(now:number)=>{const t=Math.min(p.duration,initial+(now-start)/1000);setTime(t);if(t<p.duration)raf=requestAnimationFrame(tick);else setPlaying(false);};raf=requestAnimationFrame(tick);return()=>cancelAnimationFrame(raf);},[playing,p.duration]);
  useEffect(()=>()=>videoAbort.current?.abort(),[]);
@@ -25,11 +25,12 @@ export default function App(){
  useEffect(()=>{if(!result||!frame)return;if(two.current)drawScene(two.current,g,result,frame,'2d',camera,exaggeration);if(three.current)drawScene(three.current,g,result,frame,'3d',camera,exaggeration);},[result,frame,g,camera,exaggeration]);
  const execute=async(fn:()=>Promise<void>|void)=>{setNotice('');try{await fn();}catch(e){setNotice(e instanceof Error?e.message:String(e));}};
  const capture=()=>execute(async()=>{if(!result)return;setPlaying(false);setBusy(true);setProgress(0);const controller=new AbortController();videoAbort.current=controller;try{await exportVideo(g,result,camera,exaggeration,setProgress,controller.signal);setNotice('Videoexport abgeschlossen.');}finally{setBusy(false);videoAbort.current=null;}});
- const load=async(file:File)=>execute(async()=>{if(file.size>100_000)throw Error('Parameterdatei ist zu groß.');const data=JSON.parse(await file.text());if(data.version!==1||!data.geometry||!data.process)throw Error('Keine Parameterdatei dieser App.');const gg={}as Geometry,pp={}as Process;for(const k of Object.keys(defaultGeometry) as(keyof Geometry)[]){if(typeof data.geometry[k]!=='number')throw Error(`Geometriewert ${k} fehlt.`);gg[k]=data.geometry[k];}for(const k of Object.keys(defaultProcess)as(keyof Process)[]){if(k==='mode')continue;if(typeof data.process[k]!=='number')throw Error(`Prozesswert ${k} fehlt.`);(pp as unknown as Record<string,number>)[k]=data.process[k];}if(!['target','manual','lld'].includes(data.process.mode))throw Error('Unbekannter Berechnungsmodus.');pp.mode=data.process.mode;const e=validate(gg,pp);if(e.length)throw Error(e.join(' '));setPlaying(false);setTime(0);setG(gg);setP(pp);setNotice('Parameter geladen.');});
+ const load=async(file:File)=>execute(async()=>{if(file.size>100_000)throw Error('Parameterdatei ist zu groß.');const data=readProject(JSON.parse(await file.text()));setPlaying(false);setTime(0);setG(data.geometry);setP(data.process);setNotice(data.migrated?'Alte Parameterdatei auf festen Deckel umgestellt: Deckelbohrung, Außendurchmesser, Flügelschraube und ggf. Lochkreis angepasst. Werkstattmaße erneut prüfen.':'Parameter geladen.');});
  const allowed=result&&(p.mode!=='lld'||result.modelValid);
  const profiles=result?[{z:0,wet:0},{z:result.start,wet:0},...result.profile,{z:result.end+1e-5,wet:0},{z:g.pencilLength,wet:0}]:[];
  return <article className="ka-app"><p className="eyebrow">Vorrichtungsplanung · Klebstoff und Beflockung</p><h1>Klebstoffauftrag am Bleistift</h1><ProgramDescription/>
  <p className="ka-status"><strong>Erste Version · geometrische Auslegung und Mengenplanung.</strong> Die gekoppelte Ringraum-/Meniskusprognose ist noch offen. Die Standardanimation zeigt eine vorgegebene Zielschicht.</p>
+ <p>Neuer Aufbau: Deckel und Edelstahlaufnahme bleiben fest. Die Deckelbohrung folgt nominal dem Stift: Ø{format(g.pencilDiameter)} mm. Nur der oben offene Reservoirkörper wird abgezogen. Der Deckelaußendurchmesser ist unabhängig einstellbar.</p>
  <div className="button-row"><button disabled={disabled} onClick={()=>{setG({...defaultGeometry});setP({...defaultProcess});setTime(0);setPlaying(false);setNotice('Defaults wiederhergestellt.');}}>Defaults wiederherstellen</button><button disabled={disabled||!!errors.length} onClick={()=>exportProject(g,p)}>Parameter speichern</button><label className="ka-file">Parameter laden<input type="file" accept=".json,application/json" disabled={disabled} onChange={e=>{const f=e.target.files?.[0];if(f)void load(f);e.target.value='';}}/></label></div>
  {notice&&<p role="status" className="ka-notice">{notice}</p>}{errors.length>0&&<div className="error" role="alert"><strong>Eingaben korrigieren:</strong><ul>{errors.map(e=><li key={e}>{e}</li>)}</ul><p>Berechnung und Exporte sind bis zur Korrektur gesperrt.</p></div>}
  <section className="ka-layout"><div><h2>1 · Geometrie einstellen</h2><fieldset disabled={disabled} className="ka-fieldset">{geometryGroups.map((group,i)=><details key={group.title} open={i===0}><summary>{group.title}</summary><div className="ka-input-grid">{group.fields.map(([k,label,u])=><NumberField key={k} label={label} unit={u} value={g[k]} min={bounds[k][0]} max={bounds[k][1]} step={['pointAngle','boltDiameter','clampDiameter'].includes(k)?1:.1} onChange={v=>updateG(k,v)}/>)}</div></details>)}</fieldset></div>
@@ -48,3 +49,4 @@ export default function App(){
  </section>}
  <SupportFooter appName="Klebstoffauftrag" reviewed={false}/></article>;
 }
+

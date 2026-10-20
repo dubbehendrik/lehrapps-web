@@ -1,66 +1,58 @@
-# Klebstoffauftrag – erste Planungsfassung
+# Klebstoffauftrag – fester Schutzdeckel, offener Reservoirkörper
 
-Route: `/klebstoffauftrag`, Kategorie Labor.
+Route: /klebstoffauftrag. Geometrieplanung und konservative Mengenszenarien;
+keine validierte gekoppelte Ringraum-/Meniskusprognose.
 
-## Funktionsumfang
-- Gemeinsames parametrisches Modell für bemaßten 2D-Längsschnitt, Einzelteilansichten,
-  schematische drehbare 3D-Darstellung und fünfseitiges Werkstatt-PDF.
-- Alle vereinbarten Konstruktionsmaße veränderbar; konstruktive Kollisions- und
-  Bereichsprüfung. Grenzwerte für Wandstärken sind Planungsregeln, keine Normfreigabe.
-- Füllhöhe 0–100 % inkl. Konus; invertierbare Volumen-/Höhenbeziehung mit Stiftverdrängung.
-- Ziel-/manuelle Nassfilmdicke, endliche Vorlage, wandernde Front und konservative Bilanz.
-- Animation, Zeitregler, Filmüberhöhung, Endprofil, PNG, CSV, Parameter-JSON mit geprüftem Import.
-- Gemeinsames Canvas-Video über MediaRecorder mit Codec-Prüfung, Fortschritt und Abbruch.
-- Eigene Kapitel der einklappbaren Programmbeschreibung: Ablauf, Modellannahmen, Exporte.
+## Konstruktion ab dieser Revision
+- Deckel fest mit der Edelstahlaufnahme verschraubt. Zwei M4-Senkschrauben
+  von unten durch den Deckel in Gewindesacklöcher der Aufnahme.
+- Lochkreis Default Ø26 mm, Schraubenpaar um 90° zur radialen Klemmung gedreht.
+- Nominale Deckelbohrung folgt dem Stiftdurchmesser (Default Ø7 mm).
+  Kein Durchlauf des frisch beschichteten Abschnitts durch den festen Deckel,
+  keine mitfahrende Rakel.
+- Deckelaußendurchmesser separat einstellbar, Default wie Grundkörper Ø60 mm.
+- Gewöhnliche M4-Flügelschraube, zwei Flügel. Vorläufige Spannweite 18 mm,
+  Abstand Kopfmitte zur Halterungswand 12 mm. Eingabefelder veränderbar.
+- Konservative Kopf-Hüllraumprüfung gegen Deckel und Grundkörper am Start.
+  Kopfstärke angenommen 1,5*M. Hinweis, keine harte Kollisionssperre; reale
+  Schraube und ausreichender Bedienraum sind in der Werkstatt zu prüfen.
+- Reservoirkörper ohne Deckelbefestigungsgewinde. Er liegt am Start an der
+  Deckelunterseite an, wird über die radiale Nut befüllt und allein abgezogen.
+- Maximale geometrische Füllhöhe bleibt die Oberkante des Grundkörpers.
+  Überlauf über die Dosiernut und dessen Volumen sind nicht modelliert.
 
-## Wesentliche Einschränkung
-Das abgestimmte gekoppelte achsensymmetrische Ringraum-/Meniskusmodell ist **nicht
-implementiert**. Die App bezeichnet den Standardmodus durchgängig als Planungsszenario
-mit vorgegebener Filmdicke. Viskosität und Oberflächenspannung verändern diese Szenarioschicht
-nicht. Keine erfundene, vorgeblich prognostizierte Filmmitnahme.
-Die ebene Klein-Ca-LLD-Beziehung ist nur eine Referenz mit konservativer Gültigkeitssperre.
-Bei den Defaults ist sie nicht für Auftragsanimation oder Materialprognose freigegeben.
+## Bewegungs- und Mengenmodell
+Fester Deckel: z = Einspanntiefe bis Einspanntiefe + Deckeldicke.
+Körperoberkante: Einspanntiefe + Deckeldicke + Hub.
+Abzugshub: Stiftlänge - Einspanntiefe - Deckeldicke + 2 mm, Default 157 mm.
+Das Reservoirvolumen und der Benetzungsbeginn bleiben unverändert:
+Bei voller Füllung beginnt das Szenario an Einspanntiefe + Deckeldicke.
+Reservoirfüllung und Ringschichtvolumen bleiben konservativ gekoppelt.
 
-## Mengenmodell
-Alle Geometrien sind intern mm und mm³. Der obere Anschlag liegt an der
-Unterseite der ortsfesten Aufnahme. Reservoirboden = Einspanntiefe + Deckeldicke
-+ Reservoirhöhe + aktueller Hub. Die Front ist Boden minus aktuelle Füllhöhe.
-Die implizite Bilanz je Schritt lautet:
+Film vorgegeben aus Ziel-Trockenfilm/Volumenfestkörper oder manuell.
+Viskosität und Oberflächenspannung beeinflussen diese Szenarioschicht nicht.
+LLD dient nur als gesperrte Referenz außerhalb der konservativen Prüfgrenzen.
+Vollständiges Nachlaufen; keine Leckage, Wandfilme, Holzaufnahme, Verdunstung,
+Ablaufen oder lokale Benetzungsfehler. Konische Spitze nur axiale Ringschicht,
+Reservoirhöhenrelation auch im Endhub mit zylindrischer Stiftverdrängung.
 
-V_neu + Integral_von_alter_bis_neuer_Front A_Film(z) dz = V_alt.
+## Zeichnungen und Exporte
+Fünfseitiges PDF: Zusammenbau, gewindefreier Grundkörper, fester Deckel,
+Edelstahlaufnahme mit Gewindebohrungen, Parameter/Notizen.
+Deckel und Aufnahme: Unteransicht; Senkungen auf Deckelunterseite.
+Schraubenlängen, reale Köpfe, Bohrzugabe für Gewinde und Passungen offen.
+JSON-Version 2. Legacy-Version 1 wird ausdrücklich migriert: Deckelöffnung,
+neue Kopfdimensionen und gegebenenfalls Lochkreis werden angepasst;
+Ladehinweis fordert neue Prüfung der Werkstattmaße. Keine stille Migration.
+CSV/JSON ungerundet, Bildschirmdarstellung mit maximal einer Nachkommastelle
+und wissenschaftlicher Darstellung kleiner Zahlen. PNG und browserabhängiger
+Videoexport verwenden dieselben aktualisierten Zeichnungsfunktionen.
 
-Neue Front = Hub + Boden_bei_Start - Füllhöhe(V_neu), begrenzt auf die Stiftspitze.
-Ein Leerereignis wird über das noch verfügbare Schalenvolumen gelöst.
-A_Film(z) = pi * ((r(z)+h)^2-r(z)^2).
-Der Stift ist bis zum Spitzenbeginn zylindrisch, danach kegelig. Die Nassschicht
-an der Spitze ist nur als axiale Ringschicht angenähert. Die Reservoirhöhenrelation
-setzt weiterhin zylindrische Stiftverdrängung voraus: Die späte Spitzenüberfahrt,
-Flüssigkeitsbrücken und Tropfen sind kein physikalisch aufgelöster Teil des Modells.
-Wandfilm, Holzaufnahme, Kapillarhöhenänderung, Verdunstung und Ablaufen fehlen.
-Die Mengenrechnung ist damit eine günstige idealisierte Planung, keine Prozessvalidierung.
+## Prüfung
+Regressionen für feste Deckelpose, Hub, Volumenerhaltung, enge Deckelöffnung,
+unabhängigen Deckeldurchmesser, Gewinde in der Aufnahme, Flügel-Hüllraum,
+Dateimigration, Sichtbarkeit und mathematische Formeln.
+Canvas- und SVG-Ansichten werden außerhalb des Browsers gerendert und geprüft.
+PDF-Download und Videoencoder sind nicht browserübergreifend end-to-end geprüft.
+Fachliche Abnahme durch den Nutzer steht aus.
 
-## Material
-MECOFLOCK D453/5 TDS: 5 Pa s bei einer Brookfield-Messbedingung, 44 Masse-% Feststoff,
-Lieferdichte 1.11 g/cm³. Wasserzugabe bezogen auf die Liefermasse.
-Volumenadditivität und Wasser 1 g/cm³ werden angenommen.
-Feststoffdichte 1.2 g/cm³ und Flüssigkeitsoberflächenspannung 40 mN/m sind editierbare
-Annahmen. 10 % Wasserzugabe liegt über dem TDS-Wert von max. 5 %.
-Keine rechnerische Verdünnungskorrektur der Viskosität.
-
-## Zeichnungen
-Zusammenbau; POM-Grundkörper; Deckel; Edelstahlaufnahme; Parameter/Notizen.
-Zwei gegenüberliegende M4-Senkschrauben, radiale 2x2-mm-Nut um 90 Grad versetzt.
-Senkungsgeometrie nur Vorentwurf (90 Grad, Kopf-Ø = 2*M); tatsächliche Schrauben,
-Bohrtiefen und Passungen müssen mit der Werkstatt abgestimmt werden.
-Die Stativklemme ist schematisch, kein fertig dimensionierter Anschluss.
-
-## Validierung
-11 neue Vitest-Fälle: geometrischer Referenzwert des alten 7.6-mm-Reservoirs,
-Konuswinkel, Volumen-Höhen-Inversion, Verdünnungsbilanz, analytisches Schalenvolumen,
-Leerereignis, 300/1200-Schrittvergleich, bewegter Spiegel, Sperre der LLD-Referenz,
-Startposition, unabhängige Szenarioviskosität, Eingabegrenzen und SVG-Erzeugung.
-Zeichnungs-SVGs und Animationscanvases wurden mit einem Canvas-Renderer gerendert
-und visuell geprüft. React-Oberfläche wurde mit gemocktem Plotly serverseitig gerendert.
-Browserinteraktionen, tatsächlicher PDF-Download und MediaRecorder-Export wurden
-mangels verfügbarer Browser-Prüfumgebung nicht end-to-end geprüft.
-Fachliche Abnahme durch den Nutzer steht aus; SupportFooter reviewed=false.

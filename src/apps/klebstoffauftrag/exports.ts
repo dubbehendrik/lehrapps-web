@@ -15,12 +15,15 @@ export async function exportDrawing(g:Geometry){
  }
  pdf.addPage();pdf.setFontSize(15);pdf.text('Parameter und Werkstattabstimmung',12,15);pdf.setFontSize(9);
  let y=26;for(const group of geometryGroups){pdf.setFont('helvetica','bold');pdf.text(group.title,12,y);y+=6;pdf.setFont('helvetica','normal');for(const [key,label,unit]of group.fields){pdf.text(`${label}: ${format(g[key])} ${unit}`,16,y);y+=5;}}
+ pdf.text(`Deckelbohrung nominal = Stift: ${format(g.lidOpening)} mm`,16,y);
  pdf.text('Notizen / Passung / Schrauben / Freigabe:',155,28);for(let j=0;j<10;j++)pdf.line(155,38+j*13,280,38+j*13);
  pdf.save('Klebstoffauftrag-Werkstattzeichnung.pdf');
 }
-export function exportProject(g:Geometry,p:Process){download(new Blob([JSON.stringify({version:1,geometry:g,process:p},null,2)],{type:'application/json'}),'Klebstoffauftrag-Parameter.json');}
+export function exportProject(g:Geometry,p:Process){download(new Blob([JSON.stringify({version:2,geometry:g,process:p},null,2)],{type:'application/json'}),'Klebstoffauftrag-Parameter.json');}
 export function exportResults(g:Geometry,p:Process,s:Simulation){
+ // Geometry groups contain editable values; the linked bore is exported separately.
  const rows=[['Modus',p.mode],['Nassfilm [µm]',String(s.wet)],['Status','Planungsszenario bzw. eingeschränkte LLD-Referenz; keine validierte Ringraumprognose'],...geometryGroups.flatMap(a=>a.fields.map(([k,l,u])=>[`${l} [${u}]`,String(g[k])])),...processFields.map(([k,l,u])=>[`${l} [${u}]`,String(p[k])]),[],['Zeit [s]','Hub [mm]','Füllhöhe [mm]','Rest [ml]','Auftrag [ml]'],...s.frames.filter((_,i)=>i%6===0||i===s.frames.length-1).map(f=>[f.time,f.travel,f.level,f.remaining/1000,f.deposited/1000].map(String)),[],['Position ab oberem Stiftende [mm]','Nassfilm [µm]'],...s.profile.map(v=>[String(v.z),String(v.wet)])];
+ rows.unshift(['Bauart','Deckel fest an Edelstahlaufnahme; nur offener Reservoirkörper bewegt'],['Deckelbohrung nominal [mm]',String(g.lidOpening)]);
  download(new Blob(['\uFEFF'+rows.map(r=>r.map(x=>'"'+x.replaceAll('"','""')+'"').join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}),'Klebstoffauftrag-Ergebnisse.csv');
 }
 export function renderCombined(canvas:HTMLCanvasElement,g:Geometry,s:Simulation,time:number,camera:Camera,exaggeration:number){
@@ -50,3 +53,4 @@ export async function exportVideo(g:Geometry,s:Simulation,camera:Camera,exaggera
  recorder.stop();const blob=await recorded;if(signal.aborted)throw new DOMException('Export abgebrochen.','AbortError');download(blob,`Klebstoffauftrag.${mime.startsWith('video/mp4')?'mp4':'webm'}`);
  }finally{cancelAnimationFrame(raf);if(recorder.state!=='inactive')recorder.stop();stream.getTracks().forEach(t=>t.stop());}
 }
+
