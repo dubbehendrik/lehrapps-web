@@ -88,3 +88,125 @@
   outline: 3px solid #a34c00;
   outline-offset: 3px;
 }
+.dim-matrix {
+  overflow: auto;
+  max-width: 100%;
+  padding: 8px 2px;
+}
+.dim-matrix > math {
+  font-size: 1.1rem;
+}
+.dim-matrix-columns {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.7em;
+  font-size: 0.8rem;
+  color: #435867;
+  margin-bottom: 8px;
+}
+.dim-gauss-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.dim-gauss-step {
+  min-width: 0;
+  border: 1px solid #cad5dd;
+  border-radius: 6px;
+  padding: 12px;
+}
+.dim-gauss-step h3 {
+  margin: 0 0 8px;
+}
+.dim-matrix-check {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  margin: 16px 0;
+}
+.dim-space-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.32fr);
+  gap: 20px;
+  margin-top: 20px;
+  align-items: start;
+}
+.dim-space-chart {
+  min-width: 0;
+}
+.dim-space-layout figure {
+  margin-top: 0;
+}
+.dim-balance {
+  margin: 0;
+  padding: 18px;
+  min-width: 0;
+}
+.dim-balance strong {
+  display: block;
+  font-size: 1rem;
+}
+.dim-balance-product {
+  padding: 20px 0;
+  font-size: 1.3rem;
+  overflow: auto;
+}
+.dim-balance > math {
+  font-size: 1.1rem;
+  max-width: 100%;
+}
+.dim-balance-axes {
+  font-size: 0.8rem;
+  color: #435867;
+  margin-top: 12px;
+}
+.dim-exponent-control {
+  background: #f3f6f8;
+  border: 1px solid #cad5dd;
+  border-radius: 6px;
+  padding: 12px;
+  min-width: 0;
+}
+.dim-unit {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.dim-exponent-control input[type="range"] {
+  width: 100%;
+  min-height: 32px;
+}
+.dim-exponent-control label {
+  margin: 6px 0;
+}
+.dim-exponents {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.dim-app p > math {
+  margin: 0 0.4em;
+}
+.dim-app .dim-known > math {
+  margin-left: 24px;
+}
+@media (max-width: 700px) {
+  .dim-space-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dim-balance {
+    order: 2;
+  }
+}
+@media (max-width: 900px) {
+  .dim-space-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dim-exponents {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 500px) {
+  .dim-exponents {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

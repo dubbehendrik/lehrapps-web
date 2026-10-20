@@ -1,7 +1,13 @@
 import { createElement as h } from "react";
 import { MathExpression, math } from "../../components/MathNotation";
 import { exact, fraction, type Fraction } from "./logic";
-export function symbol(s: string, index = "") {
+export function symbol(s: string, index = ""): ReturnType<typeof math.row> {
+  if (s.startsWith("[") && s.endsWith("]"))
+    return math.row(
+      math.operator("["),
+      symbol(s.slice(1, -1), index),
+      math.operator("]"),
+    );
   const [base, ...rest] = s.split("_");
   const sub = [...rest, index].filter(Boolean).join(",");
   return sub ? math.index(base, sub) : math.identifier(s);
@@ -60,5 +66,22 @@ export function Product({
           : part(true),
       )}
     </MathExpression>
+  );
+}
+
+/** Typeset indexed symbols in explanatory prose as well as in formulas. */
+export function FormulaText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/([\p{L}][\p{L}\p{N}]*_[\p{L}\p{N}]+)/u).map((part, i) =>
+        part.includes("_") ? (
+          <MathExpression key={i} label={part}>
+            {symbol(part)}
+          </MathExpression>
+        ) : (
+          part
+        ),
+      )}
+    </>
   );
 }
