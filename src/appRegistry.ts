@@ -6,6 +6,7 @@ export const appCategories = [
   { id: "mathematik", label: "Fokus: Mathematik" },
 ] as const;
 export const appRegistry = [
+  { path: "/dimensionsanalyse", category: "vorlesung", overviewOrder: 8, name: "Dimensionsanalyse", description: "50 dimensionslose Kennzahlen nachschlagen, Buckingham-Π-Aufgaben lösen und Dimensionsräume mit interaktiven Vektorzügen untersuchen.", component: lazy(() => import("./apps/dimensionsanalyse/App")) },
   { path: "/duerr-roboter", category: "duerr", overviewOrder: 0, name: "Dürr Roboter", description: "Brush-Tabelle bearbeiten, systematische Versuchsreihen planen und Roboterdateien mit Notizen als ZIP austauschen. Vorläufige Version / Testphase.", component: lazy(() => import("./apps/duerr-roboter/App")) },
   { path: "/filmstroemung-glockenteller", category: "vorlesung", overviewOrder: 6, name: "Filmströmung auf Glockenteller", description: "Filmdicke, Geschwindigkeit und Rheologie vergleichen und die strukturviskose Filmströmung schrittweise iterieren.", component: lazy(() => import("./apps/filmstroemung-glockenteller/App")) },
   { path: "/tropfenflug", category: "vorlesung", overviewOrder: 7, name: "Tropfenflug am Hochrotationszerstäuber", description: "Flugbahnen geladener Lacktropfen, Kraftvektoren und die idealisierte Luftumströmung frei gezeichneter Werkstücke untersuchen.", component: lazy(() => import("./apps/tropfenflug/App")) },

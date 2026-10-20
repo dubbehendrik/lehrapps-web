@@ -1,0 +1,90 @@
+.dim-app input:not([type="checkbox"]):not([type="range"]),
+.dim-app select {
+  display: block;
+  width: 100%;
+  font: inherit;
+  border: 1px solid #70899a;
+  border-radius: 5px;
+  padding: 10px;
+  background: white;
+  min-width: 0;
+}
+.dim-app label {
+  margin: 12px 0;
+}
+.dim-switch {
+  max-width: 650px;
+}
+.dim-app details {
+  margin: 14px 0;
+}
+.dim-app button[aria-pressed="true"] {
+  background: #164a87;
+  color: white;
+}
+.dim-table {
+  overflow: auto;
+  max-width: 100%;
+  margin: 18px 0;
+}
+.dim-table table {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  width: 100%;
+}
+.dim-table td,
+.dim-table th {
+  padding: 10px;
+  border: 1px solid #cad5dd;
+  text-align: left;
+}
+.dim-table th {
+  background: #edf2f7;
+}
+.dim-table input {
+  min-width: 100px !important;
+}
+.dim-table math {
+  white-space: nowrap;
+}
+.dim-exponents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+}
+.dim-exponents input[type="range"] {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+}
+.dim-formula {
+  font-size: 1.6rem;
+  padding: 22px;
+  overflow: auto;
+}
+.dim-known {
+  border-bottom: 1px solid #cad5dd;
+  padding: 18px 0;
+}
+.dim-known > math {
+  margin-left: 24px;
+  font-size: 1.25rem;
+}
+.dim-app small {
+  display: block;
+  font-weight: 400;
+  color: #425d70;
+}
+.dim-app .button-row {
+  align-items: center;
+}
+.dim-app figure {
+  margin-top: 20px;
+}
+.dim-app h3 {
+  font-size: 1rem;
+}
+.dim-app select:focus-visible {
+  outline: 3px solid #a34c00;
+  outline-offset: 3px;
+}
