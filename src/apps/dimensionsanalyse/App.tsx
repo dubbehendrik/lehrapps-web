@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
 import { MathExpression } from "../../components/MathNotation";
 import { SupportFooter } from "../../components/SupportFooter";
-import { quantities, numbers, axes, dimensionAxes } from "./data";
+import {
+  quantities,
+  numbers,
+  axes,
+  dimensionAxes,
+  electrochemistryCategory,
+} from "./data";
+import { filterNumbers, numberCategories, recognizeNumbers } from "./catalog";
 import {
   analyze,
   balance,
@@ -44,16 +51,7 @@ function Derivation({
     preferred,
   );
   const syms = labels(qs);
-  const conventions = numbers.map((n) => {
-    if (n.symbol === "Re" && !qs.some((q) => q.id === "eta"))
-      return { ...n, powers: { v: 1, L: 1, nu: -1 } };
-    if (n.symbol === "Pr" && !qs.some((q) => q.id === "nu"))
-      return { ...n, powers: { eta: 1, cp: 1, lambda: -1 } };
-    return n;
-  });
-  const known = conventions.filter((n) =>
-    Object.keys(n.powers).every((id) => qs.some((q) => q.id === id)),
-  );
+  const known = recognizeNumbers(qs);
   return (
     <>
       <div className="result">
@@ -154,6 +152,7 @@ function Derivation({
         {known.map((n) => (
           <div className="dim-known" key={n.name}>
             <strong>{n.name}</strong>
+            {n.kind && <small>{n.kind}</small>}
             <Product
               symbols={Object.keys(n.powers).map(
                 (id) => syms[qs.findIndex((q) => q.id === id)],
@@ -191,13 +190,7 @@ function Derivation({
 function Library({ names }: { names: string[] }) {
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("Alle");
-  const shown = numbers.filter(
-    (n) =>
-      (cat === "Alle" || n.category === cat) &&
-      `${n.name} ${n.symbol} $<FormulaText text={n.meaning}/>`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  );
+  const shown = filterNumbers(search, cat);
   return (
     <>
       <div className="input-grid">
@@ -212,22 +205,56 @@ function Library({ names }: { names: string[] }) {
         <label>
           Fachgebiet
           <select value={cat} onChange={(e) => setCat(e.target.value)}>
-            {["Alle", ...new Set(numbers.map((n) => n.category))].map((c) => (
-              <option key={c}>{c}</option>
-            ))}
+            {["Alle", ...new Set(numbers.flatMap(numberCategories))].map(
+              (c) => (
+                <option key={c}>{c}</option>
+              ),
+            )}
           </select>
         </label>
       </div>
       <p>
-        {shown.length} von 50 Einträgen · Kraft- und Transportverhältnisse sind
-        Skalierungsinterpretationen.
+        {shown.length} von {numbers.length} Einträgen · Kraft- und
+        Transportverhältnisse sind Skalierungsinterpretationen.
       </p>
+      {(cat === electrochemistryCategory || /c.?rate/i.test(search)) && (
+        <details>
+          <summary>
+            Einordnung: Kennzahlen, Transportparameter und C-Rate
+          </summary>
+          <p>
+            Diese Rubrik unterscheidet benannte Kennzahlen, normierte Größen und
+            dimensionslose Transportparameter. Allgemeine Transportkennzahlen
+            bleiben an ihrem ursprünglichen Fachgebiet gespeichert und werden
+            hier zusätzlich angezeigt.
+          </p>
+          <p>
+            <FormulaText text="I/Q_nom hat die Dimension einer inversen Zeit. Eine dimensionslose C-Rate-Normierung benötigt zusätzlich eine feste Referenzzeit t_ref, beispielsweise eine Stunde. Die nominale Ladungskapazität ist konsistent in Coulomb einzusetzen; eine Stunde entspricht 3600 Sekunden." />
+          </p>
+          <div className="dim-formula">
+            <Product
+              label="Π_C"
+              symbols={["I", "t_ref", "Q_nom"]}
+              powers={[fraction(1), fraction(1), fraction(-1)]}
+            />
+          </div>
+          <p>
+            Diese Normierung mit fester Referenzzeit ist von einem Ladungsumsatz
+            über eine tatsächlich verstrichene Zeit zu unterscheiden. Gleiche
+            C-Raten allein garantieren keine vergleichbaren Diffusions- oder
+            Temperaturverläufe.
+          </p>
+        </details>
+      )}
       {shown.map((n) => (
         <details key={n.name}>
           <summary>
             {n.name} ·{" "}
             <MathExpression label={n.symbol}>{symbol(n.symbol)}</MathExpression>{" "}
-            <small>{n.category}</small>
+            <small>
+              {numberCategories(n).join(" · ")}
+              {n.kind ? ` · ${n.kind}` : ""}
+            </small>
           </summary>
           <div className="dim-formula">
             <Product
@@ -284,6 +311,17 @@ function Library({ names }: { names: string[] }) {
               </tbody>
             </table>
           </div>
+          {n.sources && (
+            <p>
+              Quellen:{" "}
+              {n.sources.map((source, index) => (
+                <span key={source.url}>
+                  {index > 0 ? " · " : ""}
+                  <a href={source.url}>{source.title}</a>
+                </span>
+              ))}
+            </p>
+          )}
         </details>
       ))}
       <details>
