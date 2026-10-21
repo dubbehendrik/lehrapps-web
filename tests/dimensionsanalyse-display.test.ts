@@ -36,13 +36,14 @@ describe("Dimensionsanalyse: Darstellung und Eingabe", () => {
     expect(html).toContain("<msub");
     expect(html).not.toContain("<table");
   });
-  it("setzt Malpunkt sowie Matrix- und Vektorpfeile in die Kontrolle", () => {
+  it("setzt Malpunkt, doppelte Matrixunterstreichung und Vektorpfeil in die Kontrolle", () => {
     const html = renderToStaticMarkup(
       createElement(MatrixEquation, {
         values: Array.from({ length: 7 }, () => fraction(0)),
       }),
     );
-    expect(html).toContain("↔");
+    expect(html).not.toContain("↔");
+    expect(html.match(/<munder/g)).toHaveLength(2);
     expect(html).toContain("→");
     expect(html).toContain("·");
     expect(html).toContain("<mover");

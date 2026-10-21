@@ -629,7 +629,8 @@ export default function App() {
           Jede Größe wird durch sieben Exponenten beschrieben. Produkte werden
           zu Linearkombinationen: Eine dimensionslose Gruppe erfüllt die
           Matrixgleichung <LinearEquation />. Die Anzahl unabhängiger Gruppen
-          ist n − rang(A). Alle Berechnungen laufen lokal im Browser.
+          ist n − rang(A). Matrizen sind doppelt unterstrichen, Vektoren mit
+          einem Rechtspfeil gekennzeichnet. Alle Berechnungen laufen lokal im Browser.
         </p>
         <p>
           Standardmäßig zeigen wir Exponenten der SI-Basiseinheiten. kg, m, s
