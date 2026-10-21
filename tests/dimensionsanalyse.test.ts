@@ -69,9 +69,9 @@ describe("Dimensionsanalyse – Referenzfälle", () => {
   });
 });
 describe("Fachdaten", () => {
-  it("50 unique and exactly dimensionless definitions", () => {
-    expect(numbers).toHaveLength(50);
-    expect(new Set(numbers.map((n) => n.name)).size).toBe(50);
+  it("58 unique and exactly dimensionless definitions", () => {
+    expect(numbers).toHaveLength(58);
+    expect(new Set(numbers.map((n) => n.name)).size).toBe(58);
     for (const n of numbers) {
       const ids = Object.keys(n.powers);
       expect(

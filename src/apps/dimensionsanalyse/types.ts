@@ -20,6 +20,10 @@ export type DimensionlessNumber = {
   example: string;
   note: string;
   factor?: number;
+  kind?: "Kennzahl" | "Normierte Größe" | "Transportparameter";
+  additionalCategories?: string[];
+  sources?: { title: string; url: string }[];
+  alternatives?: { powers: Record<string, number>; note: string }[];
 };
 
 export type ProblemGroup = {

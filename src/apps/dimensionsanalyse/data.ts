@@ -2,6 +2,15 @@ import { fraction } from "./logic";
 import type { Quantity, DimensionlessNumber } from "./types";
 export const axes = ["kg", "m", "s", "K", "A", "mol", "cd"];
 export const dimensionAxes = ["M", "L", "T", "Θ", "I", "N", "J"];
+export const electrochemistryCategory = "Elektrochemie & Batterien";
+const kineticsSource = {
+  title: "COMSOL: Elektrodenkinetik und Wagner-Zahl",
+  url: "https://www.comsol.com/blogs/the-art-and-science-of-electrochemical-plating",
+};
+const eisSource = {
+  title: "COMSOL: Elektrochemische Impedanzspektroskopie",
+  url: "https://doc.comsol.com/6.4/doc/com.comsol.help.models.echem.impedance_spectroscopy/impedance_spectroscopy.html",
+};
 const raw = [
   {
     id: "rho",
@@ -391,6 +400,27 @@ const raw = [
     unit: "rad/s",
     d: [0, 0, -1, 0, 0, 0, 0],
   },
+  {
+    id: "electronNumber",
+    name: "Elektronenzahl der Elektrodenreaktion",
+    symbol: "n_e",
+    unit: "1",
+    d: [0, 0, 0, 0, 0, 0, 0],
+  },
+  {
+    id: "ionicCurrent",
+    name: "Gesamter Ionenstrom bei homogener Zusammensetzung",
+    symbol: "I_ion",
+    unit: "A",
+    d: [0, 0, 0, 0, 1, 0, 0],
+  },
+  {
+    id: "cationCurrent",
+    name: "Kationenstrom im festgelegten Bezugsrahmen",
+    symbol: "I_+",
+    unit: "A",
+    d: [0, 0, 0, 0, 1, 0, 0],
+  },
 ];
 export const quantities: Quantity[] = raw.map(({ d, ...q }) => ({
   ...q,
@@ -536,10 +566,12 @@ export const numbers: DimensionlessNumber[] = [
     name: "Biot-Zahl",
     symbol: "Bi",
     category: "Wärmeübertragung",
+    additionalCategories: [electrochemistryCategory],
     powers: { alpha: 1, L: 1, lambda: -1 },
     meaning:
       "Innerer Leitwiderstand gegenüber äußerem Wärmeübergangswiderstand.",
-    example: "Ein dünnes Metallblech bleibt innen annähernd temperaturgleich.",
+    example:
+      "Ein dünnes Metallblech bleibt innen annähernd temperaturgleich. Bei einer Batteriezelle hilft Bi einzuordnen, ob innere Temperaturgradienten gegenüber dem äußeren Wärmeübergang relevant werden.",
     note: "λ ist die Festkörperleitfähigkeit; meist L = V/A. Nu verwendet die Fluidleitfähigkeit.",
     factor: 1,
   },
@@ -547,9 +579,11 @@ export const numbers: DimensionlessNumber[] = [
     name: "Fourier-Zahl",
     symbol: "Fo",
     category: "Wärmeübertragung",
+    additionalCategories: [electrochemistryCategory],
     powers: { a: 1, t: 1, L: -2 },
     meaning: "Vergangene Zeit relativ zur Wärmeleitzeit.",
-    example: "Mit wachsender Fo dringt Wärme tiefer in einen Körper ein.",
+    example:
+      "Mit wachsender Fo dringt Wärme tiefer in einen Körper ein. Bei einer Batterie vergleicht Fo die betrachtete Zeit mit der Wärmeleitzeit über die Zellabmessung.",
     note: "Charakteristische Größen und Stoffwerte konsistent für denselben Bezugszustand wählen.",
     factor: 1,
   },
@@ -681,9 +715,11 @@ export const numbers: DimensionlessNumber[] = [
     name: "Diffusions-Fourier-Zahl",
     symbol: "Fo_m",
     category: "Stofftransport",
+    additionalCategories: [electrochemistryCategory],
     powers: { D: 1, t: 1, L: -2 },
     meaning: "Vergangene Zeit relativ zur Diffusionszeit.",
-    example: "Längeres Einlegen erhöht die Eindringtiefe eines Stoffes.",
+    example:
+      "Längeres Einlegen erhöht die Eindringtiefe eines Stoffes. In einer Batterie kann L der Partikelradius und D die Feststoffdiffusivität sein; für den Elektrolyten müssen stattdessen dessen Transportlänge und passender Diffusionskoeffizient verwendet werden.",
     note: "Charakteristische Größen und Stoffwerte konsistent für denselben Bezugszustand wählen.",
     factor: 1,
   },
@@ -793,21 +829,23 @@ export const numbers: DimensionlessNumber[] = [
     name: "Damköhler-Zahl II",
     symbol: "Da_II",
     category: "Reaktionstechnik",
+    additionalCategories: [electrochemistryCategory],
     powers: { k: 1, L: 2, D: -1 },
     meaning: "Diffusionszeit relativ zur Reaktionszeit.",
     example:
       "Ein Reaktand wird im porösen Korn verbraucht, bevor er tief eindringt.",
-    note: "Reaktion erster Ordnung.",
+    note: "Homogene Reaktion erster Ordnung. Für Elektrodenreaktionen nicht ungeprüft übernehmen: Grenzflächenkinetik benötigt eine passende Reaktions- und Längenskalierung; ein heterogener Geschwindigkeitskoeffizient in m/s ist nicht das hier verwendete k in 1/s.",
     factor: 1,
   },
   {
     name: "Thiele-Modul",
     symbol: "φ",
     category: "Reaktionstechnik",
+    additionalCategories: [electrochemistryCategory],
     powers: { L: 1, k: 0.5, Deff: -0.5 },
     meaning: "Längenmaß relativ zur Reaktions-Diffusionslänge.",
     example: "Ein großer Katalysatorpellet nutzt sein Inneres schlechter aus.",
-    note: "Erste Ordnung; Geometrie und Definition von L festlegen.",
+    note: "Erste Ordnung; Geometrie und Definition von L festlegen. Bei porösen Elektroden muss eine Grenzflächenreaktion zunächst konsistent auf die volumetrische Reaktionsskala abgebildet werden. Der Ausdruck ist nicht automatisch eine allgemeine Butler–Volmer-Kennzahl.",
     factor: 1,
   },
   {
@@ -910,5 +948,126 @@ export const numbers: DimensionlessNumber[] = [
     example: "Bewertung der Umwälzleistung eines Rührers.",
     note: "Charakteristische Größen und Stoffwerte konsistent für denselben Bezugszustand wählen.",
     factor: 1,
+  },
+  {
+    name: "Dimensionslose elektrochemische Überspannung",
+    symbol: "Π_η",
+    category: electrochemistryCategory,
+    kind: "Normierte Größe",
+    powers: {
+      electronNumber: 1,
+      faraday: 1,
+      etaEl: 1,
+      gasConstant: -1,
+      temperature: -1,
+    },
+    meaning:
+      "Elektrochemische Triebkraft relativ zur thermischen molaren Energieskala.",
+    example:
+      "Bei unveränderter Temperatur verdoppelt eine doppelte Überspannung die normierte Triebkraft. In der Butler–Volmer-Kinetik steht diese Größe zusammen mit den Transferkoeffizienten im Exponenten.",
+    note: "T in Kelvin verwenden. n_e ist die festgelegte Elektronenzahl der betrachteten Reaktion. F_F bezeichnet die Faraday-Konstante und η_el die Überspannung. Die Transferkoeffizienten hängen von der verwendeten Kinetikkonvention ab; die Normierung allein bestimmt noch keine Strom-Spannungs-Kurve.",
+    alternatives: [
+      {
+        powers: { faraday: 1, etaEl: 1, gasConstant: -1, temperature: -1 },
+        note: "Erkannt für die ausdrücklich anzunehmende Elektronenzahl n_e = 1. Bei anderer Elektronenzahl muss der zusätzliche Faktor n_e berücksichtigt werden.",
+      },
+    ],
+    sources: [kineticsSource, eisSource],
+  },
+  {
+    name: "Normierte elektrochemische Stromdichte",
+    symbol: "Π_kin",
+    category: electrochemistryCategory,
+    kind: "Normierte Größe",
+    powers: { j: 1, j0: -1 },
+    meaning:
+      "Strombelastung relativ zur Austauschstromdichte am gleichen Bezugszustand.",
+    example:
+      "Eine kleine Austauschstromdichte führt bei gleichem Betriebsstrom zu einer größeren normierten kinetischen Beanspruchung.",
+    note: "j ist hier der Betrag der faradaischen Stromdichte einer einzelnen Reaktion. j_0 und j müssen dieselbe Grenzfläche und Flächenkonvention verwenden. Die notwendige Überspannung folgt erst aus der gewählten Reaktionskinetik; dies ist keine allgemeine Effizienzkennzahl.",
+    sources: [kineticsSource],
+  },
+  {
+    name: "Wagner-Zahl",
+    symbol: "Wa",
+    category: electrochemistryCategory,
+    kind: "Kennzahl",
+    powers: { conduct: 1, rpArea: 1, L: -1 },
+    meaning:
+      "Differentieller flächenspezifischer Polarisationswiderstand relativ zum charakteristischen Elektrolytwiderstand.",
+    example:
+      "In einer galvanischen Zelle begünstigt eine große Wa unter den Annahmen der sekundären Stromverteilung einen gleichmäßigeren Strom über die Elektrode.",
+    note: "κ_e ist die Elektrolytleitfähigkeit; r_p = |∂η_el/∂j| bezeichnet den positiven Betrag der differentiellen Polarisationssteigung am Arbeitspunkt und hat die Einheit Ω·m². Der Vergleichswiderstand ist L/κ_e. Konzentrationspolarisation wird hier vernachlässigt. Große Wa bedeutet keine Aussage über den Gesamtwirkungsgrad der Zelle.",
+    sources: [kineticsSource],
+  },
+  {
+    name: "Grenzstromauslastung",
+    symbol: "Π_lim",
+    category: electrochemistryCategory,
+    kind: "Normierte Größe",
+    powers: { j: 1, jlim: -1 },
+    meaning:
+      "Auslastung des für die betrachtete Elektrodenreaktion definierten Stofftransportlimits.",
+    example:
+      "Ein Wert nahe 1 bedeutet im zugrunde gelegten Grenzstrommodell, dass der Transport die elektroaktive Spezies kaum noch ausreichend nachliefern kann.",
+    note: "Beide Stromdichten sind Beträge und müssen dieselbe Reaktion und Fläche betreffen. j_lim ist modellabhängig. Der einfache ebene Ausdruck F_F·D·c_A/L gilt für n_e = 1 mit passenden stationären Randbedingungen und vernachlässigbarer Migration; er ist kein allgemeines Grenzstromgesetz für konzentrierte Batterieelektrolyte.",
+    sources: [eisSource],
+  },
+  {
+    name: "Diffusions-/Ladezeitverhältnis",
+    symbol: "Π_D",
+    category: electrochemistryCategory,
+    kind: "Normierte Größe",
+    powers: { L: 2, D: -1, t: -1 },
+    meaning:
+      "Diffusionszeitskala relativ zur vorgegebenen Lade- oder Entladezeit.",
+    example:
+      "Bei Halbierung des Partikelradius verringert sich die Gruppe bei unveränderter Diffusivität und Ladezeit auf ein Viertel.",
+    note: "t ist hier die Lade- oder Entladezeit. Große Werte kennzeichnen eine auf dieser Längenskala langsame Diffusion. Die Gruppe ist der Kehrwert der Diffusions-Fourier-Zahl und keine zusätzliche unabhängige Gruppe bei gleichem Variablensatz. Partikeldiffusion und Elektrolyttransport erfordern jeweils eigene passende L und D; ein Zahlenwert allein legt keine nutzbare Kapazität fest.",
+    sources: [eisSource],
+  },
+  {
+    name: "Dimensionslose EIS-Diffusionsfrequenz",
+    symbol: "Ω_D",
+    category: electrochemistryCategory,
+    kind: "Normierte Größe",
+    powers: { angularFrequency: 1, L: 2, D: -1 },
+    meaning:
+      "Diffusionszeitskala relativ zur elektrischen Anregungszeitskala 1/ω.",
+    example:
+      "Bei verdoppelter Diffusionslänge muss die Messfrequenz auf ein Viertel sinken, um denselben dimensionslosen Anregungszustand zu erhalten.",
+    note: "ω = 2πf ist die Kreisfrequenz in rad/s. Kleine Werte erlauben eher einen Ausgleich über L während der Anregung; große Werte begrenzen die diffusive Eindringtiefe relativ zu L. Geometrie und Randbedingungen bestimmen die konkrete Impedanzform. Eine Warburg-Gerade folgt nicht allein aus der Dimensionsanalyse.",
+    sources: [eisSource],
+  },
+  {
+    name: "Dimensionslose EIS-RC-Frequenz",
+    symbol: "Ω_RC",
+    category: electrochemistryCategory,
+    kind: "Normierte Größe",
+    powers: { angularFrequency: 1, rct: 1, cdl: 1 },
+    meaning:
+      "Anregungsfrequenz normiert mit der Zeitkonstante aus Ladungsübertragung und Doppelschichtladung.",
+    example:
+      "Im idealen Parallelglied aus R_ct und C_dl liegt das Maximum von −Im(Z) bei Ω_RC = 1.",
+    note: "R_ct und C_dl müssen dasselbe Gesamtsystem betreffen; alternativ sind ein flächenspezifischer Widerstand und eine Kapazität pro Fläche konsistent kombinierbar. Die Angabe Ω_RC = 1 gilt für das ideale RC-Parallelglied. Verteilte Prozesse und Constant-Phase-Elemente erfordern andere Modelle.",
+    sources: [eisSource],
+  },
+  {
+    name: "Kationen-Überführungszahl",
+    symbol: "t_+",
+    category: electrochemistryCategory,
+    kind: "Transportparameter",
+    powers: { cationCurrent: 1, ionicCurrent: -1 },
+    meaning:
+      "Anteil des Kationenstroms am gesamten Ionenstrom bei homogener Zusammensetzung im festgelegten Bezugsrahmen.",
+    example:
+      "Zwei Elektrolyte mit ähnlicher Leitfähigkeit können unterschiedliche Kationentransportanteile und damit ein unterschiedliches Konzentrationspolarisationsverhalten aufweisen.",
+    note: "Vorzeichenbehaftete Ströme bei homogener Zusammensetzung verwenden und den Bezugsrahmen angeben, etwa relativ zum Lösungsmittel. Dies ist ein dimensionsloser Transportparameter. In konzentrierten Elektrolyten sind Werte außerhalb 0 bis 1 möglich; ein gemessenes stationäres Stromverhältnis ist nicht automatisch die Überführungszahl.",
+    sources: [
+      {
+        title: "Gao et al. (2022): The Transference Number",
+        url: "https://doi.org/10.1002/eem2.12359",
+      },
+    ],
   },
 ];
