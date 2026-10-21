@@ -21,3 +21,20 @@ export type DimensionlessNumber = {
   note: string;
   factor?: number;
 };
+
+export type ProblemGroup = {
+  label: string;
+  powers: Record<string, number>;
+  interpretation: string;
+};
+
+export type ProblemTemplate = {
+  name: string;
+  category: string;
+  level: "Leicht" | "Mittel" | "Schwer";
+  ids: string[];
+  text: string;
+  questions?: string[];
+  groups?: ProblemGroup[];
+  sources?: { title: string; url: string }[];
+};

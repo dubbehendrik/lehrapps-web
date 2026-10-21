@@ -395,6 +395,24 @@ function Exercises({
         </label>
       </div>
       <div className="button-row">
+        <label>
+          Beispielaufgabe auswählen
+          <select
+            aria-label="Beispielaufgabe auswählen"
+            disabled={!options.length}
+            value={options.length ? current % options.length : ""}
+            onChange={(e) => setCurrent(Number(e.target.value))}
+          >
+            {!options.length && (
+              <option value="">Keine passende Aufgabe</option>
+            )}
+            {options.map((problem, index) => (
+              <option key={problem.name} value={index}>
+                {problem.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           disabled={!options.length}
           onClick={() => setCurrent((c) => c + 1)}
@@ -408,7 +426,9 @@ function Exercises({
           key={`${cat}-${level}-${count}-${current}`}
         >
           <h2>{p.name}</h2>
-          <p>{p.text}</p>
+          <p>
+            <FormulaText text={p.text} />
+          </p>
           <p>
             Maßgebliche Größen:{" "}
             {p.ids
@@ -425,9 +445,62 @@ function Exercises({
             Diskutieren Sie, welche physikalischen Informationen daraus noch
             nicht folgen.
           </p>
+          {p.questions && (
+            <>
+              <h3>Zusätzliche Verständnisfragen</h3>
+              <ol>
+                {p.questions.map((question) => (
+                  <li key={question}>
+                    <FormulaText text={question} />
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
           <details open={exam ? undefined : true}>
             <summary>Musterlösung und Herleitung</summary>
             <Derivation qs={choose(p.ids)} names={names} />
+            {p.groups && (
+              <details>
+                <summary>
+                  Fachliche Einordnung und zweckmäßige Mustergruppen
+                </summary>
+                <p>
+                  Die folgenden Gruppen bilden eine vollständige alternative
+                  Basis. Kehrwerte und andere unabhängige Potenzprodukte sind
+                  ebenfalls gültig. Die Interpretation verwendet die Annahmen
+                  der Aufgabenstellung.
+                </p>
+                {p.groups.map((group) => (
+                  <div className="dim-known" key={group.label}>
+                    <Product
+                      label={group.label}
+                      symbols={Object.keys(group.powers).map(
+                        (id) => quantities.find((q) => q.id === id)!.symbol,
+                      )}
+                      powers={Object.values(group.powers).map((power) =>
+                        fraction(power * 2, 2),
+                      )}
+                    />
+                    <p>
+                      <FormulaText text={group.interpretation} />
+                    </p>
+                  </div>
+                ))}
+                {p.sources && (
+                  <>
+                    <h3>Fachliche Referenzen</h3>
+                    <ul>
+                      {p.sources.map((source) => (
+                        <li key={source.url}>
+                          <a href={source.url}>{source.title}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </details>
+            )}
           </details>
           <button onClick={() => onTransfer(choose(p.ids))}>
             Im Schnelllöser und Dimensionsraum untersuchen
@@ -440,7 +513,8 @@ function Exercises({
         </p>
       )}
       <p>
-        Zwölf Aufgabenfamilien; ausschließlich physikalisch begründete
+        {problems.length} Aufgabenfamilien; {options.length} passen zu den
+        aktuellen Filtern. Ausschließlich physikalisch begründete
         Variablensätze. Die Filter wählen passende Vorlagen, keine zufälligen
         Größenkombinationen.
       </p>
@@ -508,7 +582,8 @@ export default function App() {
       <details>
         <summary>Programmbeschreibung, Grundlagen und Grenzen</summary>
         <p>
-          Vier Module verbinden eine Bibliothek von 50 Kennzahlen, zwölf
+          Vier Module verbinden eine Bibliothek von {numbers.length} Kennzahlen,{" "}
+          {problems.length}
           kuratierte Aufgabenfamilien, einen exakten Buckingham-Π-Schnelllöser
           und einen interaktiven Dimensionsraum.
         </p>
