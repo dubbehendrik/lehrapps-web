@@ -22,3 +22,7 @@ Die formale Dimensionsprüfung aller Katalogformeln ersetzt keine vollständige 
 `tests/dimensionsanalyse.test.ts` prüft Reynolds, Biot (Rang 2 trotz vier auftretender Dimensionen), Tropfenströmung, Druckverlust, dimensionsgleiche Größen, rationale Exponenten, Rang 0, leere Eingabe, alternative Wiederholungsgrößen und die Koordinatenreduktion. Alle 50 Kennzahlendefinitionen werden exakt auf Dimensionslosigkeit geprüft. Für jede der zwölf Aufgaben werden Dimensionslosigkeit, Unabhängigkeit und Vollständigkeit der erzeugten Basis geprüft.
 
 Der Projekt-Testlauf ist auf zwei gleichzeitige Prozesse und 30 Sekunden je Test begrenzt. Numerische Simulationsfälle anderer Apps überschreiten in geteilten Laufzeitumgebungen die vorherige Standardgrenze von fünf Sekunden. Es wurden keine fachlichen Assertions abgeschwächt.
+
+## Überarbeitete Darstellung
+
+Gauß-Schritte verwenden kompakte MathML-Klammermatrizen. Indizes werden auch in erläuternden Texten und Plotly-Legenden gesetzt. Die Kontrolle zeigt eine Matrix mit Doppelpfeil, einen Vektor mit Pfeil und einen Malpunkt. Die Bilanz steht auf breiten Bildschirmen neben dem Diagramm, bei höchstens 900 px darunter. Vektorzug und Dimensionsprojektionen unterstützen wählbare 2D-/3D-Ansichten; Ursprungspfeile und Spitze-an-Schaft-Pfeile werden in beiden Darstellungen unterschieden. Die Legendenschaltung blendet Pfeilspitzen und Schäfte zusammen aus. Exponenten sind per Regler oder exakter Zahlen-/Brucheingabe steuerbar; die Größenbeschriftung nennt die physikalische Einheit, der Exponent trägt [−].

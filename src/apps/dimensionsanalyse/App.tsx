@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Chart } from "../../components/Chart";
 import { MathExpression } from "../../components/MathNotation";
 import { SupportFooter } from "../../components/SupportFooter";
 import { quantities, numbers, axes, dimensionAxes } from "./data";
@@ -11,13 +10,15 @@ import {
   mul,
   numeric,
   parseFraction,
-  reduce,
   type Fraction,
 } from "./logic";
 import type { Selected } from "./types";
-import { Product, symbol } from "./Formula";
+import { Product, symbol, FormulaText } from "./Formula";
 import { problems } from "./problems";
 import { SpacePlot } from "./SpacePlot";
+import { Matrix, MatrixEquation, LinearEquation } from "./Notation";
+import { ExponentControl } from "./ExponentControl";
+import { Vector2D } from "./Vector2D";
 import "./style.css";
 let serial = 0;
 const choose = (ids: string[]): Selected[] =>
@@ -29,42 +30,6 @@ const choose = (ids: string[]): Selected[] =>
   }));
 const labels = (qs: Selected[]) =>
   qs.map((q) => q.symbol + (q.subscript ? "_" + q.subscript : ""));
-function Matrix({
-  matrix,
-  columns,
-  rows,
-}: {
-  matrix: Fraction[][];
-  columns: string[];
-  rows?: string[];
-}) {
-  return (
-    <div className="dim-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Zeile</th>
-            {columns.map((s, i) => (
-              <th key={i}>
-                <MathExpression label={s}>{symbol(s)}</MathExpression>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {matrix.map((r, i) => (
-            <tr key={i}>
-              <th>{rows?.[i] ?? `Z${i + 1}`}</th>
-              {r.map((x, j) => (
-                <td key={j}>{exact(x)}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 function Derivation({
   qs,
   names,
@@ -93,7 +58,7 @@ function Derivation({
     <>
       <div className="result">
         <strong>
-          {qs.length} Größen · Rang {a.rank} · {a.basis.length} unabhängige
+          {qs.length} Größen → Rang {a.rank} → {a.basis.length} unabhängige
           Π-Gruppen
         </strong>
         <p>
@@ -113,19 +78,36 @@ function Derivation({
         <summary>2 · Exakte Gauß-Elimination und Wiederholungsgrößen</summary>
         <p>
           Spaltenreihenfolge für die Elimination:{" "}
-          {a.order.map((i) => syms[i]).join(", ")}. Pivotspalten bilden eine
-          unabhängige Auswahl.
+          {a.order.map((i) => (
+            <MathExpression key={i} label={syms[i]}>
+              {symbol(syms[i])}
+            </MathExpression>
+          ))}
+          . Pivotspalten bilden eine unabhängige Auswahl.
         </p>
         <p>
           Wiederholungsgrößen:{" "}
-          {a.repeating.map((i) => syms[i]).join(", ") || "keine (Rang 0)"}
+          {a.repeating.length
+            ? a.repeating.map((i) => (
+                <MathExpression key={i} label={syms[i]}>
+                  {symbol(syms[i])}
+                </MathExpression>
+              ))
+            : "keine (Rang 0)"}
         </p>
-        {a.steps.map((s, i) => (
-          <div key={i}>
-            <h3>{s.label}</h3>
-            <Matrix matrix={s.matrix} columns={a.order.map((i) => syms[i])} />
-          </div>
-        ))}
+        <div className="dim-gauss-steps">
+          {a.steps.map((step, i) => (
+            <div className="dim-gauss-step" key={i}>
+              <h3>
+                <FormulaText text={step.label.replace(/Z(\d+)/g, "Z_$1")} />
+              </h3>
+              <Matrix
+                matrix={step.matrix}
+                columns={a.order.map((j) => syms[j])}
+              />
+            </div>
+          ))}
+        </div>
         <h3>Reduzierte Zeilenstufenform</h3>
         <Matrix matrix={a.matrix} columns={a.order.map((i) => syms[i])} />
       </details>
@@ -140,16 +122,18 @@ function Derivation({
           <div key={i}>
             <Product symbols={syms} powers={b} label={`Π_${i + 1}`} />
             <p>
-              Exponenten ({syms.join("; ")}): ({b.map(exact).join("; ")}).
-              Kontrolle A x = (
-              {balance(
-                qs.map((q) => q.dimensions),
-                b,
-              )
-                .map(exact)
-                .join("; ")}
-              ).
+              Exponenten in der Spaltenreihenfolge der ursprünglichen Matrix: (
+              {b.map(exact).join("; ")}).
             </p>
+            <div className="dim-matrix-check">
+              <span>Kontrolle:</span>
+              <MatrixEquation
+                values={balance(
+                  qs.map((q) => q.dimensions),
+                  b,
+                )}
+              />
+            </div>
           </div>
         ))}
         {!a.basis.length && (
@@ -178,7 +162,9 @@ function Derivation({
               label={n.symbol}
               factor={n.factor}
             />
-            <p>{n.note}</p>
+            <p>
+              <FormulaText text={n.note} />
+            </p>
           </div>
         ))}
         {!known.length && (
@@ -208,7 +194,7 @@ function Library({ names }: { names: string[] }) {
   const shown = numbers.filter(
     (n) =>
       (cat === "Alle" || n.category === cat) &&
-      `${n.name} ${n.symbol} ${n.meaning}`
+      `${n.name} ${n.symbol} $<FormulaText text={n.meaning}/>`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
@@ -239,7 +225,9 @@ function Library({ names }: { names: string[] }) {
       {shown.map((n) => (
         <details key={n.name}>
           <summary>
-            {n.name} · {n.symbol} <small>{n.category}</small>
+            {n.name} ·{" "}
+            <MathExpression label={n.symbol}>{symbol(n.symbol)}</MathExpression>{" "}
+            <small>{n.category}</small>
           </summary>
           <div className="dim-formula">
             <Product
@@ -252,13 +240,14 @@ function Library({ names }: { names: string[] }) {
             />
           </div>
           <p>
-            <strong>Bedeutung:</strong> {n.meaning}
+            <strong>Bedeutung:</strong> <FormulaText text={n.meaning} />
           </p>
           <p>
-            <strong>Beispiel:</strong> {n.example}
+            <strong>Beispiel:</strong> <FormulaText text={n.example} />
           </p>
           <p>
-            <strong>Definition und Grenzen:</strong> {n.note}
+            <strong>Definition und Grenzen:</strong>{" "}
+            <FormulaText text={n.note} />
           </p>
           <div className="dim-table">
             <table>
@@ -425,7 +414,7 @@ function Exercises({
             {p.ids
               .map((id) => {
                 const q = quantities.find((q) => q.id === id)!;
-                return `${q.name} (${q.symbol})`;
+                return q.name;
               })
               .join(", ")}
             .
@@ -525,9 +514,9 @@ export default function App() {
         </p>
         <p>
           Jede Größe wird durch sieben Exponenten beschrieben. Produkte werden
-          zu Linearkombinationen: Eine dimensionslose Gruppe erfüllt A x = 0.
-          Die Anzahl unabhängiger Gruppen ist n − rang(A). Alle Berechnungen
-          laufen lokal im Browser.
+          zu Linearkombinationen: Eine dimensionslose Gruppe erfüllt die
+          Matrixgleichung <LinearEquation />. Die Anzahl unabhängiger Gruppen
+          ist n − rang(A). Alle Berechnungen laufen lokal im Browser.
         </p>
         <p>
           Standardmäßig zeigen wir Exponenten der SI-Basiseinheiten. kg, m, s
@@ -595,7 +584,10 @@ export default function App() {
                   )
                   .map((q) => (
                     <button key={q.id} onClick={() => addQuantity(q.id)}>
-                      {q.symbol} · {q.name} +
+                      <MathExpression label={q.symbol}>
+                        {symbol(q.symbol)}
+                      </MathExpression>{" "}
+                      · {q.name} +
                     </button>
                   ))}
               </div>
@@ -614,7 +606,11 @@ export default function App() {
                     {qs.map((q, i) => (
                       <tr key={q.key}>
                         <td>
-                          {q.name} ({q.symbol})
+                          {q.name} (
+                          <MathExpression label={q.symbol}>
+                            {symbol(q.symbol)}
+                          </MathExpression>
+                          )
                         </td>
                         <td>
                           <input
@@ -750,7 +746,7 @@ export default function App() {
                     <option value={-1}>Keine Vorgabe</option>
                     {qs.map((q, i) => (
                       <option key={q.key} value={i}>
-                        {labels(qs)[i]} · {q.description || q.name}
+                        {q.description || q.name} (Größe {i + 1})
                       </option>
                     ))}
                   </select>
@@ -771,7 +767,9 @@ export default function App() {
                           )
                         }
                       />
-                      {labels(qs)[i]}
+                      <MathExpression label={labels(qs)[i]}>
+                        {symbol(labels(qs)[i])}
+                      </MathExpression>
                     </label>
                   ))}
                 </fieldset>
@@ -849,6 +847,7 @@ function Explorer({ qs, names }: { qs: Selected[]; names: string[] }) {
   const [exps, setExps] = useState(qs.map(() => fraction(1)));
   const [mode, setMode] = useState("Vektorzug");
   const [projection, setProjection] = useState([0, 1, 2]);
+  const [projectionSize, setProjectionSize] = useState(3);
   const [group, setGroup] = useState(0);
   const b = balance(
     qs.map((q) => q.dimensions),
@@ -859,7 +858,7 @@ function Explorer({ qs, names }: { qs: Selected[]; names: string[] }) {
   const dims =
     mode === "Rangreduzierter Raum" && a.rank <= 3
       ? a.independentRows
-      : projection;
+      : projection.slice(0, projectionSize);
   const unique = [...new Set(dims)];
   const syms = labels(qs);
   return (
@@ -893,7 +892,18 @@ function Explorer({ qs, names }: { qs: Selected[]; names: string[] }) {
               : "Projektion: Ein Schließen im Bild garantiert noch keine Dimensionslosigkeit."}
           </p>
           <div className="input-grid">
-            {projection.map((p, i) => (
+            <label>
+              Projektionsdarstellung
+              <select
+                aria-label="Projektionsdarstellung"
+                value={projectionSize}
+                onChange={(e) => setProjectionSize(Number(e.target.value))}
+              >
+                <option value={2}>2D</option>
+                <option value={3}>3D</option>
+              </select>
+            </label>
+            {projection.slice(0, projectionSize).map((p, i) => (
               <label key={i}>
                 Achse {i + 1}
                 <select
@@ -915,7 +925,7 @@ function Explorer({ qs, names }: { qs: Selected[]; names: string[] }) {
               </label>
             ))}
           </div>
-          {unique.length < 3 && (
+          {unique.length < dims.length && (
             <p className="error">
               Achsen sind doppelt gewählt. Bitte unterschiedliche Dimensionen
               wählen.
@@ -925,24 +935,15 @@ function Explorer({ qs, names }: { qs: Selected[]; names: string[] }) {
       )}
       <div className="dim-exponents">
         {qs.map((q, i) => (
-          <label key={q.key}>
-            <MathExpression label={syms[i]}>{symbol(syms[i])}</MathExpression> ·
-            Exponent {exact(exps[i])}
-            <input
-              type="range"
-              min={-6}
-              max={6}
-              step={0.5}
-              value={numeric(exps[i])}
-              onChange={(e) =>
-                setExps(
-                  exps.map((x, j) =>
-                    j === i ? fraction(Number(e.target.value) * 2, 2) : x,
-                  ),
-                )
-              }
-            />
-          </label>
+          <ExponentControl
+            key={q.key}
+            name={syms[i]}
+            unit={q.unit}
+            value={exps[i]}
+            onChange={(next) =>
+              setExps(exps.map((x, j) => (j === i ? next : x)))
+            }
+          />
         ))}
       </div>
       <div className="button-row">
@@ -973,35 +974,49 @@ function Explorer({ qs, names }: { qs: Selected[]; names: string[] }) {
           </>
         )}
       </div>
-      <div
-        className={closed && !trivial ? "result" : "controls"}
-        aria-live="polite"
-      >
-        <strong>
-          {trivial
-            ? "Triviale Kombination Π = 1"
-            : closed
-              ? "Dimensionslos: vollständige Bilanz ist null"
-              : "Noch dimensionsbehaftet"}
-        </strong>
-        <Product symbols={syms} powers={exps} />
-        <Matrix
-          matrix={b.map((x) => [x])}
-          columns={["Resultierende"]}
-          rows={names}
-        />
+      <div className="dim-space-layout">
+        <div className="dim-space-chart">
+          {dims.length <= 2 ? (
+            <Vector2D
+              qs={qs}
+              exps={exps}
+              dims={dims}
+              names={names}
+              originVectors={mode === "Dimensionsprojektionen"}
+            />
+          ) : (
+            <SpacePlot
+              qs={qs}
+              exps={exps}
+              dims={dims}
+              names={names}
+              originVectors={mode === "Dimensionsprojektionen"}
+            />
+          )}
+        </div>
+        <aside
+          className={
+            closed && !trivial ? "dim-balance result" : "dim-balance controls"
+          }
+          aria-live="polite"
+        >
+          <strong>
+            {trivial
+              ? "Triviale Kombination Π = 1"
+              : closed
+                ? "Dimensionslos: vollständige Bilanz ist null"
+                : "Noch dimensionsbehaftet"}
+          </strong>
+          <div className="dim-balance-product">
+            <Product symbols={syms} powers={exps} />
+          </div>
+          <h3>Vollständige Dimensionsbilanz</h3>
+          <MatrixEquation values={b} />
+          <div className="dim-balance-axes">
+            Reihenfolge: {names.join(", ")}
+          </div>
+        </aside>
       </div>
-      {dims.length <= 2 ? (
-        <Vector2D qs={qs} exps={exps} dims={dims} names={names} />
-      ) : (
-        <SpacePlot
-          qs={qs}
-          exps={exps}
-          dims={dims}
-          names={names}
-          originVectors={mode === "Dimensionsprojektionen"}
-        />
-      )}
       <details>
         <summary>
           Synchronisierte Dimensionsmatrix und skalierte Beiträge
@@ -1014,80 +1029,5 @@ function Explorer({ qs, names }: { qs: Selected[]; names: string[] }) {
         />
       </details>
     </>
-  );
-}
-function Vector2D({
-  qs,
-  exps,
-  dims,
-  names,
-}: {
-  qs: Selected[];
-  exps: Fraction[];
-  dims: number[];
-  names: string[];
-}) {
-  const points = [[0, 0]];
-  qs.forEach((q, i) =>
-    points.push(
-      [0, 1].map(
-        (j) =>
-          points[i][j] +
-          (dims[j] === undefined
-            ? 0
-            : numeric(mul(q.dimensions[dims[j]], exps[i]))),
-      ),
-    ),
-  );
-  return (
-    <Chart
-      title="Vektorzug im Dimensionsraum"
-      description="Pfeile Spitze an Schaft; die gestrichelte Linie zeigt die Resultierende vom Ursprung zum Endpunkt. Achsenwerte sind Exponenten."
-      data={[
-        ...qs.map((q, i) => ({
-          type: "scatter" as const,
-          mode: "lines+markers+text" as const,
-          x: [points[i][0], points[i + 1][0]],
-          y: [points[i][1], points[i + 1][1]],
-          name: labels(qs)[i],
-          text: ["", labels(qs)[i]],
-          textposition: "top center" as const,
-        })),
-        {
-          type: "scatter",
-          mode: "lines",
-          x: [0, points.at(-1)![0]],
-          y: [0, points.at(-1)![1]],
-          name: "Resultierende",
-          line: { dash: "dash", color: "#111", width: 3 },
-        },
-      ]}
-      layout={{
-        xaxis: {
-          title: { text: `Exponent ${names[dims[0]] ?? "Rang 0"}` },
-          zeroline: true,
-        },
-        yaxis: {
-          title: {
-            text: `Exponent ${names[dims[1]] ?? "(keine zweite Dimension)"}`,
-          },
-          scaleanchor: "x",
-        },
-        annotations: qs.map((_, i) => ({
-          x: points[i + 1][0],
-          y: points[i + 1][1],
-          ax: points[i][0],
-          ay: points[i][1],
-          xref: "x",
-          yref: "y",
-          axref: "x",
-          ayref: "y",
-          showarrow: true,
-          arrowhead: 3,
-          arrowcolor: "#164a87",
-        })),
-        showlegend: true,
-      }}
-    />
   );
 }
