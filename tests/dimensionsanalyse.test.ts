@@ -83,8 +83,8 @@ describe("Fachdaten", () => {
       ).toEqual(["0", "0", "0", "0", "0", "0", "0"]);
     }
   });
-  it("all 12 exercise solutions have complete independent kernels", () => {
-    expect(problems).toHaveLength(12);
+  it("all 24 exercise solutions have complete independent kernels", () => {
+    expect(problems).toHaveLength(24);
     for (const p of problems) {
       const ds = dims(p.ids),
         a = analyze(ds);

@@ -5,7 +5,7 @@ Route `/dimensionsanalyse`, Kategorie `vorlesung`. Die App arbeitet vollständig
 ## Module
 
 - 50 fachlich erläuterte Kennzahlendefinitionen mit Größen, Einheiten, Konventionen und Beispielen. Keine numerischen Einzelkennzahl-Rechner.
-- Zwölf kuratierte Aufgabenfamilien. Gebiet, Schwierigkeitsgrad und Größenanzahl filtern ausschließlich vorhandene Vorlagen; es werden keine technisch beliebigen Größenmengen erzeugt. Lernmodus und zunächst verborgene Prüfungslösung, Übernahme in den Schnelllöser.
+- 24 kuratierte Aufgabenfamilien, darunter acht zur Elektrochemie und zu Batterien. Gebiet, Schwierigkeitsgrad und Größenanzahl filtern ausschließlich vorhandene Vorlagen; jede passende Aufgabe ist direkt auswählbar. Lernmodus und zunächst verborgene Prüfungslösung, Übernahme in den Schnelllöser. Die zwölf neuen Aufgaben enthalten zusätzliche Verständnisfragen und eine vollständige fachlich interpretierte Musterbasis.
 - Schnelllöser: bis zu 16 Größen, Mehrfachauswahl mit editierbaren Indizes und Bedeutungen, eigene rationale Dimensionsvektoren, Zielgröße und manuelle oder automatische Wiederholungsgrößen.
 - Dimensionsraum: skalierte Vektorzüge, Ursprungspfeile in auswählbaren Projektionen, vollständige Dimensionsbilanz und exakte Auswahl unabhängiger Koordinatenzeilen. Bis Rang 3 ist eine verlustfreie Darstellung möglich. Ab Rang 4 wird ausdrücklich eine Projektion verwendet.
 
@@ -19,7 +19,9 @@ Die formale Dimensionsprüfung aller Katalogformeln ersetzt keine vollständige 
 
 ## Validierung
 
-`tests/dimensionsanalyse.test.ts` prüft Reynolds, Biot (Rang 2 trotz vier auftretender Dimensionen), Tropfenströmung, Druckverlust, dimensionsgleiche Größen, rationale Exponenten, Rang 0, leere Eingabe, alternative Wiederholungsgrößen und die Koordinatenreduktion. Alle 50 Kennzahlendefinitionen werden exakt auf Dimensionslosigkeit geprüft. Für jede der zwölf Aufgaben werden Dimensionslosigkeit, Unabhängigkeit und Vollständigkeit der erzeugten Basis geprüft.
+`tests/dimensionsanalyse.test.ts` prüft Reynolds, Biot (Rang 2 trotz vier auftretender Dimensionen), Tropfenströmung, Druckverlust, dimensionsgleiche Größen, rationale Exponenten, Rang 0, leere Eingabe, alternative Wiederholungsgrößen und die Koordinatenreduktion. Alle 50 Kennzahlendefinitionen werden exakt auf Dimensionslosigkeit geprüft. Für alle 24 Aufgaben werden Dimensionslosigkeit, Unabhängigkeit und Vollständigkeit der erzeugten Basis geprüft. Die neuen fachlichen Musterbasen werden zusätzlich auf denselben Nullraum und vorgegebene Referenzränge geprüft.
+
+Die Elektrochemieaufgaben behandeln Diffusion und Ladezeit, Ladungsumsatz und C-Rate, normierte Stromdichten, Wagner-Zahl, normierte Überspannung, einen ebenen Diffusionsgrenzstrom sowie diffusive und RC-Zeitskalen in der EIS. Neue physikalische Größen verwenden eindeutige Bezeichner: F_F bezeichnet die Faraday-Konstante, R_g die Gaskonstante, η_el die Überspannung und ω die elektrische Kreisfrequenz. Nominale Ladungskapazitäten sind in Coulomb, RC-Größen als Gesamtwiderstand und Gesamtkapazität definiert. Die Aufgaben ergänzen den Übungsbereich; die Kennzahlenbibliothek enthält weiterhin 50 Einträge.
 
 Der Projekt-Testlauf ist auf zwei gleichzeitige Prozesse und 30 Sekunden je Test begrenzt. Numerische Simulationsfälle anderer Apps überschreiten in geteilten Laufzeitumgebungen die vorherige Standardgrenze von fünf Sekunden. Es wurden keine fachlichen Assertions abgeschwächt.
 
