@@ -4,10 +4,15 @@ import { exact, type Fraction } from "./logic";
 import { symbol } from "./Formula";
 export const matrixSymbol = (name = "A") =>
   h(
-    "mover",
-    { accent: "true" },
-    symbol(name),
-    h("mo", { stretchy: "true" }, "↔"),
+    "munder",
+    { accentunder: "true" },
+    h(
+      "munder",
+      { accentunder: "true" },
+      symbol(name),
+      h("mo", { stretchy: "true" }, "_"),
+    ),
+    h("mo", { stretchy: "true" }, "_"),
   );
 export const vectorSymbol = (name = "x") =>
   h(
