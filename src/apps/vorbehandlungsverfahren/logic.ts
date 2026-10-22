@@ -8,7 +8,7 @@ export interface Parameters {
  manualVolume:boolean; sprayVolume:number; sprayAlpha:number; sprayEmission:number; sprayDrag:number; extraCooling:number;
 }
 export const DEFAULTS:Parameters={temperature:50,ambient:22,fresh:15,start:22,massFlow:3000,areaFlow:300,cpPart:465,partLength:1,partWidth:.3,partHeight:.8,energyPrice:.1,waterPrice:4.6,eta:.8,shiftHours:8,days:5,latentMode:'constant',heatMode:'simple',heater:200,dipLength:5,dipWidth:4,dipHeight:2.5,dipAlpha:100,dipEmission:.7,dipDrag:.05,speed:2,dwell:3,distance:.1,nozzleSpacing:.3,ringSpacing:.3,nozzleFlow:13.5,pressure:1.5,pressureLoss:.3,head:2,pumpEta:.8,volumeFactor:1.5,sprayHeight:.9,manualVolume:false,sprayVolume:4.05,sprayAlpha:100,sprayEmission:.7,sprayDrag:.05,extraCooling:.5};
-export const labels=['Werkstücke','Frischwasser','Verdunstung','Konvektion','Strahlung','Zusatzabkühlung','Pumpe'];
+export const labels=['Werkstücke','Frischwasser','Verdunstung','Konvektion','Strahlung','Wärmeverlust beim Versprühen','Pumpe'];
 export function evaporation(temperature:number,area:number){return 2e-5*temperature**3.07*area;} // kg/h; numerical temperature in °C
 export function latentHeat(p:Parameters,t=p.temperature){return p.latentMode==='constant'?2256:2500.9-2.36*t;} // kJ/kg, approximate 0–100 °C
 export function validate(p:Parameters){
@@ -50,7 +50,7 @@ export function calculate(p:Parameters,kind:'dip'|'spray'){
  const warnings:string[]=[];
  if(!spray&&(p.partLength>p.dipLength||p.partWidth>p.dipWidth||p.partHeight>p.dipHeight))warnings.push('Das Werkstück passt in der angegebenen Orientierung nicht vollständig in das Tauchbad.');
  if(spray&&area<activeLength*(p.partWidth+4*p.distance))warnings.push('Die berechnete Beckenfläche ist kleiner als die Grundfläche der aktiven Spritzzone. Beckenform und Rücklauf müssen konstruktiv geprüft werden.');
- if(spray&&p.extraCooling>0)warnings.push('Zusatzabkühlung ist ein eigenständiger Verlust: bereits erfasste Verdunstung und Werkstückerwärmung dürfen darin nicht nochmals enthalten sein.');
+ if(spray&&p.extraCooling>0)warnings.push('Wärmeverlust beim Versprühen ist ein eigenständiger Verlust: bereits erfasste Verdunstung und Werkstückerwärmung dürfen darin nicht nochmals enthalten sein.');
  return {kind,volume,area,drag,evap,fresh,powers,thermal,power,pump,startup,heatTime,heatWater,heatError,warnings,activeLength,zoneLength:activeLength+Math.max(1,p.partHeight+p.partLength),ringWidth,ringHeight,rings,nozzlesPerRing,nozzles,circulation};
 }
 export type Result=ReturnType<typeof calculate>;
