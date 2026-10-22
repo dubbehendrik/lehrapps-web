@@ -46,9 +46,9 @@ export function Diagram({p,r}:{p:Parameters;r:Result}) {
       <Label x={420} y={302} anchor="middle">Werkstück</Label>
       {[245,290,335,365].map(y=><g key={y}>{arrow('M318 '+y+'h38')}{arrow('M522 '+y+'h-38')}</g>)}
       <Label x={550} y={245}>Spritzring</Label>
-      <Label x={550} y={280} color={orange}><SymbolText base="Q" sub="Spritz" dotted/></Label>
-      {arrow('M550 290H650',orange)}
-      <Label x={555} y={319}>Wärmeverlust</Label><Label x={555} y={343}>beim Versprühen</Label>
+      {arrow('M700 195V95',orange)}
+      <Label x={700} y={40} anchor="middle" color={orange}>Versprühen</Label>
+      <Label x={700} y={67} anchor="middle" color={orange}><SymbolText base="Q" sub="Spritz" dotted/></Label>
       <path d="M270 435V565H680V435" fill="none" stroke={grey} strokeWidth="3"/>
       <rect x="272" y="475" width="406" height="88" fill="#d6effa"/>
       <Adiabatic x={270} y={440} width={410} height={125}/>
@@ -113,7 +113,8 @@ export function Diagram({p,r}:{p:Parameters;r:Result}) {
     {arrow('M35 130H195')}<Label x={35} y={96}><SymbolText base="u" sub="F"/> = {f(p.speed)} m/min</Label>
     <Dimension x1={220} y1={45} x2={900} y2={45} text={<><SymbolText base="L" sub="Spritz"/> = {f(r.activeLength)} m</>}/>
     <Dimension x1={440} y1={215} x2={550} y2={215} text={<><SymbolText base="L" sub="W"/> = {f(p.partLength)} m</>}/>
-    <Label x={650} y={213}>Ringabstand ≤ {f(p.ringSpacing)} m</Label>
+    <Dimension x1={240} y1={230} x2={240+640/(Math.min(14,r.rings)-1||1)} y2={230} text={<><SymbolText base="a" sub="Ring"/> ≤ {f(p.ringSpacing)} m</>}/>
+    <path d={'M240 180v58M'+(240+640/(Math.min(14,r.rings)-1||1))+' 180v58'} stroke={grey} strokeDasharray="4 4"/>
     <Label x={220} y={265}>{f(r.rings)} Ringe · Spritzdauer {f(p.dwell)} min · Ringe schematisch, Anzahl ggf. reduziert</Label>
   </svg></div></>}
   </figure>;
