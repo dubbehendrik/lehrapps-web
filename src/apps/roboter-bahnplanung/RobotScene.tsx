@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import { loadModels, dispose } from './robot/load-models';
 import { makeLayer, updateLayer, sheetPoint, displayPose, SUSPENSION, SHEET_FRONT, type Layer } from './robot/scene-model';
 import { type AxisValues, REFERENCE_POSES, toolMatrix } from './robot/robot-kinematics';
@@ -13,13 +12,13 @@ export default function RobotScene(props: Props) {
   const host = useRef<HTMLDivElement>(null), engine = useRef<Engine | null>(null), latest = useRef(props);
   latest.current = props;
   const [status, setStatus] = useState('Originale CAD-Modelle werden geladen …'), [error, setError] = useState('');
-  const [software, setSoftware] = useState(false), [height, setHeight] = useState(80), [poseWarning, setPoseWarning] = useState('');
+  const [height, setHeight] = useState(80), [poseWarning, setPoseWarning] = useState('');
   const heightRef = useRef(height);heightRef.current=height;
   useEffect(() => {
     const el = host.current!; let stopped = false, frame = 0, dirty = true, lastRender = 0;
-    let renderer: T.WebGLRenderer | SVGRenderer, soft = false;
+    let renderer: T.WebGLRenderer; const soft = false;
     try { renderer = new T.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(2,devicePixelRatio)); }
-    catch { renderer = new SVGRenderer(); renderer.setQuality('low'); soft = true; setSoftware(true); setStatus('CAD-Modelle für die Darstellung ohne WebGL vorbereiten …'); }
+    catch { setError('Die CAD-Ansicht benötigt WebGL. Bitte „Blech & Bahn · 2D“ wählen oder einen Browser mit aktivierter Hardwarebeschleunigung verwenden.'); return; }
     renderer.setClearColor(new T.Color(0xeef3f6),1);renderer.domElement.setAttribute('role','img');
     renderer.domElement.setAttribute('aria-label','Drehbare Roboteransicht mit zentral aufgehängtem Blech und räumlich wachsender Auftragsschicht');
     renderer.domElement.style.touchAction='none';el.appendChild(renderer.domElement);
@@ -97,7 +96,7 @@ export default function RobotScene(props: Props) {
   useEffect(()=>{engine.current?.fit(props.profile);},[props.profile]);
   return <div className="rb-robot-scene">
     <div className="rb-robot-host" ref={host} />
-    {error?<p className="error" role="alert">{error}</p>:<p className="rb-small" role="status">{status}{software?' · vereinfachte CAD-Darstellung ohne WebGL':''}</p>}
+    {error?<p className="error" role="alert">{error}</p>:<p className="rb-small" role="status">{status}</p>}
     {poseWarning&&<p className="rb-notice" role="status">{poseWarning}</p>}
     <div className="rb-space-controls"><button onClick={()=>engine.current?.fit(false)}>Roboter & Aufhängung</button><button onClick={()=>engine.current?.fit(true)}>Blech-Nahansicht</button>
       <label>Überhöhung · Höhe bei Skalenmaximum: {height} mm<input aria-label="Darstellungshöhe am Skalenmaximum" type="range" min={5} max={200} step={5} value={height} onChange={e=>setHeight(Number(e.target.value))}/></label></div>

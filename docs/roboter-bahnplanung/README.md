@@ -4,8 +4,11 @@ Route `/roboter-bahnplanung`, zentral registriert unter **Fokus: Labor**.
 
 Die App überträgt die geometrischen Szenarien des Entwicklungsprojekts
 `lackierroboter-dev` in einen eigenständigen Lehrapp-Bereich innerhalb der
-bestehenden Lehrapps. Sie übernimmt keine Maschinenprogramme, Archive,
-Roboterkinematik, Steuerungsdateien oder Anlagengeometrien.
+bestehenden Lehrapps. Originale CAD-Modelle und eine illustrative Roboterkinematik dienen der Darstellung.
+Maschinenprogramme und Steuerungsdateien werden nicht übernommen.
+
+Der Einstieg zeigt den fertig berechneten, mittigen stationären Spritzversuch in 2D.
+Die CAD-Ansicht wird erst beim Wechsel auf eine der 3D-Ansichten geladen.
 
 ## Funktionsumfang
 
@@ -59,10 +62,10 @@ Zeitstände gespeichert und für Zwischenzeiten interpoliert. Die numerische
 Auflösung wird in der App ausgewiesen. Versuche sind auf 600 s und
 höchstens 60 Bahnabstände je relevanter Richtung begrenzt.
 
-3D nutzt einen Software-Painter auf Canvas 2D, perspektivisch als
-orthografische Projektion mit Drehung, Neigung und Zoom. Das Auftragsprofil
-zeigt das Rechenraster, der Bahnraum ein vereinfachtes Darstellungsnetz.
-Es wird kein WebGL benötigt. Schnitte nutzen immer die volle Rechenauflösung.
+3D nutzt Three.js mit WebGL. Ohne WebGL erscheint ein Hinweis; die 2D-Ansicht
+bleibt verfügbar. Die aufwendige synchrone CAD-Vereinfachung wird nicht gestartet. Originale
+CAD-Modelle zeigen Roboter, Werkzeug und zentrale Aufhängung. Die Auftragsschicht
+wächst mit ausdrücklich überhöhter Darstellung; Schnitte nutzen die volle Rechenauflösung.
 
 ## Prüfung
 

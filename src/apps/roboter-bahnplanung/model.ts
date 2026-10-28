@@ -14,6 +14,8 @@ export const DEFAULT: Settings = {
   speed: 200, hold: 3, coatTurns: true, wedgeEnd: 150, lineAxis: 'horizontal',
   brush: { air: 50, voltage: 60, distance: 250, flow: 150 },
 };
+/** Initial teaching experiment: static spray pattern, centered on the sheet. */
+export const INITIAL: Settings = { ...DEFAULT, scenario: 'spot', startU: DEFAULT.sheetWidth / 2, startV: DEFAULT.sheetHeight / 2, brush: { ...DEFAULT.brush } };
 export const SCENARIOS: Record<Scenario, string> = {
   spot: 'Stationärer Brushversuch', line: 'Mittige Einzelbahn',
   lineHold: 'Einzelbahn bis Zentrum + Halten', horizontal: 'Mäander · horizontal',

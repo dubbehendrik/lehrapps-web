@@ -2,12 +2,12 @@ import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type R
 import { Chart } from '../../components/Chart';
 import { SupportFooter } from '../../components/SupportFooter';
 import MapView from './MapView';
-import { DEFAULT, SCENARIOS, makeKernel, makePath, poseAt, section, simulate, stats, validate, valuesAt,
+import { SCENARIOS, INITIAL, makeKernel, makePath, poseAt, section, simulate, stats, validate, valuesAt,
   type Result, type Scenario, type Settings } from './model';
 import './style.css';
 const SpaceView = lazy(() => import('./RobotScene'));
 const STORAGE = 'lehrapps-roboter-demo-v1';
-const fmt = (x: number, digits = 2) => x.toLocaleString('de-DE', { maximumFractionDigits: digits });
+const fmt = (x: number, digits = 1) => x.toLocaleString('de-DE', { maximumFractionDigits: Math.min(1, digits), ...(x !== 0 && Math.abs(x) < .1 ? { notation: 'scientific' as const } : {}) });
 const COPY = 'Didaktisches Auftragsmodell: Spritzbild und Parameterwirkungen beruhen auf frei gewählten mathematischen Annahmen, nicht auf einem physikalischen oder kalibrierten Anlagenmodell. Keine Vorhersage des realen Beschichtungsprozesses.';
 class SpaceBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -30,10 +30,10 @@ function legend(max: number) {
   return <div className="rb-scale"><div className="rb-scale-bar" /><div><span>0</span><span>{fmt(max / 2)} AE</span><span>{fmt(max)} AE</span></div></div>;
 }
 export default function App() {
-  const [config, setConfig] = useState<Settings>(() => structuredClone(DEFAULT));
-  const [result, setResult] = useState<Result>(() => simulate(DEFAULT));
-  const [time, setTime] = useState(() => makePath(DEFAULT).duration), [playing, setPlaying] = useState(false);
-  const [tempo, setTempo] = useState(1), [view, setView] = useState<'2d' | '3d' | 'profile'>('3d');
+  const [config, setConfig] = useState<Settings>(() => structuredClone(INITIAL));
+  const [result, setResult] = useState<Result>(() => simulate(INITIAL));
+  const [time, setTime] = useState(() => makePath(INITIAL).duration), [playing, setPlaying] = useState(false);
+  const [tempo, setTempo] = useState(1), [view, setView] = useState<'2d' | '3d' | 'profile'>('2d');
   const [axis, setAxis] = useState<'u' | 'v'>('u'), [cutFraction, setCutFraction] = useState(.5);
   const [edge, setEdge] = useState(20), [showPath, setShowPath] = useState(true);
   const [reference, setReference] = useState<Result | null>(null), [busy, setBusy] = useState(false);
@@ -150,7 +150,7 @@ export default function App() {
           try { const saved = JSON.parse(localStorage.getItem(STORAGE) || 'null'); if (saved?.schema !== 1 || !saved.config?.brush || validate(saved.config).length) throw Error();
             setConfig(saved.config); setPlaying(false); setMessage('Gemerkter Stand geladen. Zum Anwenden „Änderungen berechnen“ wählen.');
           } catch { setError('Kein gültiger Versuchsstand in diesem Browser vorhanden.'); }
-        }}>Stand laden</button><button onClick={() => { const c = structuredClone(DEFAULT); setConfig(c); calculate(c); }}>Beispiel zurücksetzen</button></div>
+        }}>Stand laden</button><button onClick={() => { const c = structuredClone(INITIAL); setConfig(c); setView('2d'); calculate(c); }}>Beispiel zurücksetzen</button></div>
         <p className="rb-small">„Stand merken“ speichert nur die Einstellungen in diesem Browser.</p>
       </aside>
       <section className="rb-results" aria-label="Versuchsergebnis">

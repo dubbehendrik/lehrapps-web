@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT, SCENARIOS, makeKernel, makePath, poseAt, section, simulate, stats, validate, valuesAt, type Settings } from '../src/apps/roboter-bahnplanung/model';
+import { DEFAULT, INITIAL, SCENARIOS, makeKernel, makePath, poseAt, section, simulate, stats, validate, valuesAt, type Settings } from '../src/apps/roboter-bahnplanung/model';
 const config = (updates: Partial<Settings> = {}): Settings => ({ ...structuredClone(DEFAULT), ...updates });
 const spot = () => config({ scenario: 'spot', startU: 300, startV: 200 });
 describe('Rotationssymmetrisches Lehrmodell', () => {
@@ -99,5 +99,20 @@ describe('Rotationssymmetrisches Lehrmodell', () => {
     expect(validate(config({ brush: { ...DEFAULT.brush, distance: 0 } })).length).toBeGreaterThan(0);
     expect(() => simulate(config({ speed: 0 }))).toThrow();
     expect(() => simulate(config({ width: 1500, height: 1500, pitchU: 50, pitchV: 50, speed: 10 }))).toThrow('600 s');
+  });
+});
+
+// Guard the initial experiment independently of moving-path defaults.
+describe('Einstieg mit statischem Spritzbild', () => {
+  it('startet mittig mit fertigem, rotationssymmetrischem Auftrag', () => {
+    expect(INITIAL.scenario).toBe('spot');
+    expect(INITIAL.startU).toBe(INITIAL.sheetWidth / 2);
+    expect(INITIAL.startV).toBe(INITIAL.sheetHeight / 2);
+    const r = simulate(INITIAL);
+    expect(r.path.length).toBe(0);
+    expect(r.path.duration).toBe(INITIAL.hold);
+    expect(r.max).toBeGreaterThan(0);
+    const cut = section(r, r.frames[80].values, 'u', INITIAL.startV);
+    cut.forEach((v, i) => expect(v).toBeCloseTo(cut[cut.length - 1 - i], 5));
   });
 });
