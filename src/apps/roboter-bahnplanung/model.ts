@@ -1,6 +1,8 @@
-/** Geometric teaching model. No robot kinematics or predictive spray physics. */
+/** Generic, literature-informed teaching surrogate, not an equipment calibration. */
+import { makeKernel, dryVolumeRate, REFERENCE_BRUSH, type Brush } from './spray';
+export { makeKernel } from './spray';
+export type { Brush } from './spray';
 export type Scenario = 'spot' | 'line' | 'lineHold' | 'horizontal' | 'vertical' | 'cross' | 'wedge';
-export type Brush = { air: number; voltage: number; distance: number; flow: number };
 export type Settings = {
   scenario: Scenario; sheetWidth: number; sheetHeight: number;
   startU: number; startV: number; width: number; height: number;
@@ -12,7 +14,7 @@ export const DEFAULT: Settings = {
   startU: -60, startV: -60, width: 720, height: 520,
   pitchU: 80, pitchV: 80, signU: 1, signV: 1,
   speed: 200, hold: 3, coatTurns: true, wedgeEnd: 150, lineAxis: 'horizontal',
-  brush: { air: 50, voltage: 60, distance: 250, flow: 150 },
+  brush: { ...REFERENCE_BRUSH },
 };
 /** Initial teaching experiment: static spray pattern, centered on the sheet. */
 export const INITIAL: Settings = { ...DEFAULT, scenario: 'spot', startU: DEFAULT.sheetWidth / 2, startV: DEFAULT.sheetHeight / 2, brush: { ...DEFAULT.brush } };
@@ -38,7 +40,11 @@ export function validate(c: Settings): string[] {
   range(c.pitchU, 10, 500, 'Bahnabstand u (mm)'); range(c.pitchV, 10, 500, 'Bahnabstand v (mm)');
   range(c.speed, 10, 1000, 'Geschwindigkeit (mm/s)'); range(c.hold, .2, 20, 'Spritz-/Haltezeit (s)');
   range(c.wedgeEnd, 25, 300, 'Keil-Enddichte (%)');
-  range(c.brush.air, 0, 100, 'Relative Lenkluft (%)'); range(c.brush.voltage, 0, 100, 'Hochspannung (kV)');
+  range(c.brush.innerAir, 0, 1000, 'Innere Lenkluft (Normliter/min)');
+  range(c.brush.outerAir, 0, 600, 'Äußere Lenkluft (Normliter/min)');
+  range(c.brush.rpm, 10000, 60000, 'Drehzahl (1/min)');
+  range(c.brush.voltage, 0, 100, 'Hochspannung (kV)');
+  range(c.brush.solids, 1, 100, 'Volumetrischer Festkörperanteil (%)');
   range(c.brush.distance, 100, 500, 'Abstand (mm)'); range(c.brush.flow, 0, 500, 'Fördermenge (ml/min)');
   if (![c.signU, c.signV].every(v => v === 1 || v === -1)) errors.push('Ungültige Laufrichtung.');
   if ((['vertical', 'cross'].includes(c.scenario) && c.width / c.pitchU > 60) ||
@@ -105,22 +111,6 @@ export function poseAt(path: Path, t: number): Point & { spray: boolean; phase: 
   return { u: s.a.u + (s.b.u - s.a.u) * f, v: s.a.v + (s.b.v - s.a.v) * f,
     spray: t < path.duration && s.spray, phase: t >= path.duration ? 'Versuch beendet' : s.phase };
 }
-export function makeKernel(b: Brush) {
-  // Chosen teaching relationships, NOT measured or physics-based equipment characteristics.
-  const air = b.air / 100, electric = b.voltage / 100;
-  const radius = b.distance * (.38 - .16 * air) * (1 - .08 * electric);
-  const sigma = b.distance * (.085 - .025 * air);
-  const ringShare = .92 - .16 * electric;
-  const centerSigma = sigma * 1.8;
-  const support = radius + 6 * centerSigma;
-  const raw = (r: number) => ringShare * Math.exp(-.5 * ((r - radius) / sigma) ** 2)
-    + (1 - ringShare) * Math.exp(-.5 * (r / centerSigma) ** 2);
-  let integral = 0; const dr = support / 2048;
-  for (let i = 0; i < 2048; i++) { const r = (i + .5) * dr; integral += 2 * Math.PI * r * raw(r) * dr; }
-  const eta = .30 + .55 * electric;
-  return { radius, sigma, support, eta,
-    density: (r: number) => r > support ? 0 : raw(r) / integral };
-}
 export type Frame = { time: number; values: Float32Array };
 export type Result = { config: Settings; path: Path; u: number[]; v: number[]; du: number; dv: number;
   frames: Frame[]; max: number; captured: number; supplied: number; integrationSteps: number };
@@ -147,8 +137,8 @@ export function simulate(c: Settings): Result {
       const i1 = Math.min(nx - 1, Math.floor((cu + kernel.support) / du - .5));
       const j0 = Math.max(0, Math.ceil((cv - kernel.support) / dv - .5));
       const j1 = Math.min(ny - 1, Math.floor((cv + kernel.support) / dv - .5));
-      // AE: reference feed 150 ml/min, 10,000 mm² reference area, integrated seconds.
-      const amount = c.brush.flow / 150 * kernel.eta * dt * 10000;
+      // mm³/s × 1000 µm/mm × s × kernel (1/mm²) = µm.
+      const amount = dryVolumeRate(c.brush) * 1000 * kernel.eta * dt;
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++)
         values[j * nx + i] += amount * kernel.density(Math.hypot(u[i] - cu, v[j] - cv));
       integrationSteps++;
@@ -162,7 +152,7 @@ export function simulate(c: Settings): Result {
   }
   let max = 0, total = 0; for (const v of values) { max = Math.max(max, v); total += v; }
   return { config: structuredClone(c), path, u, v, du, dv, frames, max,
-    captured: total * du * dv / 10000, supplied: c.brush.flow / 150 * path.sprayDuration, integrationSteps };
+    captured: total * du * dv / 1000, supplied: dryVolumeRate(c.brush) * path.sprayDuration, integrationSteps };
 }
 export function valuesAt(r: Result, time: number): Float32Array {
   const position = clamp(time / Math.max(r.path.duration, 1e-12) * 80, 0, 80);

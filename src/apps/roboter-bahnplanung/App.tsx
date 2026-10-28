@@ -4,11 +4,12 @@ import { SupportFooter } from '../../components/SupportFooter';
 import MapView from './MapView';
 import { SCENARIOS, INITIAL, makeKernel, makePath, poseAt, section, simulate, stats, validate, valuesAt,
   type Result, type Scenario, type Settings } from './model';
+import { thicknessRate, format as fmt, modelNotes, RECONSTRUCTION } from './spray';
+import ProfileView from './SpaceView';
 import './style.css';
 const SpaceView = lazy(() => import('./RobotScene'));
-const STORAGE = 'lehrapps-roboter-demo-v1';
-const fmt = (x: number, digits = 1) => x.toLocaleString('de-DE', { maximumFractionDigits: Math.min(1, digits), ...(x !== 0 && Math.abs(x) < .1 ? { notation: 'scientific' as const } : {}) });
-const COPY = 'Didaktisches Auftragsmodell: Spritzbild und Parameterwirkungen beruhen auf frei gewählten mathematischen Annahmen, nicht auf einem physikalischen oder kalibrierten Anlagenmodell. Keine Vorhersage des realen Beschichtungsprozesses.';
+const STORAGE = 'lehrapps-roboter-demo-v2-micrometre';
+const COPY = 'Generischer 2K-Lack · generischer Hochrotationszerstäuber. Literaturgestütztes Näherungsmodell für Trockenschichtdicken in µm. Die Parametertrends dienen der Lehre; keine kalibrierte Prognose für eine konkrete Anlage.';
 class SpaceBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
@@ -27,7 +28,7 @@ function Slider({ label, value, min, max, step = 1, unit = '', onChange }: {
     <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} /></label>;
 }
 function legend(max: number) {
-  return <div className="rb-scale"><div className="rb-scale-bar" /><div><span>0</span><span>{fmt(max / 2)} AE</span><span>{fmt(max)} AE</span></div></div>;
+  return <div className="rb-scale"><div className="rb-scale-bar" /><div><span>0</span><span>{fmt(max / 2)} µm</span><span>{fmt(max)} µm</span></div></div>;
 }
 export default function App() {
   const [config, setConfig] = useState<Settings>(() => structuredClone(INITIAL));
@@ -86,7 +87,7 @@ export default function App() {
   const x = axis === 'u' ? result.u : result.v;
   const cutData = section(result, values, axis, cut);
   const brushName = (r: Result) => {
-    const c = r.config, staticPart = `${SCENARIOS[c.scenario]} · LL ${c.brush.air} % · ${c.brush.voltage} kV · ${c.brush.distance} mm · ${c.brush.flow} ml/min`;
+    const c = r.config, staticPart = `${SCENARIOS[c.scenario]} · LL innen/außen ${fmt(c.brush.innerAir)}/${fmt(c.brush.outerAir)} Nl/min · ${fmt(c.brush.rpm)} 1/min · FK ${fmt(c.brush.solids)} Vol.% · ${c.brush.voltage} kV · ${c.brush.distance} mm · ${c.brush.flow} ml/min`;
     if (c.scenario === 'spot') return `${staticPart} · ${c.hold} s`;
     const raster = !['line', 'lineHold'].includes(c.scenario);
     return `${staticPart} · ${c.speed} mm/s${c.scenario === 'lineHold' ? ` · ${c.hold} s halten` : ''}${raster ? ` · Sollabstand u/v ${c.pitchU}/${c.pitchV} mm` : ` · ${c.lineAxis === 'horizontal' ? 'horizontal' : 'vertikal'}`}`;
@@ -96,7 +97,7 @@ export default function App() {
     <p className="eyebrow">Fokus: Labor · Virtueller Beschichtungsversuch</p>
     <h1>Roboter Bahnplanung <span>(Demo)</span></h1>
     <p className="rb-lead">Brush einstellen, Spritzbild verstehen, Bahnen variieren – und den Auftrag auf dem Blech vergleichen.</p>
-    <aside className="rb-notice"><strong>Lehrmodell · keine reale Roboterbahnplanung</strong><p>{COPY} Die Darstellung bestätigt weder Erreichbarkeit noch Kollisionsfreiheit oder Ausführbarkeit am Roboter.</p></aside>
+    <aside className="rb-notice"><strong>Generisches Lehrmodell · Modellschichtdicke in µm</strong><p>{COPY} Die Darstellung bestätigt weder Erreichbarkeit noch Kollisionsfreiheit oder Ausführbarkeit am Roboter.</p></aside>
     <div className="rb-steps" aria-label="Versuchsablauf"><span>1 <b>Brush & Szenario</b></span><span>2 <b>Auftrag verfolgen</b></span><span>3 <b>Schnitte vergleichen</b></span></div>
     <div className="rb-layout">
       <aside className="rb-settings" aria-label="Versuchseinstellungen">
@@ -106,11 +107,15 @@ export default function App() {
         </select></label>
         {['line', 'lineHold'].includes(config.scenario) && <label>Einzelbahnrichtung<select value={config.lineAxis} onChange={e => change('lineAxis', e.target.value as Settings['lineAxis'])}><option value="horizontal">Horizontal</option><option value="vertical">Vertikal</option></select></label>}
         <fieldset><legend>Brush · Modellparameter</legend>
-          <Slider label="Lenkluft · relative Einstellung" value={config.brush.air} min={0} max={100} unit="%" onChange={v => change('brush', { ...config.brush, air: v })} />
-          <Slider label="Hochspannung" value={config.brush.voltage} min={0} max={100} unit="kV" onChange={v => change('brush', { ...config.brush, voltage: v })} />
-          <NumberField label="Werkstückabstand (mm)" value={config.brush.distance} min={100} max={500} step={10} onChange={v => change('brush', { ...config.brush, distance: v })} />
-          <NumberField label="Fördermenge (ml/min)" value={config.brush.flow} min={0} max={500} step={10} onChange={v => change('brush', { ...config.brush, flow: v })} />
-          <p className="rb-small">Rotationssymmetrisch. Mehr Lenkluft bündelt hier das Spritzbild. Hochspannung erhöht den angenommenen Auftragsanteil und verändert die Form leicht. Diese Kennlinien sind frei gewählt.</p>
+          <Slider label="Innere Lenkluft" value={config.brush.innerAir} min={450} max={550} step={5} unit="Nl/min" onChange={v => change('brush', { ...config.brush, innerAir: v })} />
+          <Slider label="Äußere Lenkluft" value={config.brush.outerAir} min={67.5} max={82.5} step={.5} unit="Nl/min" onChange={v => change('brush', { ...config.brush, outerAir: v })} />
+          <Slider label="Glockendrehzahl" value={config.brush.rpm} min={31500} max={38500} step={100} unit="1/min" onChange={v => change('brush', { ...config.brush, rpm: v })} />
+          <Slider label="Hochspannung" value={config.brush.voltage} min={58.5} max={71.5} step={.5} unit="kV" onChange={v => change('brush', { ...config.brush, voltage: v })} />
+          <NumberField label="Werkstückabstand (mm)" value={config.brush.distance} min={150} max={250} step={5} onChange={v => change('brush', { ...config.brush, distance: v })} />
+          <NumberField label="Fördermenge (ml/min)" value={config.brush.flow} min={0} max={500} step={5} onChange={v => change('brush', { ...config.brush, flow: v })} />
+          <NumberField label="Festkörperanteil (Vol.%)" value={config.brush.solids} min={1} max={100} step={1} onChange={v => change('brush', { ...config.brush, solids: v })} />
+          <p className="rb-small">Nl/min = Normliter pro Minute. Datenbereich: 225–275 ml/min; Referenz: 57 Vol.% Festkörper. Mehr innere Lenkluft bündelt, mehr äußere Lenkluft verbreitert im lokalen Lehrmodell. Die Spannung wirkt hier nur schwach.</p>
+          {modelNotes(config.brush).outside && <p className="rb-notice" role="status">Außerhalb des lokalen Literaturbereichs: begrenzte generische Extrapolation, keine abgesicherte Prognose. Auch kombinierte Änderungen sind nicht unabhängig validiert.</p>}
           <button type="button" onClick={() => scenario('spot')}>Brush stationär untersuchen</button>
         </fieldset>
         <fieldset><legend>Blech & Bewegung</legend><div className="rb-two">
@@ -144,10 +149,10 @@ export default function App() {
         {!!errors.length && <div className="error" role="alert">{errors.map(e => <p key={e}>{e}</p>)}</div>}
         <button className="rb-primary" disabled={busy || !!errors.length} onClick={() => calculate()}>{busy ? 'Auftrag wird berechnet …' : dirty ? 'Änderungen berechnen' : 'Versuch neu starten'}</button>
         <div className="rb-save"><button onClick={() => {
-          try { localStorage.setItem(STORAGE, JSON.stringify({ schema: 1, config })); setMessage('Versuchsstand in diesem Browser gespeichert.'); }
+          try { localStorage.setItem(STORAGE, JSON.stringify({ schema: 2, config })); setMessage('Versuchsstand in diesem Browser gespeichert.'); }
           catch { setError('Der Browser erlaubt das Speichern dieses Versuchsstands nicht.'); }
         }} disabled={!!errors.length}>Stand merken</button><button onClick={() => {
-          try { const saved = JSON.parse(localStorage.getItem(STORAGE) || 'null'); if (saved?.schema !== 1 || !saved.config?.brush || validate(saved.config).length) throw Error();
+          try { const saved = JSON.parse(localStorage.getItem(STORAGE) || 'null'); if (saved?.schema !== 2 || !saved.config?.brush || validate(saved.config).length) throw Error();
             setConfig(saved.config); setPlaying(false); setMessage('Gemerkter Stand geladen. Zum Anwenden „Änderungen berechnen“ wählen.');
           } catch { setError('Kein gültiger Versuchsstand in diesem Browser vorhanden.'); }
         }}>Stand laden</button><button onClick={() => { const c = structuredClone(INITIAL); setConfig(c); setView('2d'); calculate(c); }}>Beispiel zurücksetzen</button></div>
@@ -164,59 +169,61 @@ export default function App() {
             <button onClick={() => { setPlaying(false); setTime(result.path.duration); }}>Endergebnis</button>
             <label>Tempo<select value={tempo} onChange={e => setTempo(Number(e.target.value))}><option value={.5}>0,5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={5}>5×</option></select></label>
           </div>
-          <label className="rb-time">Zeit: {fmt(time, 1)} / {fmt(result.path.duration, 1)} s · {currentPose.phase}
+          <label className="rb-time">Zeit: {fmt(time)} / {fmt(result.path.duration)} s · {currentPose.phase}
             <input aria-label="Versuchszeit" type="range" min={0} max={result.path.duration} step={result.path.duration / 160} value={time} onChange={e => { setPlaying(false); setTime(Number(e.target.value)); }} /></label>
           <p className="rb-small">Nur Applikation und Umsetzen bei konstantem Vorschub. Gelenkstellungen dienen der Anschauung; keine reale Bewegungs-, Beschleunigungs- oder Steuerungssimulation.</p>
         </section>
         <div className="rb-tabs" role="group" aria-label="Ansicht wählen">{([['2d', 'Blech & Bahn · 2D'], ['3d', 'Roboter & Auftrag · 3D'], ['profile', 'Schichtwachstum · 3D']] as const).map(([v, title]) => <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>{title}</button>)}</div>
-        <figure className="rb-mainplot"><figcaption><h3>{view === '2d' ? 'Bahn und relativer Auftrag auf dem Blech' : view === '3d' ? 'Roboter, Aufhängung und wachsender Auftrag' : 'Schichtwachstum auf dem zentral aufgehängten Blech'}</h3>
-          <p>{view === 'profile' ? 'Die Auftragsschicht wächst räumlich aus dem Blech heraus. Die Höhe ist überzeichnet und entspricht keiner realen Schichtdicke. Zeitregler bewegen oder „Von vorn“ und „Start“ wählen.' : view === '3d' ? 'Originale CAD-Modelle von Roboter, EcoBell und Werkstückaufhängung. Das Blech hängt zentral; die berechnete Auftragsschicht wächst überhöht aus seiner Oberfläche. Sprühstrahlen und Gelenkbewegung dienen der Anschauung.' : 'Die gestrichelte violette Linie zeigt den Schnitt. Orange: Startpunkt; bei stationärem Versuch und Flächenbahnen ziehbar. Änderungen anschließend berechnen.'}</p></figcaption>
+        <figure className="rb-mainplot"><figcaption><h3>{view === '2d' ? 'Trockenschichtdicke auf dem Blech' : view === '3d' ? 'Roboter, Aufhängung und wachsender Auftrag' : 'Schichtwachstum auf dem zentral aufgehängten Blech'}</h3>
+          <p>{view === 'profile' ? 'Die Auftragsschicht wächst räumlich aus dem Blech heraus. Die Höhenachse zeigt die Modell-Trockenschichtdicke in µm; geometrisch ist die Schicht überhöht. Zeitregler bewegen oder „Von vorn“ und „Start“ wählen.' : view === '3d' ? 'CAD-Modelle dienen der Anschauung. Das Spritzmodell bleibt generisch und ist nicht für das dargestellte Werkzeug kalibriert. Das Blech hängt zentral; die berechnete Auftragsschicht wächst überhöht aus seiner Oberfläche. Sprühstrahlen und Gelenkbewegung dienen der Anschauung.' : 'Die gestrichelte violette Linie zeigt den Schnitt. Orange: Startpunkt; bei stationärem Versuch und Flächenbahnen ziehbar. Änderungen anschließend berechnen.'}</p></figcaption>
           {view === '2d' ? <><MapView result={result} values={values} max={max} time={time} axis={axis} cut={cut} edge={effectiveEdge} showPath={showPath}
             draftStart={config.scenario === result.config.scenario && !['line', 'lineHold'].includes(config.scenario) ? { u: config.startU, v: config.startV } : undefined}
             onStart={config.scenario !== result.config.scenario || config.sheetWidth !== result.config.sheetWidth || config.sheetHeight !== result.config.sheetHeight || ['line', 'lineHold'].includes(config.scenario) ? undefined : p => { setPlaying(false); setConfig(c => ({ ...c, startU: Math.max(-1600, Math.min(1600, p.u)), startV: Math.max(-1600, Math.min(1600, p.v)) })); }} />
             <label className="rb-check"><input type="checkbox" checked={showPath} onChange={e => setShowPath(e.target.checked)} /> Bahn und Spritzkreis einblenden</label>{legend(max)}</>
-            : <><SpaceBoundary><Suspense fallback={<p>3D-Ansicht wird geladen …</p>}><SpaceView result={result} values={values} max={max} time={time} profile={view === 'profile'} /></Suspense></SpaceBoundary>{legend(max)}</>}
+            : <><SpaceBoundary><Suspense fallback={<p>3D-Ansicht wird geladen …</p>}>{view === 'profile' ? <ProfileView result={result} values={values} max={max} time={time} profile /> : <SpaceView result={result} values={values} max={max} time={time} profile={false} />}</Suspense></SpaceBoundary>{legend(max)}</>}
         </figure>
-        <dl className="rb-metrics"><div><dt>Applikationszeit</dt><dd>{fmt(result.path.sprayDuration, 1)} s</dd></div><div><dt>Bewegungsstrecke</dt><dd>{fmt(result.path.length / 1000)} m</dd></div><div><dt>Auf Blech · Modell, final</dt><dd>{fmt(result.supplied ? result.captured / result.supplied * 100 : 0, 1)} %</dd></div></dl>
+        <dl className="rb-metrics"><div><dt>Applikationszeit</dt><dd>{fmt(result.path.sprayDuration)} s</dd></div><div><dt>Bewegungsstrecke</dt><dd>{fmt(result.path.length / 1000)} m</dd></div><div><dt>Auf Blech · Modell, final</dt><dd>{fmt(result.supplied ? result.captured / result.supplied * 100 : 0)} %</dd></div></dl>
         {config.scenario === 'spot' && <section className="rb-profile-preview"><h3>Stationäres Spritzbild · Schnitt durch das Zentrum</h3>
           <p className="rb-small">Vorschau der aktuellen Brush-Einstellung auf einer unendlich ausgedehnten Ebene. Zeitlicher Aufbau auf dem endlichen Blech oben nach „Änderungen berechnen“.</p>
-          <Chart title="Doppelhöcker im diametralen Schnitt" description="Ein Schnitt durch die rotationssymmetrische Ringverteilung. Die Kurve wird nicht auf ihr eigenes Maximum normiert."
+          <Chart title="Doppelhöcker im diametralen Schnitt" description="Ein Schnitt durch den aus dem Einzelbahnprofil rekonstruierten, rotationssymmetrischen Auftragskern. Die Kurve wird nicht auf ihr eigenes Maximum normiert."
             data={[{ type: 'scatter', mode: 'lines', name: 'Modellprofil', x: Array.from({ length: 301 }, (_, i) => (i / 300 * 2 - 1) * kernel.support),
-              y: Array.from({ length: 301 }, (_, i) => kernel.density(Math.abs((i / 300 * 2 - 1) * kernel.support)) * config.brush.flow / 150 * kernel.eta * config.hold * 10000), line: { color: '#00776b', width: 3 } }]}
-            layout={{ xaxis: { title: { text: 'Abstand vom Zentrum / mm' }, range: [-kernel.support, kernel.support] }, yaxis: { title: { text: 'Relativer Auftrag / AE' }, rangemode: 'tozero' }, showlegend: false }} />
+              y: Array.from({ length: 301 }, (_, i) => thicknessRate(config.brush, kernel, Math.abs((i / 300 * 2 - 1) * kernel.support)) * config.hold), line: { color: '#00776b', width: 3 } }]}
+            layout={{ xaxis: { title: { text: 'Abstand vom Zentrum / mm' }, range: [-kernel.support, kernel.support] }, yaxis: { title: { text: 'Trockenschichtdicke / µm' }, tickformat: '.1f', hoverformat: '.1f', rangemode: 'tozero' }, showlegend: false }} />
         </section>}
         <section className="rb-analysis"><h2>3 · Schichtverteilung auswerten</h2>
-          <p>Auswertung des relativen Auftrags. Ohne Kalibrierung entspricht AE keiner Schichtdicke in µm.</p>
+          <p>Modell-Trockenschichtdicke in µm für den generischen Referenzlack. Die Trocknung selbst wird nicht simuliert.</p>
           <div className="rb-analysis-controls"><label>Schnittrichtung<select value={axis} onChange={e => setAxis(e.target.value as 'u' | 'v')}><option value="u">Horizontal · entlang u</option><option value="v">Vertikal · entlang v</option></select></label>
             <Slider label={`Schnittposition ${axis === 'u' ? 'v' : 'u'}`} value={cut} min={0} max={axis === 'u' ? result.config.sheetHeight : result.config.sheetWidth} unit="mm" onChange={v => setCutFraction(v / (axis === 'u' ? result.config.sheetHeight : result.config.sheetWidth))} />
             <Slider label="Rand von Statistik ausschließen" value={effectiveEdge} min={0} max={maxEdge} step={5} unit="mm" onChange={setEdge} /></div>
-          <Chart title={`Auftragsschnitt entlang ${axis}`} description={`Aktueller Versuch bei ${fmt(time, 1)} s. ${reference ? 'Referenz A zeigt stets den abgeschlossenen Versuch.' : 'Schnittposition über den Schieberegler verändern.'}`}
+          <Chart title={`Auftragsschnitt entlang ${axis}`} description={`Aktueller Versuch bei ${fmt(time)} s. ${reference ? 'Referenz A zeigt stets den abgeschlossenen Versuch.' : 'Schnittposition über den Schieberegler verändern.'}`}
             data={[{ type: 'scatter', mode: 'lines', x, y: cutData, name: 'Aktueller Versuch B', line: { color: '#00776b', width: 3 } },
               ...(reference && compareCompatible ? [{ type: 'scatter' as const, mode: 'lines' as const,
                 x: axis === 'u' ? reference.u : reference.v, y: section(reference, reference.frames[80].values, axis, cut), name: 'Referenz A · final', line: { color: '#9a4a17', width: 3, dash: 'dash' as const } }] : [])]}
             layout={{ xaxis: { title: { text: `${axis} / mm` }, range: [0, axis === 'u' ? result.config.sheetWidth : result.config.sheetHeight] },
-              yaxis: { title: { text: 'Relativer Auftrag / AE' }, range: [0, max * 1.05] }, legend: { orientation: 'h', y: -.3 } }} />
-          <dl className="rb-metrics"><div><dt>Mittelwert</dt><dd>{fmt(metrics.mean, 3)} AE</dd></div><div><dt>Minimum / Maximum</dt><dd>{fmt(metrics.min, 3)} / {fmt(metrics.max, 3)} AE</dd></div><div><dt>Variationskoeffizient</dt><dd>{metrics.mean ? `${fmt(metrics.cv, 1)} %` : '– (kein Auftrag)'}</dd></div></dl>
+              yaxis: { title: { text: 'Trockenschichtdicke / µm' }, tickformat: '.1f', hoverformat: '.1f', range: [0, max * 1.05] }, legend: { orientation: 'h', y: -.3 } }} />
+          <dl className="rb-metrics"><div><dt>Mittelwert</dt><dd>{fmt(metrics.mean)} µm</dd></div><div><dt>Minimum / Maximum</dt><dd>{fmt(metrics.min)} / {fmt(metrics.max)} µm</dd></div><div><dt>Variationskoeffizient</dt><dd>{metrics.mean ? `${fmt(metrics.cv)} %` : '– (kein Auftrag)'}</dd></div></dl>
           <p className="rb-small">Statistik der aktuellen Zeit innerhalb der gestrichelt umrandeten Fläche, mit {fmt(effectiveEdge)} mm Randabstand. Gleichmäßigkeit allein beschreibt keine ausreichende Auftragsmenge.</p>
           <div className="button-row"><button disabled={dirty || busy} onClick={() => { setReference(result); setPlaying(false); setMessage('Berechnetes Endergebnis als Referenz A festgehalten. Jetzt einen Parameter ändern und neu berechnen.'); }}>Endergebnis als Referenz A festhalten</button>
             {reference && <button onClick={() => setReference(null)}>Referenz entfernen</button>}</div>
           {reference && <section className="rb-comparison"><h3>A/B-Vergleich · gemeinsame Farb- und Höhenskala</h3><p><strong>A:</strong> {brushName(reference)}</p><p><strong>B:</strong> {brushName(result)}</p>
             {!compareCompatible && <p className="rb-notice">Die Blechabmessungen unterscheiden sich. Ein gemeinsamer Schnitt wäre irreführend und wird deshalb nicht eingeblendet. Für einen kontrollierten Vergleich dieselbe Geometrie verwenden.</p>}
             <figure><figcaption><h3>Referenz A · abgeschlossen</h3></figcaption><MapView result={reference} values={refValues!} max={max} time={reference.path.duration} axis={axis} cut={cutFraction * (axis === 'u' ? reference.config.sheetHeight : reference.config.sheetWidth)} edge={compareCompatible ? effectiveEdge : 0} showPath={false} />{legend(max)}</figure>
-            {refMetrics && compareCompatible && <p>Referenz A: Mittelwert {fmt(refMetrics.mean, 3)} AE · Variationskoeffizient {refMetrics.mean ? `${fmt(refMetrics.cv, 1)} %` : '–'}.</p>}
+            {refMetrics && compareCompatible && <p>Referenz A: Mittelwert {fmt(refMetrics.mean)} µm · Variationskoeffizient {refMetrics.mean ? `${fmt(refMetrics.cv)} %` : '–'}.</p>}
           </section>}
         </section>
       </section>
     </div>
-    <details className="rb-help"><summary>Modellannahmen, Kennlinien und Grenzen</summary>
+    <details className="rb-help"><summary>Rückrechnung prüfen · Quelle und Modellgrenzen</summary>
       <p>{COPY}</p>
-      <p>Das Spritzbild ist die rotationssymmetrische Überlagerung eines Gaußrings und eines zentralen Gaußprofils. Der Flächeninhalt unter dem Profil wird auf 1 normiert. Eine Verbreiterung erzeugt damit keine zusätzliche Materialmenge.</p>
-      <p>Mit a = Lenkluft/100, e = Hochspannung/100 und d = Werkstückabstand in mm gelten die frei gewählten Kennlinien:</p>
-      <ul><li>Ringradius R = d · (0,38 − 0,16a) · (1 − 0,08e).</li><li>Ringbreite σ = d · (0,085 − 0,025a); Breite des zentralen Profils = 1,8σ.</li><li>Gewicht des Ringprofils = 0,92 − 0,16e. Die beiden Profilanteile werden anschließend gemeinsam flächennormiert.</li><li>Angenommener Auftragsanteil η = 0,30 + 0,55e. Kein real gemessener Wirkungsgrad.</li></ul>
-      <p>Der lokale Auftrag wird als AE = ∫ (Fördermenge / 150 ml/min) · η · normiertes Spritzbild · 10 000 mm² · dt aufsummiert. AE ist eine relative Demonstrationsgröße mit festem Bezugsmaßstab. Die verbleibende Modellmenge landet außerhalb des Blechs oder wird durch den angenommenen Auftragsanteil nicht abgeschieden. Der ausgewiesene Blechanteil bezieht sich auf die gesamte zugeführte Modellmenge bei eingeschaltetem Spritzen.</p>
-      <p>Die Projektion erfolgt senkrecht auf ein ebenes Blech bei konstantem Abstand. Es gibt keine elliptische Verformung, keine Tropfenflug-, Elektrostatik-, Lenkluftströmungs-, Randfeld-, Abschattungs-, Ablauf- oder Trocknungssimulation. Kurven und Farben sind keine Messdaten.</p>
-      <p>Die geometrischen Szenarien und originalen CAD-Modelle stammen aus dem Bahnplanungstool. Das Blech hängt zentral an der Aufhängung. Die Gelenkstellungen werden nur zur Veranschaulichung berechnet. Nicht darstellbare Stellungen werden gemeldet; die Auftragsrechnung bleibt davon unabhängig. Maschinenprogramme werden weder eingelesen noch erzeugt. Es gibt keine Kollisionsprüfung oder Steuerungsfreigabe.</p>
-      <p>Numerik des berechneten Versuchs: {result.u.length} × {result.v.length} Flächenelemente ({fmt(result.du)} × {fmt(result.dv)} mm), {result.integrationSteps} Integrationsschritte. Materialauftrag am Zellzentrum, 81 gespeicherte Zeitstände; Zwischenzeiten werden linear interpoliert. Zellraster und Zeitschritte können kleine Abweichungen verursachen.</p>
+      <p>Quelle: Nico Güttler (2024), „Methodik für numerische Lackiersimulationen: Bedeutung der Modell- und Eingangsparameter bei der Hochrotationszerstäubung“. Referenzprofil: Abb. A.1, ABB RB1000 SSD, Brush 1; Parameterreihen: Abb. A.7–A.11; Stoffdaten: Tab. 3.4. Diese konkrete Literaturkombination dient als Ausgangspunkt des generischen Modells, nicht als Kalibrierung des dargestellten CAD-Werkzeugs.</p>
+      <p>Die Einzelbahn wurde aus den PDF-Vektorlinien ausgelesen und spiegelsymmetrisch gemittelt. Eine positive, geglättete radiale Verteilung wurde so angepasst, dass ihr Linienintegral bei 150 mm/s das Einzelbahnprofil reproduziert. Es wurde nicht das Einzelbahnprofil um seine Achse rotiert.</p>
+      <Chart title="Kontrolle: stationären Kern wieder zur Einzelbahn integrieren" description={`Referenz: 250 ml/min, 57 Vol.% Festkörper, 150 mm/s. Anpassungsabweichung ${fmt(RECONSTRUCTION.curves.measured.wmapePercent)} % wMAPE; keine Prognosegenauigkeit.`}
+        data={[{type:'scatter',mode:'lines',x:RECONSTRUCTION.xMm,y:RECONSTRUCTION.curves.measured.observedSymmetric,name:'Literaturprofil · symmetrisiert',line:{color:'#9a4a17',dash:'dash'}}, {type:'scatter',mode:'lines',x:RECONSTRUCTION.xMm,y:RECONSTRUCTION.curves.measured.forward,name:'Rückintegrierter Kern',line:{color:'#00776b'}}]}
+        layout={{xaxis:{title:{text:'Querposition / mm'}},yaxis:{title:{text:'Trockenschichtdicke / µm'},rangemode:'tozero',tickformat:'.1f'},legend:{orientation:'h',y:-.3}}}/>
+      <p>Die lokalen CFD-Parameterreihen verändern die normierte Form des rekonstruierten Referenzkerns. Einzelne Parameterwirkungen werden addiert; Wechselwirkungen sind nicht identifiziert. Abb. A.8 variiert beide Lenklüfte gemeinsam. Ihre Trennung nutzt die Breitenempfindlichkeiten aus Tab. 5.4 und ist eine zusätzliche Modellannahme. Extrapolation wird auf das Dreifache der untersuchten Parameteränderung begrenzt; negative Dichten werden auf null gesetzt und die Verteilung erneut flächennormiert.</p>
+      <p>Die aus dem Referenzprofil abgeleitete Abscheidung auf einer großen Ebene beträgt {fmt(RECONSTRUCTION.etaReference*100)} %. Dieser Wert bleibt konstant: Aus den lokalen Reihen lässt sich kein belastbares variables Wirkungsgradmodell ableiten. Auf dem endlichen Blech wird außerhalb liegender Auftrag als Overspray abgeschnitten, ohne Nachnormierung. Die µm-Skala folgt aus Lackvolumenstrom × volumetrischem Festkörperanteil × Abscheidung × normiertem Flächenkern × Spritzzeit.</p>
+      <p>Rotationssymmetrie, ebene senkrechte Zielfläche, konstanter Abstand, lineare Überlagerung. Kein Ablauf, keine Filmumverteilung, kein An-/Abschalttransient, keine Zerstäubungs-, Randfeld- oder Abschattungssimulation. Zeitsteuerung zeigt die aufsummierte spätere Trockenschicht, keinen Trocknungsvorgang. Der Festkörperanteil verändert nur die Menge; ein anderer realer Lack kann auch die Form verändern. Die Quelle deckt das Querprofil nur bis ±400 mm ab; der geglättete Rand wird bis 500 mm ergänzt. Keine unabhängige experimentelle Validierung des generischen Modells.</p>
+      <p>CAD und Gelenkstellungen dienen der Anschauung. Keine Kollisionsprüfung oder Steuerungsfreigabe. Numerik: {result.u.length} × {result.v.length} Zellen ({fmt(result.du)} × {fmt(result.dv)} mm), {result.integrationSteps} Integrationsschritte, 81 Zeitstände.</p>
     </details>
     <details className="rb-help"><summary>Drei kurze Lernversuche</summary><ol>
       <li><strong>Stationär:</strong> Brushversuch berechnen, 3D-Auftragsprofil öffnen und die Zeit von 0 bis zur Endzeit bewegen. Danach den Abstand ändern. Werden Spritzbild und Maximalauftrag größer oder kleiner?</li>

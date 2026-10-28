@@ -5,6 +5,7 @@ import { loadModels, dispose } from './robot/load-models';
 import { makeLayer, updateLayer, sheetPoint, displayPose, SUSPENSION, SHEET_FRONT, type Layer } from './robot/scene-model';
 import { type AxisValues, REFERENCE_POSES, toolMatrix } from './robot/robot-kinematics';
 import { makeKernel, poseAt, type Result } from './model';
+import { format } from './spray';
 import { colorAt } from './MapView';
 type Props = { result: Result; values: Float32Array; time: number; max: number; profile: boolean };
 type Engine = { update: (p: Props, height: number) => void; fit: (close: boolean) => void };
@@ -39,6 +40,11 @@ export default function RobotScene(props: Props) {
     let layer:Layer|null=null, layerMesh:T.Mesh|null=null, result:Result|null=null;
     let robot:Awaited<ReturnType<typeof loadModels>>|null=null, path:T.LineSegments|null=null, past:T.LineSegments|null=null;
     const beam=new T.LineSegments(new T.BufferGeometry(),new T.LineBasicMaterial({color:0x3a9cae,transparent:true,opacity:.25}));scene.add(beam);
+    const thicknessAxis=new T.Group();scene.add(thicknessAxis);let axisKey='';
+    const clearAxis=()=>{thicknessAxis.traverse(o=>{if(o instanceof T.Sprite){o.material.map?.dispose();o.material.dispose();}});dispose(thicknessAxis);thicknessAxis.clear();};
+    const label=(text:string,at:T.Vector3)=>{const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const ctx=canvas.getContext('2d')!;
+      ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(0,0,512,96);ctx.font='44px system-ui';ctx.fillStyle='#173748';ctx.textAlign='center';ctx.fillText(text,256,64);
+      const texture=new T.CanvasTexture(canvas);const sprite=new T.Sprite(new T.SpriteMaterial({map:texture,depthTest:false}));sprite.position.copy(at);sprite.scale.set(.22,.041,1);thicknessAxis.add(sprite);};
     const sheet=new T.Mesh(new T.BoxGeometry(.001,1,1),new T.MeshStandardMaterial({color:0xc6d0d8,metalness:.2,roughness:.6,side:T.DoubleSide}));scene.add(sheet);
     const grid=new T.GridHelper(3,20,0x899ba6,0xc9d6dc);grid.rotation.x=Math.PI/2;grid.position.set(.5,0,-.261);scene.add(grid);
     const abort=new AbortController();let seed:AxisValues=[...REFERENCE_POSES[1].axes],goalKey='';
@@ -57,6 +63,13 @@ export default function RobotScene(props: Props) {
         fit(p.profile);
       }
       updateLayer(layer!,p.values,p.max,growthHeight,colorAt);
+      const nextAxisKey=[p.result.config.sheetWidth,p.result.config.sheetHeight,p.max,growthHeight].join('/');
+      if(axisKey!==nextAxisKey){clearAxis();axisKey=nextAxisKey;
+        const origin=sheetPoint(p.result,{u:-30,v:p.result.config.sheetHeight});const end=origin.clone().add(new T.Vector3(-growthHeight/1000,0,0));
+        const vertices=[...origin.toArray(),...end.toArray()];
+        for(const f of [0,.5,1]){const at=origin.clone().lerp(end,f);vertices.push(...at.toArray(),...at.clone().add(new T.Vector3(0,-.012,0)).toArray());label(`${format(p.max*f)} µm`,at.clone().add(new T.Vector3(0,-.13,0)));}
+        label('Trockenschicht',end.clone().add(new T.Vector3(0,-.13,.06)));thicknessAxis.add(line(vertices,0x173748));
+      }
       const pose=poseAt(p.result.path,p.time),c=p.result.config;
       const key=[pose.u.toFixed(4),pose.v.toFixed(4),c.brush.distance].join('/');
       let valid=goalKey===key;
@@ -90,7 +103,7 @@ export default function RobotScene(props: Props) {
       update(latest.current,heightRef.current);setStatus('Originalmodell: EcoRP 10 R1100 · EcoBell 2 EC · Werkstückaufhängung');dirty=true;
     }).catch(e=>{if(!stopped&&(e as Error).name!=='AbortError')setError((e as Error).message);});
     return()=>{stopped=true;abort.abort();cancelAnimationFrame(frame);observer.disconnect();controls.dispose();engine.current=null;
-      dispose(scene);if(renderer instanceof T.WebGLRenderer)renderer.dispose();renderer.domElement.remove();};
+      clearAxis();dispose(scene);if(renderer instanceof T.WebGLRenderer)renderer.dispose();renderer.domElement.remove();};
   },[]);
   useEffect(()=>{engine.current?.update(props,height);},[props.result,props.values,props.time,props.max,height]);
   useEffect(()=>{engine.current?.fit(props.profile);},[props.profile]);
@@ -100,6 +113,6 @@ export default function RobotScene(props: Props) {
     {poseWarning&&<p className="rb-notice" role="status">{poseWarning}</p>}
     <div className="rb-space-controls"><button onClick={()=>engine.current?.fit(false)}>Roboter & Aufhängung</button><button onClick={()=>engine.current?.fit(true)}>Blech-Nahansicht</button>
       <label>Überhöhung · Höhe bei Skalenmaximum: {height} mm<input aria-label="Darstellungshöhe am Skalenmaximum" type="range" min={5} max={200} step={5} value={height} onChange={e=>setHeight(Number(e.target.value))}/></label></div>
-    <p className="rb-small">Ziehen: drehen · Mausrad / zwei Finger: zoomen. Das Blech hängt zentral. Die Schicht wächst überhöht aus der Oberfläche zum Roboter; {props.max.toLocaleString('de-DE',{maximumFractionDigits:3})} AE entsprechen hier {height} mm Darstellungshöhe, keiner realen Schichtdicke. Der Maßstab bleibt über die Zeit konstant.</p>
+    <p className="rb-small">Ziehen: drehen · Mausrad / zwei Finger: zoomen. Das Blech hängt zentral. Die Schicht wächst überhöht aus der Oberfläche zum Roboter; {format(props.max)} µm Modell-Trockenschichtdicke entsprechen hier {height} mm Darstellungshöhe. Die µm-Achse zeigt Modellwerte, die Geometrie ist überhöht. Der Maßstab bleibt über die Zeit konstant.</p>
   </div>;
 }
