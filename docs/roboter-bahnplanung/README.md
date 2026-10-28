@@ -130,7 +130,34 @@ paths use foreground rendering (`depthTest=false`, `depthWrite=false`), rather
 than relocating the actual TCP onto the exaggerated layer. Thus apparent
 visibility does not indicate geometric collision freedom.
 
-The original cabin is retained as a separate translucent group. The cabin
-checkbox is enabled initially and its state persists when switching views.
+The cleaned planner cabin is retained as a separate group. The cabin and wall-
+transparency checkboxes are enabled initially and persist when switching views.
 Suspension and robot pedestal are kept separately and remain when the cabin is
 hidden. No CAD geometry or kinematic transforms are changed by this switch.
+
+## Cabin synchronization with the path-planning app
+
+Source: `dubbehendrik/lackierroboter-dev`, commit
+`5ed97d773ae52cea82eafde169b3c798ee19aa84` (PlannerScene.tsx, robot-motion.ts,
+cabin-obstacles.ts and models/cabin-classification.json). The CAD binary is
+identical in both apps: Git blob `f47c7d453769d9d38f9a7d2f75e1847ea7e88462`.
+The update is its scene preparation, not a different raw VRML file.
+
+`prepareCabin` applies the same excluded part IDs, floor-label exclusions and
+out-of-bounds line removal as the planner. The old large room floor is replaced
+with the planner's bounded floor. Original part colors and opaque internal
+equipment are retained; only the eight classified cabin walls toggle between
+opaque and 14% opacity. The measured ceiling projection and upper beam are copied
+from the same planner revision, including the visual extension to the back wall.
+Their source display materials are preserved. These are illustrations, not a
+new collision-validation feature of the teaching app.
+
+Two separate controls: cabin visibility and wall transparency. Both start enabled,
+as in the planner. Turning the cabin off preserves the transparency choice for
+when it returns; suspension and robot pedestal remain separately visible.
+The previous floating ground grid is removed in favor of the actual cabin floor.
+
+Dragging the 3D film profile right/down now decreases yaw/pitch, reversing both
+old pointer directions. Angle sliders and angle limits keep their existing
+meaning. Tests cover both directions and clamping, plus the actual parsed CAD
+cleanup, equipment preservation, wall-only opacity and overhead dimensions.
