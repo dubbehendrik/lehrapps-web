@@ -1,5 +1,7 @@
 import * as T from 'three';
-import type { Point, Result } from '../model';
+import { section, type Point, type Result } from '../model';
+import { sectionEndpoints } from '../view-geometry';
+export { sectionEndpoints } from '../view-geometry';
 import { inverseTCP } from './robot-ik';
 import { distanceToolMatrix, type AxisValues } from './robot-kinematics';
 
@@ -49,4 +51,19 @@ export function updateLayer(layer:Layer,values:Float32Array,max:number,heightAtM
   });
   layer.boundary.forEach((index,k)=>{const j=layer.baseStart+k;position.setX(j,SHEET_FRONT);colors.setXYZ(j,colors.getX(index)*.8,colors.getY(index)*.8,colors.getZ(index)*.8);});
   position.needsUpdate=true;colors.needsUpdate=true;layer.geometry.computeVertexNormals();layer.geometry.computeBoundingSphere();
+}
+
+/** Virtual process TCP is on the sheet; nozzle position is a different frame. */
+export const tcpPathPoint = (r: Result, p: Point) => sheetPoint(r, p);
+export function sectionPlane(r: Result, axis: 'u' | 'v', position: number, heightMm: number) {
+  const [a,b]=sectionEndpoints(r,axis,position);
+  return [sheetPoint(r,a),sheetPoint(r,b),sheetPoint(r,b,heightMm/1000),sheetPoint(r,a,heightMm/1000)];
+}
+export function sectionCurve(r: Result, values: Float32Array, axis: 'u' | 'v', position: number, max: number, heightMm: number) {
+  const [a]=sectionEndpoints(r,axis,position), heights=section(r,values,axis,position), coords=axis==='u'?r.u:r.v;
+  return coords.map((coordinate,i)=>sheetPoint(r,axis==='u'?{u:coordinate,v:a.v}:{u:a.u,v:coordinate},Math.max(0,heights[i])/Math.max(max,1e-12)*heightMm/1000));
+}
+/** Overlay at the true TCP coordinates, even when an exaggerated layer covers them. */
+export function tcpPathMaterial(color: number) {
+  return new T.LineBasicMaterial({color,depthTest:false,depthWrite:false});
 }

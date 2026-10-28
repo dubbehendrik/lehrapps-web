@@ -1,5 +1,5 @@
 import { format } from './spray';
-import { useMemo, useRef } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { makeKernel, poseAt, type Result, type Point } from './model';
 const colors = [[244,248,252],[198,228,237],[52,158,179],[22,119,111],[229,187,70],[183,70,37]];
 const stops = [0,.08,.3,.55,.78,1];
@@ -13,6 +13,7 @@ export default function MapView({ result: r, values, max, time, axis, cut, edge,
   result: Result; values: Float32Array; max: number; time: number; axis: 'u' | 'v'; cut: number;
   edge: number; showPath: boolean; onStart?: (p: Point) => void; draftStart?: Point;
 }) {
+  const arrowId = `rb-axis-${useId().replace(/:/g,'')}`;
   const svg = useRef<SVGSVGElement>(null), dragging = useRef(false), c = r.config;
   const href = useMemo(() => {
     const canvas = document.createElement('canvas'); canvas.width = r.u.length; canvas.height = r.v.length;
@@ -40,6 +41,7 @@ export default function MapView({ result: r, values, max, time, axis, cut, edge,
   };
   return <svg ref={svg} className="rb-map" viewBox="0 0 870 520" role="img" aria-label="Auftrag auf dem Blech mit geplanter Bahn und Schnittposition"
     onPointerMove={move} onPointerUp={() => { dragging.current = false; }} onPointerCancel={() => { dragging.current = false; }}>
+    <defs><marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#173748"/></marker></defs>
     <rect x="0" y="0" width="870" height="520" fill="#fff" />
     <image href={href} x={x(c.sheetWidth)} y={y(0)} width={c.sheetWidth * scale} height={c.sheetHeight * scale} preserveAspectRatio="none" />
     <rect x={x(c.sheetWidth)} y={y(0)} width={c.sheetWidth * scale} height={c.sheetHeight * scale} fill="none" stroke="#344d61" strokeWidth="2" />
@@ -62,8 +64,14 @@ export default function MapView({ result: r, values, max, time, axis, cut, edge,
       <text x="730" y="35" fontSize="16" fill="#173748">Schicht / µm</text>
       {[0,.25,.5,.75,1].map(f=><g key={f}><line x1="790" x2="797" y1={400-f*330} y2={400-f*330} stroke="#173748"/><text x="801" y={405-f*330} fontSize="15" fill="#173748">{format(max*f)}</text></g>)}
     </g>
+    <g aria-label="Koordinatensystem: u nach links, v nach unten, Ursprung rechts oben" fill="#173748" fontSize="17">
+      <circle cx={x(0)} cy={y(0)} r="4"/>
+      <line x1={x(0)} y1={y(0)} x2={x(Math.min(120,c.sheetWidth*.35))} y2={y(0)} stroke="#173748" strokeWidth="2.5" markerEnd={`url(#${arrowId})`}/>
+      <line x1={x(0)} y1={y(0)} x2={x(0)} y2={y(Math.min(100,c.sheetHeight*.35))} stroke="#173748" strokeWidth="2.5" markerEnd={`url(#${arrowId})`}/>
+      <text x={x(Math.min(120,c.sheetWidth*.35))-18} y={y(0)-10}>u</text><text x={x(0)+10} y={y(Math.min(100,c.sheetHeight*.35))+18}>v</text><text x={x(0)+10} y={y(0)-10}>0</text>
+    </g>
     <g fontSize="17" fill="#344d61"><text x="25" y="22">Blech · {c.sheetWidth} × {c.sheetHeight} mm</text>
-      <text x="25" y="485">u ← · v ↓ · Ursprung: Blech rechts oben</text>
+      <text x="25" y="485">Koordinaten u, v in mm · Ursprung: Blech rechts oben</text>
       <text x="25" y="510">Rot: geplant · Grün: abgefahren · Violett: Auswerteschnitt</text></g>
   </svg>;
 }

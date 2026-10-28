@@ -47,8 +47,9 @@ export async function loadModels(signal:AbortSignal,software:boolean){
     cab.updateMatrixWorld(true);let index=0;const owners=new Map<T.Object3D,number>();const retained:T.Mesh[]=[];
     cab.traverse(o=>{if(!(o instanceof T.Mesh))return;let owner=o.parent;while(owner&&!owner.name.startsWith('part_'))owner=owner.parent;owner=owner||o;
       if(!owners.has(owner))owners.set(owner,++index);const id=owners.get(owner)!;
-      if([933,1017,1018,1019].includes(id)){const clone=o.clone();clone.geometry=o.geometry.clone();clone.matrixAutoUpdate=false;clone.matrix.copy(o.matrixWorld);clone.material=new T.MeshStandardMaterial({color:id===933?0x74838e:0x3d4850,roughness:.65,metalness:.2,side:T.DoubleSide});retained.push(clone);}
-    });retained.forEach(o=>fixtures.add(o));dispose(cab);cab=undefined;
-    return {rig,fixtures};
+      if([933,1017,1018,1019].includes(id)){const clone=o.clone();clone.geometry=o.geometry.clone();clone.matrixAutoUpdate=false;clone.matrix.copy(o.matrixWorld);clone.material=new T.MeshStandardMaterial({color:id===933?0x74838e:0x3d4850,roughness:.65,metalness:.2,side:T.DoubleSide});retained.push(clone);o.visible=false;}
+      else {(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose());o.material=new T.MeshStandardMaterial({color:0xb7c6d0,roughness:.8,transparent:true,opacity:.22,depthWrite:false,side:T.DoubleSide});}
+    });retained.forEach(o=>fixtures.add(o));const cabin=cab;cabin.name='Lackierkabine';cab=undefined;
+    return {rig,fixtures,cabin};
   }catch(e){dispose(robot);dispose(tool);if(cab)dispose(cab);throw e;}
 }
