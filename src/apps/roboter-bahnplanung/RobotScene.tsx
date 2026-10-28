@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import * as T from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { loadModels, dispose } from './robot/load-models';
-import { makeLayer, updateLayer, sheetPoint, displayPose, SUSPENSION, SHEET_FRONT, type Layer } from './robot/scene-model';
+import { makeLayer, updateLayer, sheetPoint, displayPose, SUSPENSION, SHEET_FRONT, tcpPathPoint, tcpPathMaterial, sectionPlane, sectionCurve, type Layer } from './robot/scene-model';
 import { type AxisValues, REFERENCE_POSES, toolMatrix } from './robot/robot-kinematics';
 import { makeKernel, poseAt, type Result } from './model';
 import { format } from './spray';
 import { colorAt } from './MapView';
-type Props = { result: Result; values: Float32Array; time: number; max: number; profile: boolean };
+type Props = { result: Result; values: Float32Array; time: number; max: number; profile: boolean; axis: 'u' | 'v'; cut: number; showCut: boolean; showCabin: boolean };
 type Engine = { update: (p: Props, height: number) => void; fit: (close: boolean) => void };
 export default function RobotScene(props: Props) {
   const host = useRef<HTMLDivElement>(null), engine = useRef<Engine | null>(null), latest = useRef(props);
@@ -41,16 +41,23 @@ export default function RobotScene(props: Props) {
     let robot:Awaited<ReturnType<typeof loadModels>>|null=null, path:T.LineSegments|null=null, past:T.LineSegments|null=null;
     const beam=new T.LineSegments(new T.BufferGeometry(),new T.LineBasicMaterial({color:0x3a9cae,transparent:true,opacity:.25}));scene.add(beam);
     const thicknessAxis=new T.Group();scene.add(thicknessAxis);let axisKey='';
-    const clearAxis=()=>{thicknessAxis.traverse(o=>{if(o instanceof T.Sprite){o.material.map?.dispose();o.material.dispose();}});dispose(thicknessAxis);thicknessAxis.clear();};
-    const label=(text:string,at:T.Vector3)=>{const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const ctx=canvas.getContext('2d')!;
+    const coordinateAxes=new T.Group();scene.add(coordinateAxes);
+    const clearDecorations=(group:T.Group)=>{group.traverse(o=>{if(o instanceof T.Sprite){o.material.map?.dispose();o.material.dispose();}});dispose(group);group.clear();};
+    const clearAxis=()=>clearDecorations(thicknessAxis);
+    const label=(text:string,at:T.Vector3,parent=thicknessAxis)=>{const canvas=document.createElement('canvas');canvas.width=512;canvas.height=96;const ctx=canvas.getContext('2d')!;
       ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(0,0,512,96);ctx.font='44px system-ui';ctx.fillStyle='#173748';ctx.textAlign='center';ctx.fillText(text,256,64);
-      const texture=new T.CanvasTexture(canvas);const sprite=new T.Sprite(new T.SpriteMaterial({map:texture,depthTest:false}));sprite.position.copy(at);sprite.scale.set(.22,.041,1);thicknessAxis.add(sprite);};
+      const texture=new T.CanvasTexture(canvas);const sprite=new T.Sprite(new T.SpriteMaterial({map:texture,depthTest:false,depthWrite:false}));sprite.position.copy(at);sprite.scale.set(.22,.041,1);sprite.renderOrder=210;parent.add(sprite);};
     const sheet=new T.Mesh(new T.BoxGeometry(.001,1,1),new T.MeshStandardMaterial({color:0xc6d0d8,metalness:.2,roughness:.6,side:T.DoubleSide}));scene.add(sheet);
     const grid=new T.GridHelper(3,20,0x899ba6,0xc9d6dc);grid.rotation.x=Math.PI/2;grid.position.set(.5,0,-.261);scene.add(grid);
     const abort=new AbortController();let seed:AxisValues=[...REFERENCE_POSES[1].axes],goalKey='';
-    const line=(segments:number[],color:number)=>new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(segments,3)),new T.LineBasicMaterial({color}));
+    const line=(segments:number[],color:number,overlay=false)=>new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(segments,3)),overlay?tcpPathMaterial(color):new T.LineBasicMaterial({color}));
+    const cutSurface=new T.Mesh(new T.BufferGeometry(),new T.MeshBasicMaterial({color:0x673b9e,transparent:true,opacity:.14,side:T.DoubleSide,depthTest:false,depthWrite:false}));cutSurface.name='Ausgewählte Schnittebene';cutSurface.renderOrder=190;scene.add(cutSurface);
+    const cutBorder=new T.LineLoop(new T.BufferGeometry(),tcpPathMaterial(0x673b9e));cutBorder.renderOrder=202;scene.add(cutBorder);
+    const cutProfile=new T.Line(new T.BufferGeometry(),tcpPathMaterial(0x673b9e));cutProfile.renderOrder=204;scene.add(cutProfile);
+    const tcpMarker=new T.Mesh(new T.SphereGeometry(.005,12,8),new T.MeshBasicMaterial({color:0xe49025,depthTest:false,depthWrite:false}));tcpMarker.name='Geplanter TCP auf der Zielfläche';tcpMarker.renderOrder=205;scene.add(tcpMarker);
     const update=(p:Props,growthHeight:number)=>{
       if(stopped||!robot)return;
+      robot.cabin.visible=p.showCabin;
       if(result!==p.result){
         result=p.result;goalKey='';
         if(layerMesh){scene.remove(layerMesh);dispose(layerMesh);}if(path){scene.remove(path);dispose(path);}if(past){scene.remove(past);dispose(past);}
@@ -58,8 +65,10 @@ export default function RobotScene(props: Props) {
         layerMesh=new T.Mesh(layer.geometry,new T.MeshStandardMaterial({vertexColors:true,roughness:.68,metalness:0,side:T.DoubleSide}));layerMesh.name='Überhöhte wachsende Auftragsschicht';scene.add(layerMesh);
         const c=result.config;sheet.scale.set(1,c.sheetWidth/1000,c.sheetHeight/1000);sheet.position.set(SHEET_FRONT+.0005,SUSPENSION.y,SUSPENSION.z);
         const vertices:number[]=[];
-        for(const s of result.path.segments){const a=sheetPoint(result,s.a,c.brush.distance/1000),b=sheetPoint(result,s.b,c.brush.distance/1000);vertices.push(...a.toArray(),...b.toArray());}
-        path=line(vertices,0xd7484c);path.name='Geplante Werkzeugbahn';scene.add(path);past=line([],0x007053);scene.add(past);
+        for(const s of result.path.segments){const a=tcpPathPoint(result,s.a),b=tcpPathPoint(result,s.b);vertices.push(...a.toArray(),...b.toArray());}
+        path=line(vertices,0xd7484c,true);path.renderOrder=203;path.name='Geplante TCP-Bahn auf der Zielfläche';scene.add(path);past=line([],0x007053,true);past.renderOrder=204;scene.add(past);
+        clearDecorations(coordinateAxes);const origin=sheetPoint(result,{u:0,v:0});
+        for(const [name,tip] of [['u',sheetPoint(result,{u:Math.min(120,c.sheetWidth*.35),v:0})],['v',sheetPoint(result,{u:0,v:Math.min(100,c.sheetHeight*.35)})]] as const){const delta=tip.clone().sub(origin);const arrow=new T.ArrowHelper(delta.clone().normalize(),origin,delta.length(),0x173748,.018,.009);arrow.traverse(o=>{o.renderOrder=206;if(o instanceof T.Mesh||o instanceof T.Line){const materials=Array.isArray(o.material)?o.material:[o.material];materials.forEach(m=>{m.depthTest=false;m.depthWrite=false;});}});coordinateAxes.add(arrow);label(`${name} / mm`,tip.clone().add(new T.Vector3(-.015,.015,-.015)),coordinateAxes);}
         fit(p.profile);
       }
       updateLayer(layer!,p.values,p.max,growthHeight,colorAt);
@@ -70,7 +79,10 @@ export default function RobotScene(props: Props) {
         for(const f of [0,.5,1]){const at=origin.clone().lerp(end,f);vertices.push(...at.toArray(),...at.clone().add(new T.Vector3(0,-.012,0)).toArray());label(`${format(p.max*f)} µm`,at.clone().add(new T.Vector3(0,-.13,0)));}
         label('Trockenschicht',end.clone().add(new T.Vector3(0,-.13,.06)));thicknessAxis.add(line(vertices,0x173748));
       }
+      cutSurface.visible=cutBorder.visible=cutProfile.visible=p.showCut;
+      if(p.showCut){const points=sectionPlane(p.result,p.axis,p.cut,growthHeight*1.04);cutSurface.geometry.dispose();cutSurface.geometry=new T.BufferGeometry().setFromPoints(points);cutSurface.geometry.setIndex([0,1,2,0,2,3]);cutBorder.geometry.dispose();cutBorder.geometry=new T.BufferGeometry().setFromPoints(points);cutProfile.geometry.dispose();cutProfile.geometry=new T.BufferGeometry().setFromPoints(sectionCurve(p.result,p.values,p.axis,p.cut,p.max,growthHeight));}
       const pose=poseAt(p.result.path,p.time),c=p.result.config;
+      tcpMarker.position.copy(tcpPathPoint(p.result,pose));
       const key=[pose.u.toFixed(4),pose.v.toFixed(4),c.brush.distance].join('/');
       let valid=goalKey===key;
       if(valid)setPoseWarning('');
@@ -81,7 +93,7 @@ export default function RobotScene(props: Props) {
       }
       const previous:number[]=[];
       for(const s of p.result.path.segments){if(s.start>=p.time)break;const f=Math.min(1,(p.time-s.start)/(s.end-s.start));
-        const a=sheetPoint(p.result,s.a,c.brush.distance/1000),b=sheetPoint(p.result,{u:s.a.u+(s.b.u-s.a.u)*f,v:s.a.v+(s.b.v-s.a.v)*f},c.brush.distance/1000);previous.push(...a.toArray(),...b.toArray());}
+        const a=tcpPathPoint(p.result,s.a),b=tcpPathPoint(p.result,{u:s.a.u+(s.b.u-s.a.u)*f,v:s.a.v+(s.b.v-s.a.v)*f});previous.push(...a.toArray(),...b.toArray());}
       past!.geometry.dispose();past!.geometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(previous,3));
       beam.visible=valid&&pose.spray&&c.brush.flow>0;
       if(beam.visible){
@@ -98,14 +110,14 @@ export default function RobotScene(props: Props) {
       frame=requestAnimationFrame(animate);
     };frame=requestAnimationFrame(animate);
     loadModels(abort.signal,soft).then(loaded=>{
-      if(stopped){dispose(loaded.rig.root);dispose(loaded.fixtures);return;}
-      robot=loaded;scene.add(loaded.rig.root,loaded.fixtures);engine.current={update,fit};
+      if(stopped){dispose(loaded.rig.root);dispose(loaded.fixtures);dispose(loaded.cabin);return;}
+      robot=loaded;scene.add(loaded.rig.root,loaded.fixtures,loaded.cabin);engine.current={update,fit};
       update(latest.current,heightRef.current);setStatus('Originalmodell: EcoRP 10 R1100 · EcoBell 2 EC · Werkstückaufhängung');dirty=true;
     }).catch(e=>{if(!stopped&&(e as Error).name!=='AbortError')setError((e as Error).message);});
     return()=>{stopped=true;abort.abort();cancelAnimationFrame(frame);observer.disconnect();controls.dispose();engine.current=null;
-      clearAxis();dispose(scene);if(renderer instanceof T.WebGLRenderer)renderer.dispose();renderer.domElement.remove();};
+      clearAxis();clearDecorations(coordinateAxes);dispose(scene);if(renderer instanceof T.WebGLRenderer)renderer.dispose();renderer.domElement.remove();};
   },[]);
-  useEffect(()=>{engine.current?.update(props,height);},[props.result,props.values,props.time,props.max,height]);
+  useEffect(()=>{engine.current?.update(props,height);},[props.result,props.values,props.time,props.max,props.axis,props.cut,props.showCut,props.showCabin,height]);
   useEffect(()=>{engine.current?.fit(props.profile);},[props.profile]);
   return <div className="rb-robot-scene">
     <div className="rb-robot-host" ref={host} />
@@ -113,6 +125,7 @@ export default function RobotScene(props: Props) {
     {poseWarning&&<p className="rb-notice" role="status">{poseWarning}</p>}
     <div className="rb-space-controls"><button onClick={()=>engine.current?.fit(false)}>Roboter & Aufhängung</button><button onClick={()=>engine.current?.fit(true)}>Blech-Nahansicht</button>
       <label>Überhöhung · Höhe bei Skalenmaximum: {height} mm<input aria-label="Darstellungshöhe am Skalenmaximum" type="range" min={5} max={200} step={5} value={height} onChange={e=>setHeight(Number(e.target.value))}/></label></div>
+    <p className="rb-small">Rot: geplante TCP-Bahn · Grün: abgefahren · Orange: geplanter TCP auf dem Blech. Die Bahn wird im Vordergrund gezeichnet und bleibt trotz überhöhter Lackschicht sichtbar. {props.showCut && <>Violette Schnittebene: {props.axis === 'u' ? 'v' : 'u'} = {format(props.cut)} mm.</>}</p>
     <p className="rb-small">Ziehen: drehen · Mausrad / zwei Finger: zoomen. Das Blech hängt zentral. Die Schicht wächst überhöht aus der Oberfläche zum Roboter; {format(props.max)} µm Modell-Trockenschichtdicke entsprechen hier {height} mm Darstellungshöhe. Die µm-Achse zeigt Modellwerte, die Geometrie ist überhöht. Der Maßstab bleibt über die Zeit konstant.</p>
   </div>;
 }

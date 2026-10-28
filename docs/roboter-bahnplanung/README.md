@@ -108,3 +108,29 @@ mass under parameter variation, zero flow, linear time/solids scaling, finite-sh
 overspray, speed scaling, all paths, symmetry and input/storage schema rejection.
 Browser QA covers static µm map, parameter recalculation, A/B, time zero/end,
 3D height profile without WebGL and keyboard controls. CAD needs WebGL.
+
+## Scene controls and coordinate convention
+
+The collapsed program-description panel sits directly below the title; formulas
+use native MathML with fractions, integral limits and true indices. View order:
+2D sheet/path, 3D height profile, 3D robot. Dirty settings have an update button
+next to the status message; recalculation retains the relative time position.
+Explicit restart and reset still begin at time zero.
+
+`u` increases leftwards and `v` downwards from the top-right sheet origin. All
+views show arrowheads. Both 3D views show the selected section as a translucent
+plane and the corresponding interpolated numerical section curve. The plane
+moves with the section controls, uses the same height exaggeration as the layer,
+and can be hidden without changing the calculation.
+
+The virtual process TCP is on the sheet (`distanceToolMatrix` includes standoff).
+The path previously used an extra normal offset equal to standoff, placing it at
+the nozzle. It now uses `tcpPathPoint` without that offset. Planned and traversed
+paths use foreground rendering (`depthTest=false`, `depthWrite=false`), rather
+than relocating the actual TCP onto the exaggerated layer. Thus apparent
+visibility does not indicate geometric collision freedom.
+
+The original cabin is retained as a separate translucent group. The cabin
+checkbox is enabled initially and its state persists when switching views.
+Suspension and robot pedestal are kept separately and remain when the cabin is
+hidden. No CAD geometry or kinematic transforms are changed by this switch.

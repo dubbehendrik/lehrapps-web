@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { poseAt, makeKernel, type Result } from './model';
+import { poseAt, makeKernel, section, type Result } from './model';
+import { sectionEndpoints } from './view-geometry';
 import { format } from './spray';
 import { colorAt } from './MapView';
 type P3 = { u: number; v: number; z: number };
-export default function SpaceView({ result: r, values, time, max, profile }: {
-  result: Result; values: Float32Array; time: number; max: number; profile: boolean;
+export default function SpaceView({ result: r, values, time, max, profile, axis, cut, showCut }: {
+  result: Result; values: Float32Array; time: number; max: number; profile: boolean; axis: 'u' | 'v'; cut: number; showCut: boolean;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null), host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(800), [yaw, setYaw] = useState(-35), [pitch, setPitch] = useState(55), [zoom, setZoom] = useState(1);
@@ -78,12 +79,24 @@ export default function SpaceView({ result: r, values, time, max, profile }: {
       const tool=project({...p,z});ctx.beginPath();ctx.arc(tool.x,tool.y,7,0,Math.PI*2);ctx.fillStyle='#b27612';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
     }
     const text=(q:P3,text:string,dx=0,dy=0)=>{const p=project(q);ctx.font='13px system-ui';ctx.fillStyle='#253e50';ctx.fillText(text,p.x+dx,p.y+dy);};
-    text({u:0,v:0,z:0},'0',6,16);text({u:c.sheetWidth,v:0,z:0},`u ${c.sheetWidth} mm`,-30,-12);text({u:0,v:c.sheetHeight,z:0},`v ${c.sheetHeight} mm`,8,12);
+    if(showCut){
+      const [a,b]=sectionEndpoints(r,axis,cut),top=profile?max*1.04:c.brush.distance;
+      const plane=[{...a,z:0},{...b,z:0},{...b,z:top},{...a,z:top}];
+      ctx.beginPath();plane.map(project).forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fillStyle='rgba(96,55,158,.12)';ctx.fill();
+      plane.forEach((p,i)=>line(p,plane[(i+1)%4],'#673b9e',1.5,i===0));
+      const heights=section(r,values,axis,cut),coords=axis==='u'?r.u:r.v;
+      const curve=coords.map((coordinate,i)=>({...a,[axis]:coordinate,z:profile?heights[i]:0}));
+      for(let i=1;i<curve.length;i++){line(curve[i-1],curve[i],'#fff',5);line(curve[i-1],curve[i],'#673b9e',2.5);}
+      text({...a,z:top},`${axis==='u'?'v':'u'} = ${format(cut)} mm`,8,-10);
+    }
+    const arrow=(to:P3,label:string)=>{const origin={u:0,v:0,z:0},a=project(origin),b=project(to);line(origin,to,'#173748',2.2);const angle=Math.atan2(b.y-a.y,b.x-a.x);
+      ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-11*Math.cos(angle-.4),b.y-11*Math.sin(angle-.4));ctx.lineTo(b.x-11*Math.cos(angle+.4),b.y-11*Math.sin(angle+.4));ctx.closePath();ctx.fillStyle='#173748';ctx.fill();text(to,label,8,16);};
+    text({u:0,v:0,z:0},'0',6,16);arrow({u:c.sheetWidth,v:0,z:0},`u / mm (${format(c.sheetWidth)})`);arrow({u:0,v:c.sheetHeight,z:0},`v / mm (${format(c.sheetHeight)})`);
     const axisTop={u:0,v:0,z:profile?max:c.brush.distance};line({u:0,v:0,z:0},axisTop,'#536983',1,true);
     if(profile){for(const f of [.25,.5,.75]){const z=max*f;line({u:0,v:0,z},{u:12,v:0,z},'#536983',1);text({u:0,v:0,z},`${format(z)} µm`,8,0);}}
     text(axisTop,profile?`${format(max)} µm`:`${c.brush.distance} mm`,8,-8);
     ctx.font='13px system-ui';ctx.fillStyle='#526b79';ctx.fillText(profile?'Trockenschichtdicke / µm · Höhe überzeichnet':'Werkzeug und Sprühkegel symbolisch',14,h-16);
-  }, [r, values, time, max, profile, size, yaw, pitch, zoom]);
+  }, [r, values, time, max, profile, size, yaw, pitch, zoom, axis, cut, showCut]);
   return <div ref={host} className="rb-space">
     <canvas ref={canvas} role="img" aria-label={profile?'Drehbares dreidimensionales Höhenprofil der Modell-Trockenschichtdicke in Mikrometern':'Drehbare dreidimensionale Bahn über dem Blech'}
       onPointerDown={e=>{drag.current={x:e.clientX,y:e.clientY,yaw,pitch};e.currentTarget.setPointerCapture(e.pointerId);}}
@@ -93,6 +106,7 @@ export default function SpaceView({ result: r, values, time, max, profile }: {
       <label>Neigung {pitch.toFixed(0)}°<input type="range" min={20} max={85} value={pitch} onChange={e=>setPitch(Number(e.target.value))}/></label>
       <button onClick={()=>setZoom(z=>Math.min(2,z*1.2))} aria-label="3D vergrößern">+</button><button onClick={()=>setZoom(z=>Math.max(.5,z/1.2))} aria-label="3D verkleinern">−</button>
       <button onClick={()=>{setYaw(-35);setPitch(55);setZoom(1);}}>Ansicht zurücksetzen</button></div>
+    {showCut && <p className="rb-small">Violette Schnittebene: {axis === 'u' ? 'v' : 'u'} = {format(cut)} mm. Die violette Kurve entspricht dem Auftragsschnitt unter der Abbildung.</p>}
     <p className="rb-small">Zum Drehen ziehen oder die Regler verwenden. 3D-Darstellung ohne WebGL; im Bahnraum wird das Flächennetz zur Darstellung vereinfacht.</p>
   </div>;
 }
