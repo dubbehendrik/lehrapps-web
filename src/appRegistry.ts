@@ -5,6 +5,7 @@ export const appCategories = [
   { id: "mathematik", label: "Fokus: Mathematik" },
 ] as const;
 export const appRegistry = [
+  { path: "/roboter-bahnplanung", category: "labor", overviewOrder: 6, name: "Roboter Bahnplanung (Demo)", description: "Rotationssymmetrische Spritzbilder einstellen, 2D- und 3D-Bahnszenarien untersuchen und relative Auftragsverteilungen in Schnitten vergleichen. Didaktisches Modell, keine reale Roboterbahnplanung.", component: lazy(() => import("./apps/roboter-bahnplanung/App")) },
   { path: "/collatz-visualizer", category: "mathematik", overviewOrder: 3, name: "Collatz-Visualizer", description: "Collatz-Folgen, inverse Bäume, Binärdarstellungen und affine Transformationsräume erkunden.", component: lazy(() => import("./apps/collatz-visualizer/App")) },
   { path: "/dimensionsanalyse", category: "vorlesung", overviewOrder: 8, name: "Dimensionsanalyse", description: "Dimensionslose Kennzahlen einschließlich Elektrochemie und Batterien nachschlagen, Buckingham-Π-Aufgaben lösen und Dimensionsräume mit interaktiven Vektorzügen untersuchen.", component: lazy(() => import("./apps/dimensionsanalyse/App")) },
   { path: "/filmstroemung-glockenteller", category: "vorlesung", overviewOrder: 6, name: "Filmströmung auf Glockenteller", description: "Filmdicke, Geschwindigkeit und Rheologie vergleichen und die strukturviskose Filmströmung schrittweise iterieren.", component: lazy(() => import("./apps/filmstroemung-glockenteller/App")) },

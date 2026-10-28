@@ -1,0 +1,103 @@
+import { describe, it, expect } from 'vitest';
+import { DEFAULT, SCENARIOS, makeKernel, makePath, poseAt, section, simulate, stats, validate, valuesAt, type Settings } from '../src/apps/roboter-bahnplanung/model';
+const config = (updates: Partial<Settings> = {}): Settings => ({ ...structuredClone(DEFAULT), ...updates });
+const spot = () => config({ scenario: 'spot', startU: 300, startV: 200 });
+describe('Rotationssymmetrisches Lehrmodell', () => {
+  it.each([0, 50, 100])('normiert das Spritzbild unabhängig von Lenkluft %s und Abstand', air => {
+    for (const distance of [100, 250, 500]) for (const voltage of [0, 100]) {
+      const k = makeKernel({ air, distance, voltage, flow: 150 });
+      const n = 10000, dr = k.support / n;
+      let integral = 0;
+      for (let i = 0; i < n; i++) { const r = (i + .5) * dr; integral += 2 * Math.PI * r * k.density(r) * dr; }
+      expect(integral).toBeCloseTo(1, 5);
+      expect(k.density(k.support + 1)).toBe(0);
+    }
+  });
+  it('zeigt zwei symmetrische Maxima im diametralen Schnitt statt eines Zentralmaximums', () => {
+    const k = makeKernel(DEFAULT.brush);
+    expect(k.density(k.radius)).toBeGreaterThan(k.density(0) * 3);
+    expect(k.density(k.radius + 4 * k.sigma)).toBeLessThan(k.density(k.radius) / 10);
+  });
+  it('erhält Material bei Verbreiterung, statt die Fläche bei gleichem Maximum zu erhöhen', () => {
+    const a = makeKernel(DEFAULT.brush), b = makeKernel({ ...DEFAULT.brush, distance: 500 });
+    expect(b.radius).toBeCloseTo(a.radius * 2);
+    expect(b.density(b.radius)).toBeCloseTo(a.density(a.radius) / 4, 10);
+    expect(b.eta).toBe(a.eta);
+  });
+  it('verwendet stationär exakt denselben Kernel wie beim Bahnauftrag', () => {
+    const c = spot(), r = simulate(c), k = makeKernel(c.brush), final = r.frames[80].values;
+    const i = 35, j = 27;
+    const expected = c.brush.flow / 150 * k.eta * c.hold * 10000 * k.density(Math.hypot(r.u[i] - c.startU, r.v[j] - c.startV));
+    expect(final[j * r.u.length + i]).toBeCloseTo(expected, 5);
+    expect(r.captured / r.supplied).toBeCloseTo(k.eta, 3);
+  });
+  it('verdoppelt den Auftrag bei doppelter stationärer Spritzdauer oder Fördermenge', () => {
+    const a = simulate(spot()), b = simulate({ ...spot(), hold: 6 }), c = simulate({ ...spot(), brush: { ...DEFAULT.brush, flow: 300 } });
+    expect(b.max).toBeCloseTo(a.max * 2, 4); expect(c.max).toBeCloseTo(a.max * 2, 4);
+    expect(b.captured).toBeCloseTo(a.captured * 2, 4);
+  });
+  it('liefert bei Fördermenge null über alle Zeitstände Auftrag null', () => {
+    const r = simulate({ ...spot(), brush: { ...DEFAULT.brush, flow: 0 } });
+    expect(r.max).toBe(0); expect(r.captured).toBe(0); expect(r.supplied).toBe(0);
+    expect(r.frames.every(f => f.values.every(v => v === 0))).toBe(true);
+  });
+  it('erfasst Overspray als fehlenden Blechauftrag und normiert nicht auf die Blechfläche nach', () => {
+    const middle = simulate(spot()), edge = simulate({ ...spot(), startU: 0 }), outside = simulate({ ...spot(), startU: -1000 });
+    expect(edge.captured / middle.captured).toBeCloseTo(.5, 3);
+    expect(outside.captured).toBe(0); expect(outside.supplied).toBeGreaterThan(0);
+  });
+  it('halbiert den Auftrag einer Einzelbahn bei doppelter Geschwindigkeit', () => {
+    const a = simulate(config({ scenario: 'line' })), b = simulate(config({ scenario: 'line', speed: 400 }));
+    expect(b.path.duration).toBe(a.path.duration / 2);
+    expect(b.max).toBeCloseTo(a.max / 2, 5);
+    expect(b.captured).toBeCloseTo(a.captured / 2, 5);
+  });
+  it('speichert unveränderliche, monotone Zeitstände und interpoliert zwischen ihnen', () => {
+    const r = simulate(spot());
+    expect(r.frames).toHaveLength(81);
+    for (let k = 1; k <= 80; k++) for (let i = 0; i < r.u.length * r.v.length; i += 37)
+      expect(r.frames[k].values[i]).toBeGreaterThanOrEqual(r.frames[k - 1].values[i]);
+    const values = valuesAt(r, r.path.duration / 160);
+    expect(values[2000]).toBeCloseTo(r.frames[1].values[2000] / 2, 6);
+    expect(r.frames[0].values.every(v => v === 0)).toBe(true);
+  });
+  it('unterstützt sämtliche erzeugten Szenarien mit endlichem Auftrag und positiver Dauer', () => {
+    for (const scenario of Object.keys(SCENARIOS) as Settings['scenario'][]) {
+      const c = config({ scenario, startU: scenario === 'spot' ? 300 : -60, startV: scenario === 'spot' ? 200 : -60 });
+      const r = simulate(c);
+      expect(r.path.duration).toBeGreaterThan(0); expect(r.max).toBeGreaterThan(0);
+      expect(r.frames[80].values.every(Number.isFinite)).toBe(true);
+      expect(r.captured).toBeLessThanOrEqual(r.supplied * makeKernel(c.brush).eta * 1.001);
+    }
+  });
+  it('kann mittige Einzelbahnen vertikal planen und im Zentrum halten', () => {
+    const p = makePath(config({ scenario: 'lineHold', lineAxis: 'vertical' }));
+    expect(p.points[0]).toEqual({ u: 300, v: -60 }); expect(p.points[1]).toEqual({ u: 300, v: 200 });
+    expect(p.segments.at(-1)?.phase).toBe('Im Zentrum halten');
+    expect(p.duration).toBeCloseTo(260 / 200 + DEFAULT.hold);
+  });
+  it('schaltet Materialauftrag auf Wendestrecken ausdrücklich ab', () => {
+    const on = makePath(DEFAULT), off = makePath({ ...DEFAULT, coatTurns: false });
+    expect(off.duration).toBe(on.duration); expect(off.sprayDuration).toBeLessThan(on.sprayDuration);
+    expect(off.segments.some(s => !s.spray)).toBe(true);
+    const s = off.segments.find(s => !s.spray)!;
+    expect(poseAt(off, (s.start + s.end) / 2).spray).toBe(false);
+  });
+  it('erzeugt bei Keil zunehmender Dichte kleiner werdende Bahnabstände', () => {
+    const p = makePath(config({ scenario: 'wedge', wedgeEnd: 200 }));
+    const v = p.segments.filter(s => s.a.v === s.b.v).map(s => s.a.v);
+    expect(v[1] - v[0]).toBeGreaterThan(v.at(-1)! - v.at(-2)!);
+  });
+  it('wertet Schnitte in beiden Richtungen mit korrekter Interpolation aus', () => {
+    const r = simulate(spot()), values = new Float32Array(r.u.length * r.v.length);
+    r.v.forEach((v, j) => r.u.forEach((u, i) => { values[j * r.u.length + i] = u + 2 * v; }));
+    const h = section(r, values, 'u', 150), v = section(r, values, 'v', 200);
+    expect(h[30]).toBeCloseTo(r.u[30] + 300); expect(v[30]).toBeCloseTo(200 + 2 * r.v[30]);
+    const constant = values.map(() => 2); expect(stats(r, constant, 20)).toEqual({ mean: 2, min: 2, max: 2, cv: 0 });
+  });
+  it('weist ungültige Eingaben und überlange Versuche zurück', () => {
+    expect(validate(config({ brush: { ...DEFAULT.brush, distance: 0 } })).length).toBeGreaterThan(0);
+    expect(() => simulate(config({ speed: 0 }))).toThrow();
+    expect(() => simulate(config({ width: 1500, height: 1500, pitchU: 50, pitchV: 50, speed: 10 }))).toThrow('600 s');
+  });
+});
