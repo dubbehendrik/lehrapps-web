@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "model": "S-0014795-02-TEST-L_JT_20260212",
+  "assignments": {
+    "part-0005": {
+      "category": "Kabine / Wand",
+      "name": ""
+    },
+    "part-0006": {
+      "category": "Kabine / Wand",
+      "name": ""
+    },
+    "part-0007": {
+      "category": "Kabine / Wand",
+      "name": ""
+    },
+    "part-0008": {
+      "category": "Kabine / Wand",
+      "name": ""
+    },
+    "part-0009": {
+      "category": "Kabine / Wand",
+      "name": ""
+    },
+    "part-0010": {
+      "category": "Kabine / Wand",
+      "name": ""
+    },
+    "part-0012": {
+      "category": "Kabine / Wand",
+      "name": ""
+    },
+    "part-0013": {
+      "category": "Kabine / Wand",
+      "name": ""
+    },
+    "part-0004": {
+      "category": "Boden",
+      "name": ""
+    },
+    "part-0011": {
+      "category": "Absaugwand",
+      "name": ""
+    },
+    "part-0990": {
+      "category": "Grundgestell / Schiene",
+      "name": ""
+    },
+    "part-0991": {
+      "category": "Grundgestell / Schiene",
+      "name": ""
+    },
+    "part-0994": {
+      "category": "Grundgestell / Schiene",
+      "name": ""
+    },
+    "part-0995": {
+      "category": "Grundgestell / Schiene",
+      "name": ""
+    },
+    "part-1017": {
+      "category": "Sockel",
+      "name": ""
+    },
+    "part-1018": {
+      "category": "Sockel",
+      "name": ""
+    },
+    "part-1019": {
+      "category": "Sockel",
+      "name": ""
+    },
+    "part-0933": {
+      "category": "Werkstückaufhängung",
+      "name": ""
+    },
+    "part-0988": {
+      "category": "Spülstation",
+      "name": ""
+    },
+    "part-1021": {
+      "category": "Materialversorgung / Druckbehälter",
+      "name": ""
+    },
+    "part-1022": {
+      "category": "Materialversorgung / Druckbehälter",
+      "name": ""
+    },
+    "part-1024": {
+      "category": "Materialversorgung / Druckbehälter",
+      "name": ""
+    }
+  }
+}

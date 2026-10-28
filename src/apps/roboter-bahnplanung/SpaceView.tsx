@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { poseAt, makeKernel, section, type Result } from './model';
-import { sectionEndpoints } from './view-geometry';
+import { sectionEndpoints, rotationFromDrag } from './view-geometry';
 import { format } from './spray';
 import { colorAt } from './MapView';
 type P3 = { u: number; v: number; z: number };
@@ -100,7 +100,7 @@ export default function SpaceView({ result: r, values, time, max, profile, axis,
   return <div ref={host} className="rb-space">
     <canvas ref={canvas} role="img" aria-label={profile?'Drehbares dreidimensionales Höhenprofil der Modell-Trockenschichtdicke in Mikrometern':'Drehbare dreidimensionale Bahn über dem Blech'}
       onPointerDown={e=>{drag.current={x:e.clientX,y:e.clientY,yaw,pitch};e.currentTarget.setPointerCapture(e.pointerId);}}
-      onPointerMove={e=>{const d=drag.current;if(!d)return;setYaw(Math.max(-180,Math.min(180,d.yaw+(e.clientX-d.x)*.4)));setPitch(Math.max(20,Math.min(85,d.pitch+(e.clientY-d.y)*.3)));}}
+      onPointerMove={e=>{const d=drag.current;if(!d)return;const next=rotationFromDrag(d.yaw,d.pitch,e.clientX-d.x,e.clientY-d.y);setYaw(next.yaw);setPitch(next.pitch);}}
       onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}} />
     <div className="rb-space-controls"><label>Drehung {yaw.toFixed(0)}°<input type="range" min={-180} max={180} value={yaw} onChange={e=>setYaw(Number(e.target.value))}/></label>
       <label>Neigung {pitch.toFixed(0)}°<input type="range" min={20} max={85} value={pitch} onChange={e=>setPitch(Number(e.target.value))}/></label>

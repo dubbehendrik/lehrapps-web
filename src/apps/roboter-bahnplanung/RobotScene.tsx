@@ -7,7 +7,7 @@ import { type AxisValues, REFERENCE_POSES, toolMatrix } from './robot/robot-kine
 import { makeKernel, poseAt, type Result } from './model';
 import { format } from './spray';
 import { colorAt } from './MapView';
-type Props = { result: Result; values: Float32Array; time: number; max: number; profile: boolean; axis: 'u' | 'v'; cut: number; showCut: boolean; showCabin: boolean };
+type Props = { result: Result; values: Float32Array; time: number; max: number; profile: boolean; axis: 'u' | 'v'; cut: number; showCut: boolean; showCabin: boolean; transparentWalls: boolean };
 type Engine = { update: (p: Props, height: number) => void; fit: (close: boolean) => void };
 export default function RobotScene(props: Props) {
   const host = useRef<HTMLDivElement>(null), engine = useRef<Engine | null>(null), latest = useRef(props);
@@ -32,7 +32,7 @@ export default function RobotScene(props: Props) {
     const fit=(close:boolean)=>{
       const c=latest.current.result.config;
       if(close){const span=Math.max(c.sheetWidth,c.sheetHeight)/1000;camera.position.set(SHEET_FRONT-span*1.65,SUSPENSION.y+span*.95,SUSPENSION.z+span*.6);controls.target.set(SHEET_FRONT-.03,SUSPENSION.y,SUSPENSION.z);}
-      else {camera.position.set(-2.15,2.55,1.7);controls.target.set(.55,.1,.48);}
+      else {camera.position.set(-3.5,4,3);controls.target.set(.3,.1,.7);}
       controls.update();dirty=true;
     };fit(latest.current.profile);
     const resize=()=>{const w=el.clientWidth,h=el.clientHeight;renderer.setSize(w,h);camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();dirty=true;};
@@ -48,7 +48,6 @@ export default function RobotScene(props: Props) {
       ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(0,0,512,96);ctx.font='44px system-ui';ctx.fillStyle='#173748';ctx.textAlign='center';ctx.fillText(text,256,64);
       const texture=new T.CanvasTexture(canvas);const sprite=new T.Sprite(new T.SpriteMaterial({map:texture,depthTest:false,depthWrite:false}));sprite.position.copy(at);sprite.scale.set(.22,.041,1);sprite.renderOrder=210;parent.add(sprite);};
     const sheet=new T.Mesh(new T.BoxGeometry(.001,1,1),new T.MeshStandardMaterial({color:0xc6d0d8,metalness:.2,roughness:.6,side:T.DoubleSide}));scene.add(sheet);
-    const grid=new T.GridHelper(3,20,0x899ba6,0xc9d6dc);grid.rotation.x=Math.PI/2;grid.position.set(.5,0,-.261);scene.add(grid);
     const abort=new AbortController();let seed:AxisValues=[...REFERENCE_POSES[1].axes],goalKey='';
     const line=(segments:number[],color:number,overlay=false)=>new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(segments,3)),overlay?tcpPathMaterial(color):new T.LineBasicMaterial({color}));
     const cutSurface=new T.Mesh(new T.BufferGeometry(),new T.MeshBasicMaterial({color:0x673b9e,transparent:true,opacity:.14,side:T.DoubleSide,depthTest:false,depthWrite:false}));cutSurface.name='Ausgewählte Schnittebene';cutSurface.renderOrder=190;scene.add(cutSurface);
@@ -57,7 +56,7 @@ export default function RobotScene(props: Props) {
     const tcpMarker=new T.Mesh(new T.SphereGeometry(.005,12,8),new T.MeshBasicMaterial({color:0xe49025,depthTest:false,depthWrite:false}));tcpMarker.name='Geplanter TCP auf der Zielfläche';tcpMarker.renderOrder=205;scene.add(tcpMarker);
     const update=(p:Props,growthHeight:number)=>{
       if(stopped||!robot)return;
-      robot.cabin.visible=p.showCabin;
+      robot.cabin.visible=p.showCabin;robot.setWallsTransparent(p.transparentWalls);
       if(result!==p.result){
         result=p.result;goalKey='';
         if(layerMesh){scene.remove(layerMesh);dispose(layerMesh);}if(path){scene.remove(path);dispose(path);}if(past){scene.remove(past);dispose(past);}
@@ -117,14 +116,15 @@ export default function RobotScene(props: Props) {
     return()=>{stopped=true;abort.abort();cancelAnimationFrame(frame);observer.disconnect();controls.dispose();engine.current=null;
       clearAxis();clearDecorations(coordinateAxes);dispose(scene);if(renderer instanceof T.WebGLRenderer)renderer.dispose();renderer.domElement.remove();};
   },[]);
-  useEffect(()=>{engine.current?.update(props,height);},[props.result,props.values,props.time,props.max,props.axis,props.cut,props.showCut,props.showCabin,height]);
+  useEffect(()=>{engine.current?.update(props,height);},[props.result,props.values,props.time,props.max,props.axis,props.cut,props.showCut,props.showCabin,props.transparentWalls,height]);
   useEffect(()=>{engine.current?.fit(props.profile);},[props.profile]);
   return <div className="rb-robot-scene">
     <div className="rb-robot-host" ref={host} />
     {error?<p className="error" role="alert">{error}</p>:<p className="rb-small" role="status">{status}</p>}
     {poseWarning&&<p className="rb-notice" role="status">{poseWarning}</p>}
-    <div className="rb-space-controls"><button onClick={()=>engine.current?.fit(false)}>Roboter & Aufhängung</button><button onClick={()=>engine.current?.fit(true)}>Blech-Nahansicht</button>
+    <div className="rb-space-controls"><button onClick={()=>engine.current?.fit(false)}>Roboter & Kabine</button><button onClick={()=>engine.current?.fit(true)}>Blech-Nahansicht</button>
       <label>Überhöhung · Höhe bei Skalenmaximum: {height} mm<input aria-label="Darstellungshöhe am Skalenmaximum" type="range" min={5} max={200} step={5} value={height} onChange={e=>setHeight(Number(e.target.value))}/></label></div>
+    <p className="rb-small">Bereinigte Kabine und vereinfachte Deckenhindernisse aus der Bahnplanungsapp. „Wände transparent“ verändert nur die Kabinenwände; Einrichtung und Boden bleiben sichtbar.</p>
     <p className="rb-small">Rot: geplante TCP-Bahn · Grün: abgefahren · Orange: geplanter TCP auf dem Blech. Die Bahn wird im Vordergrund gezeichnet und bleibt trotz überhöhter Lackschicht sichtbar. {props.showCut && <>Violette Schnittebene: {props.axis === 'u' ? 'v' : 'u'} = {format(props.cut)} mm.</>}</p>
     <p className="rb-small">Ziehen: drehen · Mausrad / zwei Finger: zoomen. Das Blech hängt zentral. Die Schicht wächst überhöht aus der Oberfläche zum Roboter; {format(props.max)} µm Modell-Trockenschichtdicke entsprechen hier {height} mm Darstellungshöhe. Die µm-Achse zeigt Modellwerte, die Geometrie ist überhöht. Der Maßstab bleibt über die Zeit konstant.</p>
   </div>;
