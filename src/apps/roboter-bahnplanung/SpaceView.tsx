@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { poseAt, makeKernel, type Result } from './model';
+import { format } from './spray';
 import { colorAt } from './MapView';
 type P3 = { u: number; v: number; z: number };
 export default function SpaceView({ result: r, values, time, max, profile }: {
@@ -79,11 +80,12 @@ export default function SpaceView({ result: r, values, time, max, profile }: {
     const text=(q:P3,text:string,dx=0,dy=0)=>{const p=project(q);ctx.font='13px system-ui';ctx.fillStyle='#253e50';ctx.fillText(text,p.x+dx,p.y+dy);};
     text({u:0,v:0,z:0},'0',6,16);text({u:c.sheetWidth,v:0,z:0},`u ${c.sheetWidth} mm`,-30,-12);text({u:0,v:c.sheetHeight,z:0},`v ${c.sheetHeight} mm`,8,12);
     const axisTop={u:0,v:0,z:profile?max:c.brush.distance};line({u:0,v:0,z:0},axisTop,'#536983',1,true);
-    text(axisTop,profile?`${max.toFixed(2)} AE`:`${c.brush.distance} mm`,8,-8);
-    ctx.font='13px system-ui';ctx.fillStyle='#526b79';ctx.fillText(profile?'Höhe = relativer Auftrag / AE':'Werkzeug und Sprühkegel symbolisch',14,h-16);
+    if(profile){for(const f of [.25,.5,.75]){const z=max*f;line({u:0,v:0,z},{u:12,v:0,z},'#536983',1);text({u:0,v:0,z},`${format(z)} µm`,8,0);}}
+    text(axisTop,profile?`${format(max)} µm`:`${c.brush.distance} mm`,8,-8);
+    ctx.font='13px system-ui';ctx.fillStyle='#526b79';ctx.fillText(profile?'Trockenschichtdicke / µm · Höhe überzeichnet':'Werkzeug und Sprühkegel symbolisch',14,h-16);
   }, [r, values, time, max, profile, size, yaw, pitch, zoom]);
   return <div ref={host} className="rb-space">
-    <canvas ref={canvas} role="img" aria-label={profile?'Drehbares dreidimensionales Höhenprofil des relativen Auftrags':'Drehbare dreidimensionale Bahn über dem Blech'}
+    <canvas ref={canvas} role="img" aria-label={profile?'Drehbares dreidimensionales Höhenprofil der Modell-Trockenschichtdicke in Mikrometern':'Drehbare dreidimensionale Bahn über dem Blech'}
       onPointerDown={e=>{drag.current={x:e.clientX,y:e.clientY,yaw,pitch};e.currentTarget.setPointerCapture(e.pointerId);}}
       onPointerMove={e=>{const d=drag.current;if(!d)return;setYaw(Math.max(-180,Math.min(180,d.yaw+(e.clientX-d.x)*.4)));setPitch(Math.max(20,Math.min(85,d.pitch+(e.clientY-d.y)*.3)));}}
       onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}} />

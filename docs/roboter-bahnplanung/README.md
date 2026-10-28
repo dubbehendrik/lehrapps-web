@@ -1,85 +1,110 @@
 # Roboter Bahnplanung (Demo)
 
-Route `/roboter-bahnplanung`, zentral registriert unter **Fokus: Labor**.
+Route `/roboter-bahnplanung`, Fokus: Labor. Generic 2K paint and generic rotary
+atomizer. Literature-informed **dry film thickness in µm**, not a calibration of
+the EcoBell shown in the illustrative CAD scene. Stationary experiment is the
+initial view. All existing trajectory scenarios use the same deposition kernel.
 
-Die App überträgt die geometrischen Szenarien des Entwicklungsprojekts
-`lackierroboter-dev` in einen eigenständigen Lehrapp-Bereich innerhalb der
-bestehenden Lehrapps. Originale CAD-Modelle und eine illustrative Roboterkinematik dienen der Darstellung.
-Maschinenprogramme und Steuerungsdateien werden nicht übernommen.
+## Evidence and source
 
-Der Einstieg zeigt den fertig berechneten, mittigen stationären Spritzversuch in 2D.
-Die CAD-Ansicht wird erst beim Wechsel auf eine der 3D-Ansichten geladen.
+Nico Güttler (2024), *Methodik für numerische Lackiersimulationen: Bedeutung der
+Modell- und Eingangsparameter bei der Hochrotationszerstäubung*, Dissertation,
+Universität Stuttgart, Stuttgarter Beiträge zur Produktionsforschung 176.
 
-## Funktionsumfang
+- Table 3.2, p. 72: reference ABB RB1000 SSD Brush 1: 250 ml/min, inner/outer
+  shaping air 500/75 standard l/min, 35000 rpm, 65 kV, 200 mm, 150 mm/s.
+- Table 3.4, p. 82: measured volumetric solids 57%. This value is used directly,
+  rather than recomputing it from rounded densities or using the manufacturer's 61%.
+- Figure A.1, p. 221: **measured moving single-pass profile**, solid blue curve.
+- Figures A.7-A.11, pp. 223-224: simulated one-factor profiles for distance,
+  shaping air, flow, voltage, rpm. The baseline of these simulations is distinct
+  from the measured reference. Normalized shape increments transfer those trends.
+- Table 5.4, p. 180: local width slopes for inner/outer air, -0.71/+0.11 mm
+  per standard l/min. Figure A.8 varies **both air streams together**. Their
+  independent decomposition is an additional teaching-model assumption.
+- Section 4.1.1, pp. 118-120: static-to-dynamic projection; motion-induced
+  asymmetries are not included in a static radial deposition kernel.
 
-- Stationärer Brushversuch; horizontale und vertikale Einzelbahn;
-  Einzelbahn bis Zentrum mit Haltezeit; horizontaler und vertikaler Mäander;
-  Kreuzgang; horizontaler Keil über veränderliche Bahndichte.
-- Blechabmessungen, Start, Richtungen, Bahnrechteck, Sollabstände,
-  Geschwindigkeit, Spritz-/Haltezeit, Auftrag beim Wenden.
-- Rotationssymmetrischer Brush: relative Lenkluft, Hochspannung, Abstand,
-  Fördermenge. Keine elliptische Verformung.
-- Gemeinsamer Auftragskern für stationäre und bewegte Versuche.
-- 2D-Farbkarte, drehbarer 3D-Bahnraum, 3D-Höhenprofil, Zeitsteuerung,
-  horizontale/vertikale Schnitte, Randbeschnitt der Statistik, A/B-Referenz.
-- Gemeinsame, zeitlich feste Farbschale und Höhen-/Schnittskala für A/B.
-- Browserlokales explizites Speichern/Laden von Einstellungen. Kein
-  Maschinenimport/-export und keine externen Dienste zur Berechnung.
+`data/single-pass.json` stores original vector coordinates converted to mm/µm,
+source pages, stroke IDs and original PDF SHA256. No hand-invented reference curve
+or rotation of a moving profile is used. The full source PDF is not bundled.
 
-## Mathematischer Ansatz (keine Prozessphysik)
+## Reproducible inverse problem
 
-Für a = Lenkluft/100, e = Hochspannung/100 und Abstand d (mm):
+1. Optional: `python scripts/extract-spray.py <original-dissertation.pdf>`
+   (PyMuPDF). Axis rectangles, solid/dashed strokes, colors and legends were
+   visually inspected before selecting the source curves.
+2. `python scripts/reconstruct-spray.py` (numpy, scipy) regenerates
+   `src/apps/roboter-bahnplanung/spray-data.json` from the extracted coordinates.
+3. Reference profiles are interpolated on a 5 mm transverse grid and symmetrized.
+4. A nonnegative reflected Gaussian radial basis (10 mm spacing, 12 mm width)
+   is fitted through its **forward line integral** at 150 mm/s. Nonnegative least
+   squares includes a second-difference penalty of 0.15 and ridge penalty of 0.02.
+   Reflected basis functions enforce a zero derivative at the radial origin.
+5. The radial rate in µm/s is tabulated every 2 mm out to 500 mm. Gaussian tails
+   beyond observed ±400 mm are model assumptions, not measured information.
+6. Reintegration reproduces the symmetrized measured reference with ~1.1% wMAPE.
+   The runtime interpolated kernel is tested independently by numerical projection.
+   **This is an in-sample fit error, not predictive experimental uncertainty.**
 
-    R = d (0.38 - 0.16a) (1 - 0.08e)
-    sigma = d (0.085 - 0.025a)
-    centerSigma = 1.8 sigma
-    ringShare = 0.92 - 0.16e
-    eta = 0.30 + 0.55e
+An inverse radial profile assumes rotational symmetry. A single projection cannot
+identify a general asymmetric 2D distribution. Smoothing and nonnegativity supply
+regularization; they do not establish a unique physical atomization mechanism.
 
-Das Rohprofil ist `ringShare exp(-0.5 ((r-R)/sigma)^2)` plus
-`(1-ringShare) exp(-0.5 (r/centerSigma)^2)`. Das gemeinsame Profil wird über
-`2 pi r dr` flächennormiert; der numerische Support reicht bis
-`R + 6 centerSigma`. Diese Gewichte sind vor der gemeinsamen Normierung
-**keine separaten Massenanteile**. Der zentrale diametrale Schnitt hat
-zwei Maxima.
+## Generic parameter variation
 
-Der relative Auftrag in AE ist das Zeitintegral von
+Measured baseline radial density plus additive normalized density changes from
+one-factor simulated curves. Piecewise-linear interpolation between reference and
+low/high levels. Combined changes have no identified interaction terms. Changes
+beyond literature levels are bounded at three times the investigated perturbation;
+negative densities are clipped and the radial interpolant is renormalized exactly.
 
-    (flow / 150 ml/min) eta kernel(u,v) 10000 mm²
+Local literature domains: distance 150-250 mm; flow 225-275 ml/min; inner air
+450-550, outer air 67.5-82.5 standard l/min (joint variation); voltage 58.5-71.5 kV;
+rpm 31500-38500. Flow may be set to zero; values outside the local range produce
+an extrapolation notice. Volumetric solids scale only amount, not shape.
 
-Es gibt keine Umrechnung in µm. Das Modell projiziert senkrecht auf das
-ebene Blech. Eine Verbreiterung des Profils erzeugt keine zusätzliche
-Materialmenge. Außerhalb liegender Auftrag wird nicht auf das Blech
-zurücknormiert. `captured/supplied` ist ein angenommener Modellanteil und
-kein gemessener Auftragswirkungsgrad.
+For air, the one-factor coordinate is
+`(-0.71*(inner-500)+0.11*(outer-75))/(-0.71*50+0.11*7.5)`.
+It reproduces the joint ±10% settings. Independent air effects are approximate.
 
-## Numerik und Darstellung
+## Units and material accounting
 
-Zellzentriertes Raster mit ungefähr 5 mm Zellweite, maximal 121 Zellen pro
-Richtung. Bewegte Segmente werden räumlich mit Mittelpunktsquadratur
-integriert; stationäre Abschnitte direkt über ihre Zeit. Es werden 81
-Zeitstände gespeichert und für Zwischenzeiten interpoliert. Die numerische
-Auflösung wird in der App ausgewiesen. Versuche sind auf 600 s und
-höchstens 60 Bahnabstände je relevanter Richtung begrenzt.
+`Qdry = flow * 1000 / 60 * solids/100` in mm³/s.
+`hdot = Qdry * 1000 * eta * K(r)` in µm/s, with `K` in 1/mm².
+The reference volume integral gives eta ≈90.6% for the assumed large plane and
+smoothed tail. This is the value inferred from the extracted reference curve,
+not an independently measured efficiency or a fitted variable-efficiency law.
+The efficiency stays constant because the local source sensitivities do not
+support a robust variable-efficiency law. Shape, flow and solids change thickness.
 
-3D nutzt Three.js mit WebGL. Ohne WebGL erscheint ein Hinweis; die 2D-Ansicht
-bleibt verfügbar. Die aufwendige synchrone CAD-Vereinfachung wird nicht gestartet. Originale
-CAD-Modelle zeigen Roboter, Werkzeug und zentrale Aufhängung. Die Auftragsschicht
-wächst mit ausdrücklich überhöhter Darstellung; Schnitte nutzen die volle Rechenauflösung.
+`captured` and `supplied` are dry solid volume in mm³. The finite sheet clips the
+kernel without renormalization; its captured fraction may be below reference eta.
+Time integrates the equivalent eventual dry film, **not the drying process**.
+No wet-film prediction or liquid/solids density approximation is hidden in the scale.
 
-## Prüfung
+## Views and numerical limits
 
-`tests/roboter-bahnplanung.test.ts` prüft Flächennormierung, Ringprofil,
-Abstands-Skalierung, Mengenerhaltung, Fördermenge null, lineare Zeit- und
-Mengenwirkung, Geschwindigkeit, Overspray, alle Szenarien, vertikale
-Haltebahn, ausgeschalteten Wendestreckenauftrag, Keildichte, Zeitstände,
-Schnittinterpolation, Statistik und Eingabegrenzen.
+2D map, cross sections and both 3D views label µm. A WebGL-independent interactive
+3D height profile has numeric height ticks; CAD uses WebGL and an annotated,
+visually exaggerated layer. A/B share final color and height scales across time.
+Zero thickness has a defined small display scale, not a division by zero.
 
-Browser-QA: stationärer Versuch, 3D-Höhenprofil, A/B mit verdoppelter
-Fördermenge, vertikale Bahn mit Haltezeit, 3D-Bahnraum und Einzelschritt.
-Fachliche/didaktische Abnahme durch den Betreiber steht aus und wird in
-der App ausdrücklich so angegeben.
+Cell-centered ~5 mm grid, max 121 cells per direction, midpoint quadrature along
+moving segments, 81 immutable frames, linear time interpolation. Max 600 s and
+60 lane spacings per direction. A/B, hold paths, meanders, cross and wedge remain.
+Storage schema changed to 2 and a new key: old relative-unit configurations are
+not silently interpreted as the new model.
 
-Die Modellkoeffizienten sind ausschließlich didaktische Setzungen.
-Für eine spätere Kalibrierung können Messdaten `makeKernel()` ersetzen,
-während Bahngeometrie, Auftragssummation und Auswertung bestehen bleiben.
+No droplet/atomization CFD, flow/charge solution, angle correction, edge fields,
+shadowing, film flow, thickness-dependent sagging, gun transients or collisions.
+Original CAD and display IK imply no machine-program validity.
+
+## Verification
+
+Full build runs all tests, TypeScript and production/offline builds. Dedicated
+checks include reference reprojection, unit conversion, positivity, normalized
+mass under parameter variation, zero flow, linear time/solids scaling, finite-sheet
+overspray, speed scaling, all paths, symmetry and input/storage schema rejection.
+Browser QA covers static µm map, parameter recalculation, A/B, time zero/end,
+3D height profile without WebGL and keyboard controls. CAD needs WebGL.

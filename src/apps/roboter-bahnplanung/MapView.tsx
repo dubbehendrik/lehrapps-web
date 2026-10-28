@@ -1,3 +1,4 @@
+import { format } from './spray';
 import { useMemo, useRef } from 'react';
 import { makeKernel, poseAt, type Result, type Point } from './model';
 const colors = [[244,248,252],[198,228,237],[52,158,179],[22,119,111],[229,187,70],[183,70,37]];
@@ -27,7 +28,7 @@ export default function MapView({ result: r, values, max, time, axis, cut, edge,
   const minU = Math.min(0, ...points.map(p => p.u)) - 35, maxU = Math.max(c.sheetWidth, ...points.map(p => p.u)) + 35;
   const minV = Math.min(0, ...points.map(p => p.v)) - 35, maxV = Math.max(c.sheetHeight, ...points.map(p => p.v)) + 35;
   const worldW = maxU - minU, worldH = maxV - minV;
-  const scale = Math.min(760 / worldW, 420 / worldH), x = (u: number) => 55 + (maxU - u) * scale;
+  const scale = Math.min(640 / worldW, 420 / worldH), x = (u: number) => 55 + (maxU - u) * scale;
   const y = (v: number) => 40 + (v - minV) * scale;
   const p = poseAt(r.path, time), kernel = makeKernel(c.brush);
   const move = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -56,6 +57,11 @@ export default function MapView({ result: r, values, max, time, axis, cut, edge,
       style={{ cursor: onStart ? 'grab' : 'default', touchAction: 'none' }} onPointerDown={e => {
         if (!onStart) return; dragging.current = true; svg.current?.setPointerCapture(e.pointerId); e.preventDefault();
       }} />}
+    <g aria-label="Trockenschichtdickenachse in Mikrometern">
+      {Array.from({length:100},(_,i)=><rect key={i} x="770" y={70+i*3.3} width="20" height="3.5" fill={`rgb(${colorAt(1-i/99).join(',')})`}/>)}
+      <text x="730" y="35" fontSize="16" fill="#173748">Schicht / µm</text>
+      {[0,.25,.5,.75,1].map(f=><g key={f}><line x1="790" x2="797" y1={400-f*330} y2={400-f*330} stroke="#173748"/><text x="801" y={405-f*330} fontSize="15" fill="#173748">{format(max*f)}</text></g>)}
+    </g>
     <g fontSize="17" fill="#344d61"><text x="25" y="22">Blech · {c.sheetWidth} × {c.sheetHeight} mm</text>
       <text x="25" y="485">u ← · v ↓ · Ursprung: Blech rechts oben</text>
       <text x="25" y="510">Rot: geplant · Grün: abgefahren · Violett: Auswerteschnitt</text></g>
