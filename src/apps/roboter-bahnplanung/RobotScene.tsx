@@ -1,0 +1,106 @@
+import { useEffect, useRef, useState } from 'react';
+import * as T from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
+import { loadModels, dispose } from './robot/load-models';
+import { makeLayer, updateLayer, sheetPoint, displayPose, SUSPENSION, SHEET_FRONT, type Layer } from './robot/scene-model';
+import { type AxisValues, REFERENCE_POSES, toolMatrix } from './robot/robot-kinematics';
+import { makeKernel, poseAt, type Result } from './model';
+import { colorAt } from './MapView';
+type Props = { result: Result; values: Float32Array; time: number; max: number; profile: boolean };
+type Engine = { update: (p: Props, height: number) => void; fit: (close: boolean) => void };
+export default function RobotScene(props: Props) {
+  const host = useRef<HTMLDivElement>(null), engine = useRef<Engine | null>(null), latest = useRef(props);
+  latest.current = props;
+  const [status, setStatus] = useState('Originale CAD-Modelle werden geladen …'), [error, setError] = useState('');
+  const [software, setSoftware] = useState(false), [height, setHeight] = useState(80), [poseWarning, setPoseWarning] = useState('');
+  const heightRef = useRef(height);heightRef.current=height;
+  useEffect(() => {
+    const el = host.current!; let stopped = false, frame = 0, dirty = true, lastRender = 0;
+    let renderer: T.WebGLRenderer | SVGRenderer, soft = false;
+    try { renderer = new T.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(2,devicePixelRatio)); }
+    catch { renderer = new SVGRenderer(); renderer.setQuality('low'); soft = true; setSoftware(true); setStatus('CAD-Modelle für die Darstellung ohne WebGL vorbereiten …'); }
+    renderer.setClearColor(new T.Color(0xeef3f6),1);renderer.domElement.setAttribute('role','img');
+    renderer.domElement.setAttribute('aria-label','Drehbare Roboteransicht mit zentral aufgehängtem Blech und räumlich wachsender Auftragsschicht');
+    renderer.domElement.style.touchAction='none';el.appendChild(renderer.domElement);
+    const scene = new T.Scene(), camera = new T.PerspectiveCamera(40,1,.01,30);camera.up.set(0,0,1);
+    const controls = new OrbitControls(camera, renderer.domElement as unknown as HTMLElement);controls.enableDamping=!soft;
+    controls.addEventListener('change',()=>{dirty=true;});
+    scene.add(new T.HemisphereLight(0xffffff,0x5c6c7a,2.4));
+    const light=new T.DirectionalLight(0xffffff,3);light.position.set(-2,3,4);scene.add(light);
+    const fill=new T.DirectionalLight(0xe5eefb,.8);fill.position.set(2,-2,1);scene.add(fill);
+    const fit=(close:boolean)=>{
+      const c=latest.current.result.config;
+      if(close){const span=Math.max(c.sheetWidth,c.sheetHeight)/1000;camera.position.set(SHEET_FRONT-span*1.65,SUSPENSION.y+span*.95,SUSPENSION.z+span*.6);controls.target.set(SHEET_FRONT-.03,SUSPENSION.y,SUSPENSION.z);}
+      else {camera.position.set(-2.15,2.55,1.7);controls.target.set(.55,.1,.48);}
+      controls.update();dirty=true;
+    };fit(latest.current.profile);
+    const resize=()=>{const w=el.clientWidth,h=el.clientHeight;renderer.setSize(w,h);camera.aspect=w/Math.max(1,h);camera.updateProjectionMatrix();dirty=true;};
+    const observer=new ResizeObserver(resize);observer.observe(el);resize();
+    let layer:Layer|null=null, layerMesh:T.Mesh|null=null, result:Result|null=null;
+    let robot:Awaited<ReturnType<typeof loadModels>>|null=null, path:T.LineSegments|null=null, past:T.LineSegments|null=null;
+    const beam=new T.LineSegments(new T.BufferGeometry(),new T.LineBasicMaterial({color:0x3a9cae,transparent:true,opacity:.25}));scene.add(beam);
+    const sheet=new T.Mesh(new T.BoxGeometry(.001,1,1),new T.MeshStandardMaterial({color:0xc6d0d8,metalness:.2,roughness:.6,side:T.DoubleSide}));scene.add(sheet);
+    const grid=new T.GridHelper(3,20,0x899ba6,0xc9d6dc);grid.rotation.x=Math.PI/2;grid.position.set(.5,0,-.261);scene.add(grid);
+    const abort=new AbortController();let seed:AxisValues=[...REFERENCE_POSES[1].axes],goalKey='';
+    const line=(segments:number[],color:number)=>new T.LineSegments(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(segments,3)),new T.LineBasicMaterial({color}));
+    const update=(p:Props,growthHeight:number)=>{
+      if(stopped||!robot)return;
+      if(result!==p.result){
+        result=p.result;goalKey='';
+        if(layerMesh){scene.remove(layerMesh);dispose(layerMesh);}if(path){scene.remove(path);dispose(path);}if(past){scene.remove(past);dispose(past);}
+        layer=makeLayer(result,soft?3:1);
+        layerMesh=new T.Mesh(layer.geometry,new T.MeshStandardMaterial({vertexColors:true,roughness:.68,metalness:0,side:T.DoubleSide}));layerMesh.name='Überhöhte wachsende Auftragsschicht';scene.add(layerMesh);
+        const c=result.config;sheet.scale.set(1,c.sheetWidth/1000,c.sheetHeight/1000);sheet.position.set(SHEET_FRONT+.0005,SUSPENSION.y,SUSPENSION.z);
+        const vertices:number[]=[];
+        for(const s of result.path.segments){const a=sheetPoint(result,s.a,c.brush.distance/1000),b=sheetPoint(result,s.b,c.brush.distance/1000);vertices.push(...a.toArray(),...b.toArray());}
+        path=line(vertices,0xd7484c);path.name='Geplante Werkzeugbahn';scene.add(path);past=line([],0x007053);scene.add(past);
+        fit(p.profile);
+      }
+      updateLayer(layer!,p.values,p.max,growthHeight,colorAt);
+      const pose=poseAt(p.result.path,p.time),c=p.result.config;
+      const key=[pose.u.toFixed(4),pose.v.toFixed(4),c.brush.distance].join('/');
+      let valid=goalKey===key;
+      if(valid)setPoseWarning('');
+      if(goalKey!==key){
+        const solution=displayPose(p.result,pose,seed);valid=!!solution;
+        if(solution){seed=solution.axes;robot.rig.setAxes(seed);robot.rig.setToolDistance(c.brush.distance);goalKey=key;setPoseWarning('');}
+        else {setPoseWarning('Für diese Zielposition wurde keine Gelenkstellung gefunden. Der Roboter bleibt in der letzten darstellbaren Stellung; die geometrische Auftragsrechnung läuft unabhängig davon weiter.');}
+      }
+      const previous:number[]=[];
+      for(const s of p.result.path.segments){if(s.start>=p.time)break;const f=Math.min(1,(p.time-s.start)/(s.end-s.start));
+        const a=sheetPoint(p.result,s.a,c.brush.distance/1000),b=sheetPoint(p.result,{u:s.a.u+(s.b.u-s.a.u)*f,v:s.a.v+(s.b.v-s.a.v)*f},c.brush.distance/1000);previous.push(...a.toArray(),...b.toArray());}
+      past!.geometry.dispose();past!.geometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(previous,3));
+      beam.visible=valid&&pose.spray&&c.brush.flow>0;
+      if(beam.visible){
+        const origin=new T.Vector3().setFromMatrixPosition(robot.rig.flange.matrixWorld.clone().multiply(toolMatrix(2)));
+        const k=makeKernel(c.brush),vertices:number[]=[];
+        for(let i=0;i<20;i++){const a=i/20*Math.PI*2;const hit=sheetPoint(p.result,{u:pose.u+(k.radius+2*k.sigma)*Math.cos(a),v:pose.v+(k.radius+2*k.sigma)*Math.sin(a)});vertices.push(...origin.toArray(),...hit.toArray());}
+        beam.geometry.dispose();beam.geometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+      }
+      dirty=true;
+    };
+    const animate=(now:number)=>{
+      if(stopped)return;controls.update();
+      if(dirty&&(!soft||now-lastRender>160)){renderer.render(scene,camera);dirty=false;lastRender=now;}
+      frame=requestAnimationFrame(animate);
+    };frame=requestAnimationFrame(animate);
+    loadModels(abort.signal,soft).then(loaded=>{
+      if(stopped){dispose(loaded.rig.root);dispose(loaded.fixtures);return;}
+      robot=loaded;scene.add(loaded.rig.root,loaded.fixtures);engine.current={update,fit};
+      update(latest.current,heightRef.current);setStatus('Originalmodell: EcoRP 10 R1100 · EcoBell 2 EC · Werkstückaufhängung');dirty=true;
+    }).catch(e=>{if(!stopped&&(e as Error).name!=='AbortError')setError((e as Error).message);});
+    return()=>{stopped=true;abort.abort();cancelAnimationFrame(frame);observer.disconnect();controls.dispose();engine.current=null;
+      dispose(scene);if(renderer instanceof T.WebGLRenderer)renderer.dispose();renderer.domElement.remove();};
+  },[]);
+  useEffect(()=>{engine.current?.update(props,height);},[props.result,props.values,props.time,props.max,height]);
+  useEffect(()=>{engine.current?.fit(props.profile);},[props.profile]);
+  return <div className="rb-robot-scene">
+    <div className="rb-robot-host" ref={host} />
+    {error?<p className="error" role="alert">{error}</p>:<p className="rb-small" role="status">{status}{software?' · vereinfachte CAD-Darstellung ohne WebGL':''}</p>}
+    {poseWarning&&<p className="rb-notice" role="status">{poseWarning}</p>}
+    <div className="rb-space-controls"><button onClick={()=>engine.current?.fit(false)}>Roboter & Aufhängung</button><button onClick={()=>engine.current?.fit(true)}>Blech-Nahansicht</button>
+      <label>Überhöhung · Höhe bei Skalenmaximum: {height} mm<input aria-label="Darstellungshöhe am Skalenmaximum" type="range" min={5} max={200} step={5} value={height} onChange={e=>setHeight(Number(e.target.value))}/></label></div>
+    <p className="rb-small">Ziehen: drehen · Mausrad / zwei Finger: zoomen. Das Blech hängt zentral. Die Schicht wächst überhöht aus der Oberfläche zum Roboter; {props.max.toLocaleString('de-DE',{maximumFractionDigits:3})} AE entsprechen hier {height} mm Darstellungshöhe, keiner realen Schichtdicke. Der Maßstab bleibt über die Zeit konstant.</p>
+  </div>;
+}

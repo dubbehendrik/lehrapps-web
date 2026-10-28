@@ -5,7 +5,7 @@ import MapView from './MapView';
 import { DEFAULT, SCENARIOS, makeKernel, makePath, poseAt, section, simulate, stats, validate, valuesAt,
   type Result, type Scenario, type Settings } from './model';
 import './style.css';
-const SpaceView = lazy(() => import('./SpaceView'));
+const SpaceView = lazy(() => import('./RobotScene'));
 const STORAGE = 'lehrapps-roboter-demo-v1';
 const fmt = (x: number, digits = 2) => x.toLocaleString('de-DE', { maximumFractionDigits: digits });
 const COPY = 'Didaktisches Auftragsmodell: Spritzbild und Parameterwirkungen beruhen auf frei gewählten mathematischen Annahmen, nicht auf einem physikalischen oder kalibrierten Anlagenmodell. Keine Vorhersage des realen Beschichtungsprozesses.';
@@ -33,7 +33,7 @@ export default function App() {
   const [config, setConfig] = useState<Settings>(() => structuredClone(DEFAULT));
   const [result, setResult] = useState<Result>(() => simulate(DEFAULT));
   const [time, setTime] = useState(() => makePath(DEFAULT).duration), [playing, setPlaying] = useState(false);
-  const [tempo, setTempo] = useState(1), [view, setView] = useState<'2d' | '3d' | 'profile'>('2d');
+  const [tempo, setTempo] = useState(1), [view, setView] = useState<'2d' | '3d' | 'profile'>('3d');
   const [axis, setAxis] = useState<'u' | 'v'>('u'), [cutFraction, setCutFraction] = useState(.5);
   const [edge, setEdge] = useState(20), [showPath, setShowPath] = useState(true);
   const [reference, setReference] = useState<Result | null>(null), [busy, setBusy] = useState(false);
@@ -166,11 +166,11 @@ export default function App() {
           </div>
           <label className="rb-time">Zeit: {fmt(time, 1)} / {fmt(result.path.duration, 1)} s · {currentPose.phase}
             <input aria-label="Versuchszeit" type="range" min={0} max={result.path.duration} step={result.path.duration / 160} value={time} onChange={e => { setPlaying(false); setTime(Number(e.target.value)); }} /></label>
-          <p className="rb-small">Nur Applikation und Umsetzen. Geschwindigkeit konstant; keine Anfahrt, Beschleunigung, Roboterkinematik oder Spülsequenz.</p>
+          <p className="rb-small">Nur Applikation und Umsetzen bei konstantem Vorschub. Gelenkstellungen dienen der Anschauung; keine reale Bewegungs-, Beschleunigungs- oder Steuerungssimulation.</p>
         </section>
-        <div className="rb-tabs" role="group" aria-label="Ansicht wählen">{([['2d', 'Blech & Bahn · 2D'], ['3d', 'Bahnraum · 3D'], ['profile', 'Auftragsprofil · 3D']] as const).map(([v, title]) => <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>{title}</button>)}</div>
-        <figure className="rb-mainplot"><figcaption><h3>{view === '2d' ? 'Bahn und relativer Auftrag auf dem Blech' : view === '3d' ? 'Bahn über dem ebenen Blech' : 'Relativer Auftrag als Höhenprofil'}</h3>
-          <p>{view === 'profile' ? 'Die Höhe stellt den relativen Auftrag in AE dar – keine geometrische Schichtdicke. Höhe und Farbe bleiben während des Versuchs gleich skaliert.' : view === '3d' ? 'Werkzeug und Sprühkegel sind symbolisch. Senkrechte Projektion auf das ebene Blech; keine Simulation von Tropfenflug oder elektrostatischem Feld.' : 'Die gestrichelte violette Linie zeigt den Schnitt. Orange: Startpunkt; bei stationärem Versuch und Flächenbahnen ziehbar. Änderungen anschließend berechnen.'}</p></figcaption>
+        <div className="rb-tabs" role="group" aria-label="Ansicht wählen">{([['2d', 'Blech & Bahn · 2D'], ['3d', 'Roboter & Auftrag · 3D'], ['profile', 'Schichtwachstum · 3D']] as const).map(([v, title]) => <button key={v} aria-pressed={view === v} onClick={() => setView(v)}>{title}</button>)}</div>
+        <figure className="rb-mainplot"><figcaption><h3>{view === '2d' ? 'Bahn und relativer Auftrag auf dem Blech' : view === '3d' ? 'Roboter, Aufhängung und wachsender Auftrag' : 'Schichtwachstum auf dem zentral aufgehängten Blech'}</h3>
+          <p>{view === 'profile' ? 'Die Auftragsschicht wächst räumlich aus dem Blech heraus. Die Höhe ist überzeichnet und entspricht keiner realen Schichtdicke. Zeitregler bewegen oder „Von vorn“ und „Start“ wählen.' : view === '3d' ? 'Originale CAD-Modelle von Roboter, EcoBell und Werkstückaufhängung. Das Blech hängt zentral; die berechnete Auftragsschicht wächst überhöht aus seiner Oberfläche. Sprühstrahlen und Gelenkbewegung dienen der Anschauung.' : 'Die gestrichelte violette Linie zeigt den Schnitt. Orange: Startpunkt; bei stationärem Versuch und Flächenbahnen ziehbar. Änderungen anschließend berechnen.'}</p></figcaption>
           {view === '2d' ? <><MapView result={result} values={values} max={max} time={time} axis={axis} cut={cut} edge={effectiveEdge} showPath={showPath}
             draftStart={config.scenario === result.config.scenario && !['line', 'lineHold'].includes(config.scenario) ? { u: config.startU, v: config.startV } : undefined}
             onStart={config.scenario !== result.config.scenario || config.sheetWidth !== result.config.sheetWidth || config.sheetHeight !== result.config.sheetHeight || ['line', 'lineHold'].includes(config.scenario) ? undefined : p => { setPlaying(false); setConfig(c => ({ ...c, startU: Math.max(-1600, Math.min(1600, p.u)), startV: Math.max(-1600, Math.min(1600, p.v)) })); }} />
@@ -215,7 +215,7 @@ export default function App() {
       <ul><li>Ringradius R = d · (0,38 − 0,16a) · (1 − 0,08e).</li><li>Ringbreite σ = d · (0,085 − 0,025a); Breite des zentralen Profils = 1,8σ.</li><li>Gewicht des Ringprofils = 0,92 − 0,16e. Die beiden Profilanteile werden anschließend gemeinsam flächennormiert.</li><li>Angenommener Auftragsanteil η = 0,30 + 0,55e. Kein real gemessener Wirkungsgrad.</li></ul>
       <p>Der lokale Auftrag wird als AE = ∫ (Fördermenge / 150 ml/min) · η · normiertes Spritzbild · 10 000 mm² · dt aufsummiert. AE ist eine relative Demonstrationsgröße mit festem Bezugsmaßstab. Die verbleibende Modellmenge landet außerhalb des Blechs oder wird durch den angenommenen Auftragsanteil nicht abgeschieden. Der ausgewiesene Blechanteil bezieht sich auf die gesamte zugeführte Modellmenge bei eingeschaltetem Spritzen.</p>
       <p>Die Projektion erfolgt senkrecht auf ein ebenes Blech bei konstantem Abstand. Es gibt keine elliptische Verformung, keine Tropfenflug-, Elektrostatik-, Lenkluftströmungs-, Randfeld-, Abschattungs-, Ablauf- oder Trocknungssimulation. Kurven und Farben sind keine Messdaten.</p>
-      <p>Die geometrischen Szenarien entsprechen den Varianten des Bahnplanungstools. Maschinenprogramme werden weder eingelesen noch erzeugt. Die Darstellung enthält keine Roboterkinematik, Kollisionsprüfung oder Steuerungsfreigabe.</p>
+      <p>Die geometrischen Szenarien und originalen CAD-Modelle stammen aus dem Bahnplanungstool. Das Blech hängt zentral an der Aufhängung. Die Gelenkstellungen werden nur zur Veranschaulichung berechnet. Nicht darstellbare Stellungen werden gemeldet; die Auftragsrechnung bleibt davon unabhängig. Maschinenprogramme werden weder eingelesen noch erzeugt. Es gibt keine Kollisionsprüfung oder Steuerungsfreigabe.</p>
       <p>Numerik des berechneten Versuchs: {result.u.length} × {result.v.length} Flächenelemente ({fmt(result.du)} × {fmt(result.dv)} mm), {result.integrationSteps} Integrationsschritte. Materialauftrag am Zellzentrum, 81 gespeicherte Zeitstände; Zwischenzeiten werden linear interpoliert. Zellraster und Zeitschritte können kleine Abweichungen verursachen.</p>
     </details>
     <details className="rb-help"><summary>Drei kurze Lernversuche</summary><ol>
