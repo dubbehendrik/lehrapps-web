@@ -48,13 +48,13 @@ export default function ProfileView({ p, r, z, max, log, axis, fraction, showCut
       plane.forEach((q, i) => line(q, plane[(i + 1) % 4], '#673b9e', 1.5, i === 0));
       const values = cutValues(r, z, axis, fraction), coords = values.map((v, i) => ({ ...a, [axis]: (i + .5) * (axis === 'x' ? r.dx : r.dy), z: v }));
       for (let i = 1; i < coords.length; i++) { line(coords[i - 1], coords[i], '#fff', 5); line(coords[i - 1], coords[i], '#673b9e', 2.5); }
-      text({ ...a, z: top }, `${axis === 'x' ? 'y' : 'x'} = ${fmt(fixed)} mm`, 8, -12);
+      text({ ...a, z: top }, `${axis === 'x' ? 'y' : 'x'} = ${fmt(fixed - (axis === 'x' ? p.height : p.width)/2)} mm`, 8, -12);
     }
-    const origin = { x: 0, y: 0, z: 0 };
+    const origin = { x: p.width/2, y: p.height/2, z: 0 };
     const arrow = (to: P, label: string) => { line(origin, to, '#173748', 2.2); const a = project(origin), b = project(to), angle = Math.atan2(b.y - a.y, b.x - a.x);
       ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - 11 * Math.cos(angle - .4), b.y - 11 * Math.sin(angle - .4)); ctx.lineTo(b.x - 11 * Math.cos(angle + .4), b.y - 11 * Math.sin(angle + .4)); ctx.closePath(); ctx.fillStyle = '#173748'; ctx.fill(); text(to, label, 8, 18); };
-    text(origin, '0', 6, 16); arrow({ x: p.width, y: 0, z: 0 }, `x / mm (${fmt(p.width)})`); arrow({ x: 0, y: p.height, z: 0 }, `y / mm (${fmt(p.height)})`);
-    line(origin, { x: 0, y: 0, z: max }, '#536983', 1, true);
+    text(origin, '0', 6, 16); arrow({ x: p.width, y: p.height/2, z: 0 }, `x / mm (+${fmt(p.width/2)})`); arrow({ x: p.width/2, y: p.height, z: 0 }, `y / mm (+${fmt(p.height/2)})`);
+    line({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: max }, '#536983', 1, true);
     for (const f of [.25, .5, .75, 1]) { const value = max * f; line({ x: 0, y: 0, z: value }, { x: 8, y: 0, z: value }, '#536983', 1); text({ x: 0, y: 0, z: value }, `${fmt(value)} µm`, 8, -4); }
     ctx.font = '13px system-ui'; ctx.fillStyle = '#526b79'; ctx.fillText(`${dry ? 'Trocken' : 'Nass'}schichtdicke / µm · Höhe linear und überzeichnet`, 14, h - 16);
   }, [p, r, z, max, log, axis, fraction, showCut, dry, size, yaw, pitch, zoom]);

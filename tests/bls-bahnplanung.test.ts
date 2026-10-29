@@ -20,3 +20,10 @@ describe('BLS revised controls and material accounting',()=>{
  it('indicates blink, advance, deposition, retraction and completion',()=>{const s=plan(defaults),duration=s.at(-1)!.start+s.at(-1)!.duration;const lights=(t:number)=>lamps(at(s,t),t,duration);expect(lights(0).every(l=>l.state==='off')).toBe(true);expect(lights(.3)[0].state).toBe('on');expect(lights(.3)[1].state).toBe('blink');expect(lights(1)[3].state).toBe('on');expect(lights(2)[3].state).toBe('on');expect(lights(duration-.5)[2].state).toBe('on');expect(lights(duration-.5)[0].state).toBe('on');expect(lights(duration).every(l=>l.state==='off')).toBe(true);});
  it('adds a non-spraying final retract phase without withdrawing more coating',()=>{const s=plan(defaults),g=s.at(-1)!;expect(g.b.phase).toBe('Spritze entnehmen');expect(g.b.on).toBe(false);expect(consumed(s,g.start,80)).toBeCloseTo(consumed(s,g.start+g.duration,80));});
 });
+
+ describe('BLS machine frame and signed edge offsets',()=>{
+ it('applies unchanged X offset after quarter turn',()=>{const p={...defaults,mode:'cross',passes:2,over:17};const s=plan(p).filter(g=>g.b.phase==='Beschichtungsbahn');for(const g of s)expect(Math.abs(g.b.x)).toBeCloseTo((g.b.angle?p.height:p.width)/2+17);});
+ it('uses delta Y to increase symmetric row count without changing spacing',()=>{const a=plan({...defaults,deltaY:0}).filter(g=>g.b.phase==='Beschichtungsbahn');const b=plan({...defaults,deltaY:45}).filter(g=>g.b.phase==='Beschichtungsbahn');expect(b.length).toBeGreaterThan(a.length);expect(b[1].b.y-b[0].b.y).toBeCloseTo(defaults.spacing);expect(b[0].b.y).toBeCloseTo(-b.at(-1)!.b.y);});
+ it('supports shorter travel with negative X offset',()=>{const p={...defaults,over:-20};expect(Math.abs(plan(p).find(g=>g.b.phase==='Beschichtungsbahn')!.b.x)).toBe(80);});
+ it('plans 250 mm square workpieces through both orientations',()=>{const s=plan({...defaults,width:250,height:250,mode:'cross',passes:2});expect(s.every(g=>Number.isFinite(g.duration)&&g.duration>0)).toBe(true);expect(s.some(g=>g.b.angle===Math.PI/2)).toBe(true);});
+ });
