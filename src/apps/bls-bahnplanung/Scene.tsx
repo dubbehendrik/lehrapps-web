@@ -53,21 +53,50 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
       box(740, 600, 6, 0, 350, -320, 0xaabac2, op); box(6, 600, 640, -370, 350, 0xaabac2, op);
       box(6, 600, 640, 370, 350, 0xaabac2, op); box(740, 600, 6, 0, 350, 320, 0xc0d8e3, transparent ? .06 : .3);
     }
-    // Actual control desk is kept visible independently of the enclosing walls.
-    box(260, 250, 240, -500, 30, 220, 0x87949d);
-    box(190, 130, 14, -500, 275, 195, 0x263641); box(168, 105, 3, -500, 275, 204, 0x386c89);
-    if (focus === 'panel') label('BLS · ' + pose.phase, -500, 275, 208, 'bls-panel-label'); box(240, 10, 145, -500, 162, 235, 0x263d4c);
+    // Full-depth side cabinet, sharing the booth's floor level. Its front roof is the inclined panel.
+    const consoleShape = new T.Shape();
+    consoleShape.moveTo(320, -260); consoleShape.lineTo(-350, -260);
+    consoleShape.lineTo(-350, 75); consoleShape.lineTo(-90, 225);
+    consoleShape.lineTo(320, 225); consoleShape.closePath();
+    const consoleBody = new T.Mesh(new T.ExtrudeGeometry(consoleShape, { depth: 260, bevelEnabled: false }),
+      new T.MeshStandardMaterial({ color: 0x929da5, metalness: .65, roughness: .35 }));
+    consoleBody.rotation.y = Math.PI / 2; consoleBody.position.x = -630; scene.add(consoleBody);
+    for (const x of [-605, -395]) for (const zz of [-285, 315]) cyl(20, 25, x, -273, zz, 0x263743);
+    // Panel-local XY plane: screen, rings and lenses all lie on the same inclined face.
+    const panel = new T.Group(); panel.position.set(-500, 150, 220); panel.rotation.x = -Math.PI / 3; scene.add(panel);
+    box(246, 292, 3, 0, 0, 0, 0x687b88, 1, panel);
+    // A thin bezel surrounds a dark glass inset; no freestanding monitor housing.
+    box(190, 114, 2, 0, 61, 2, 0xc8ced0, 1, panel);
+    box(168, 94, 1, 0, 61, 3.2, 0x183444, 1, panel);
+    box(150, 3, 1, 0, 90, 3.9, 0x7094a5, 1, panel);
+    const panelLabel = (text: string, x: number, y: number) => {
+      const div = document.createElement('div'); div.className = 'bls-model-label bls-panel-label'; div.textContent = text;
+      const object = new CSS2DObject(div); object.position.set(x, y, 9); panel.add(object);
+    };
+    if (focus === 'panel') panelLabel('BLS · ' + pose.phase, 0, 60);
     const states = lamps(pose, time, duration), lampMaterials: T.MeshBasicMaterial[] = [];
     const shortLabels = ['Auto Start · Tür verriegeln', 'Spritzapplikation Start', 'Spritze entnehmen', 'Spritze anfahren'];
     for (let i = 0; i < 4; i++) {
-      const x = -590 + i * 60; cyl(20, 6, x, 171, 255, 0x202d36); cyl(17, 5, x, 175, 255, 0xc0c9ce);
+      const x = -87 + i * 58;
+      const ring = cyl(19, 5, x, -88, 5, 0xc0c9ce, 1, panel); ring.rotation.x = Math.PI / 2;
       const material = new T.MeshBasicMaterial({ color: i < 2 ? 0x184c36 : 0x8b969f });
-      const lens = new T.Mesh(new T.SphereGeometry(14, 20, 12), material); lens.scale.y = .35; lens.position.set(x, 180, 255); scene.add(lens); lampMaterials.push(material);
-      if (focus === 'panel') label(shortLabels[i], x, 172, 294, 'bls-panel-label');
+      const lens = new T.Mesh(new T.SphereGeometry(14, 20, 12), material); lens.scale.z = .35; lens.position.set(x, -88, 9); panel.add(lens); lampMaterials.push(material);
+      if (focus === 'panel') panelLabel(shortLabels[i], x, -122);
     }
+    // Emergency stop and a compact keypad between display and indicator row.
+    const stopBase = cyl(22, 5, 82, -24, 5, 0xe9c52c, 1, panel); stopBase.rotation.x = Math.PI / 2;
+    const stop = cyl(15, 12, 82, -24, 12, 0xb81e28, 1, panel); stop.rotation.x = Math.PI / 2;
+    for (let row = 0; row < 2; row++) for (let col = 0; col < 4; col++) box(12, 12, 2, -72 + col * 19, -18 - row * 19, 4, 0xc7ced2, 1, panel);
     box(720, 45, 620, 0, -35, 0, 0x6f7e86);
     if (filter) for (let i = 0; i < 20; i++) { const slat = box(700, 15, 22, 0, -5, -285 + i * 30, 0xb89d74); slat.rotation.x = .45; }
-    box(650, 18, 26, 0, -20, 0, 0x344551); box(120, 38, 100, -pose.x, 8, 0, 0x8898a1); cyl(37, 12, -pose.x, 33, 0, 0x2d454f);
+    // Visible longitudinal support (Y direction), carried with the X carriage; no extra motion axis is implied.
+    box(650, 18, 26, 0, -20, 0, 0x344551);
+    box(90, 20, 570, -pose.x, 3, 0, 0x566b79);
+    for (const xOffset of [-32, 32]) {
+      box(9, 9, 550, -pose.x + xOffset, 17, 0, 0xb9c8d0);
+      for (const zz of [-260,260]) box(22, 24, 28, -pose.x + xOffset, 10, zz, 0x344b5a);
+    }
+    box(120, 16, 100, -pose.x, 25, 0, 0x8898a1); cyl(37, 12, -pose.x, 36, 0, 0x2d454f);
     // Bridge is connected to both cabin sides, Y rail and carriage are mechanically continuous.
     for (const zz of [-250, 250]) box(740, 22, 35, 0, 675, zz, 0x8d9ba5);
     box(45, 24, 560, 0, 670, 0, 0x8899a4); box(105, 28, 90, 0, 647, (-pose.y) - 25, 0x9ba8ae);
@@ -130,7 +159,7 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
     }
     const grid = new T.GridHelper(900, 18, 0x9bacb8, 0xc5cfd6); grid.position.y = -288; scene.add(grid);
     if (focus === 'head') { camera.position.set(170, outlet + 95, (-pose.y) + 300); controls.target.set(0, outlet + 70, (-pose.y)); }
-    if (focus === 'panel') { camera.position.set(-500, 470, 550); controls.target.set(-500, 170, 255); }
+    if (focus === 'panel') { camera.position.set(-500, 440, 640); controls.target.set(-500, 150, 220); }
     if (saved.current?.focus === focus) { camera.position.copy(saved.current.position); controls.target.copy(saved.current.target); }
     const resize = () => { const w = el.clientWidth, h = el.clientHeight; activeRenderer.setSize(w, h); labelRenderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     const ro = new ResizeObserver(resize); ro.observe(el); resize();
