@@ -2,8 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { colorAt, type Params, type Result } from './model';
 export type Axis = 'x' | 'y';
 export function cutValues(r: Result, z: Float32Array, axis: Axis, fraction: number) {
-  const n = axis === 'x' ? r.ny : r.nx, index = Math.max(0, Math.min(n - 1, Math.round(fraction * (n - 1))));
-  return axis === 'x' ? Array.from({ length: r.nx }, (_, i) => z[index * r.nx + i]) : Array.from({ length: r.ny }, (_, j) => z[j * r.nx + index]);
+  const n = axis === 'x' ? r.ny : r.nx;
+  const position = Math.max(0, Math.min(1, fraction)) * (n - 1), lo = Math.floor(position), hi = Math.min(n - 1, lo + 1), weight = position - lo;
+  const value = (i: number, j: number) => z[j * r.nx + i];
+  return axis === 'x'
+    ? Array.from({ length: r.nx }, (_, i) => value(i, lo) * (1 - weight) + value(i, hi) * weight)
+    : Array.from({ length: r.ny }, (_, j) => value(lo, j) * (1 - weight) + value(hi, j) * weight);
 }
 const fmt = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
 export default function ProfileView({ p, r, z, max, log, axis, fraction, showCut, dry }: {

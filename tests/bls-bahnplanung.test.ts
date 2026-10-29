@@ -1,3 +1,4 @@
+import { cutValues } from '../src/apps/bls-bahnplanung/ProfileView';
 import {describe,it,expect} from 'vitest';
 import {defaults,brush,kernel,plan,at,consumed,simulate,lamps,massBalance,parseNumber,colorFraction} from '../src/apps/bls-bahnplanung/model';
 describe('BLS physics and motion',()=>{
@@ -27,3 +28,13 @@ describe('BLS revised controls and material accounting',()=>{
  it('supports shorter travel with negative X offset',()=>{const p={...defaults,over:-20};expect(Math.abs(plan(p).find(g=>g.b.phase==='Beschichtungsbahn')!.b.x)).toBe(80);});
  it('plans 250 mm square workpieces through both orientations',()=>{const s=plan({...defaults,width:250,height:250,mode:'cross',passes:2});expect(s.every(g=>Number.isFinite(g.duration)&&g.duration>0)).toBe(true);expect(s.some(g=>g.b.angle===Math.PI/2)).toBe(true);});
  });
+
+describe('BLS shared cut profiles',()=>{
+ it('interpolates both directions at the selected plane and clamps edge positions',()=>{
+  const r={...simulate({...defaults,q:0}),nx:2,ny:2};const z=new Float32Array([0,10,20,30]);
+  expect(cutValues(r,z,'x',.25)).toEqual([5,15]);
+  expect(cutValues(r,z,'y',.5)).toEqual([5,25]);
+  expect(cutValues(r,z,'x',0)).toEqual([0,10]);expect(cutValues(r,z,'x',1)).toEqual([20,30]);
+  expect(cutValues(r,z,'y',-1)).toEqual([0,20]);expect(cutValues(r,z,'y',2)).toEqual([10,30]);
+ });
+});
