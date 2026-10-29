@@ -1,17 +1,133 @@
-import {useEffect,useRef} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as T from 'three';
-import {SVGRenderer} from 'three/examples/jsm/renderers/SVGRenderer.js';
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
-import type {Params,Pose} from './model';
-import {brush} from './model';
-export default function Scene({p,pose,z,nx,ny,max,cabin,transparent,filter,used,view}:{p:Params;pose:Pose;z:Float32Array;nx:number;ny:number;max:number;cabin:boolean;transparent:boolean;filter:boolean;used:number;view:string}){const host=useRef<HTMLDivElement>(null);const rendererRef=useRef<T.WebGLRenderer|SVGRenderer|null>(null);useEffect(()=>()=>{if(rendererRef.current instanceof T.WebGLRenderer)rendererRef.current.dispose();rendererRef.current=null;},[]);const saved=useRef<{view:string;position:T.Vector3;target:T.Vector3}|null>(null);useEffect(()=>{if(!host.current)return;const el=host.current,scene=new T.Scene();scene.background=new T.Color('#e9eef2');const camera=new T.PerspectiveCamera(38,1,1,6000);camera.position.set(850,650,1050);let renderer=rendererRef.current;if(!renderer){try{renderer=new T.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;}catch{renderer=new SVGRenderer();renderer.setQuality('low');}rendererRef.current=renderer;}const activeRenderer=renderer;el.appendChild(renderer.domElement);const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,180,0);controls.enableDamping=true;scene.add(new T.HemisphereLight(0xffffff,0x607080,2.6));const light=new T.DirectionalLight(0xffffff,3);light.position.set(400,900,500);scene.add(light);
-function box(w:number,h:number,d:number,x:number,y:number,z:number,color:number,opacity=1){const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshStandardMaterial({color,metalness:.55,roughness:.36,transparent:opacity<1,opacity,depthWrite:opacity===1}));mesh.position.set(x,y,z);scene.add(mesh);return mesh;}
-function cyl(r:number,h:number,x:number,y:number,z:number,color:number,opacity=1){const mesh=new T.Mesh(new T.CylinderGeometry(r,r,h,32),new T.MeshStandardMaterial({color,metalness:.35,roughness:.3,transparent:opacity<1,opacity,depthWrite:opacity===1}));mesh.position.set(x,y,z);scene.add(mesh);return mesh;}
-if(view==='cabin'){if(cabin){const op=transparent?.1:1;box(750,40,650,0,-100,0,0x89949e);box(750,90,650,0,530,0,0xb2bbc1);for(const x of [-370,370])for(const zz of [-320,320])box(18,610,18,x,210,zz,0x73828c);box(740,400,6,0,250,-320,0xaabac2,op);box(6,400,640,-370,250,0xaabac2,op);box(6,400,640,370,250,0xaabac2,op);box(740,400,6,0,250,320,0xc0d8e3,transparent?.06:.3);box(160,250,240,-470,30,220,0x87949d);const panel=box(125,8,100,-470,162,220,0x172c3b);panel.rotation.x=.25;for(let i=0;i<4;i++)cyl(9,7,-510+i*27,170,255,i<2?0x15b86b:0xd7e0e5);}
-if(filter)for(let i=0;i<20;i++){const slat=box(700,15,22,0,-65,-285+i*30,0xb89d74);slat.rotation.x=.45;}
-box(650,18,26,0,-20,0,0x344551);box(120,38,100,-pose.x,8,0,0x8898a1);cyl(37,12,-pose.x,33,0,0x2d454f);
-box(30,24,560,0,470,0,0x8899a4);box(100,28,80,0,448,pose.y,0x9ba8ae);box(26,170,30,0,p.distance+130,pose.y,0x9ba8ae);box(45,85,45,-40,p.distance+170,pose.y,0x1d3042);cyl(20,28,0,p.distance+10,pose.y,0x263747);cyl(16,135,0,p.distance+95,pose.y,0xaacbd5,.3);cyl(14,9,0,p.distance+150-used/100*120,pose.y,0xf5f5e9);box(8,65,8,0,p.distance+190-used/100*120,pose.y,0xabb9c1);
-if(pose.on&&used<100){const b=brush(p);const geom=new T.ConeGeometry(1,p.distance,48,1,true);const spray=new T.Mesh(geom,new T.MeshBasicMaterial({color:0x2ad89d,transparent:true,opacity:.12,side:T.DoubleSide,depthWrite:false}));spray.scale.set(b.sx*2.5,1,b.sy*2.5);spray.rotation.y=-p.orientation*Math.PI/180;spray.position.set(0,p.distance/2+40,pose.y);scene.add(spray);}}
-const group=new T.Group();group.position.set(view==='cabin'?-pose.x:0,40,0);group.rotation.y=-pose.angle;scene.add(group);const plate=new T.Mesh(new T.BoxGeometry(p.width,2,p.height),new T.MeshStandardMaterial({color:0xc2cbd1}));group.add(plate);
-const geom=new T.PlaneGeometry(p.width,p.height,nx-1,ny-1);geom.rotateX(-Math.PI/2);const pos=geom.attributes.position;const colors=new Float32Array(nx*ny*3);for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const k=j*nx+i,value=z[k],ratio=Math.min(1,value/Math.max(1,max));pos.setY(k,view==='growth'?value/Math.max(1,max)*110+2:2);const col=new T.Color().setHSL(.65-ratio*.65,.83,.48);colors.set([col.r,col.g,col.b],k*3);}geom.setAttribute('color',new T.BufferAttribute(colors,3));geom.computeVertexNormals();group.add(new T.Mesh(geom,new T.MeshStandardMaterial({vertexColors:true,side:T.DoubleSide,roughness:.75})));
-const grid=new T.GridHelper(900,18,0x9bacb8,0xc5cfd6);grid.position.y=-100;scene.add(grid);if(view==='growth'){camera.position.set(330,350,430);controls.target.set(0,50,0);}if(saved.current?.view===view){camera.position.copy(saved.current.position);controls.target.copy(saved.current.target);}const resize=()=>{const w=el.clientWidth,h=el.clientHeight;activeRenderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();};const ro=new ResizeObserver(resize);ro.observe(el);resize();let id=0;function render(){controls.update();activeRenderer.render(scene,camera);id=requestAnimationFrame(render);}render();return()=>{saved.current={view,position:camera.position.clone(),target:controls.target.clone()};cancelAnimationFrame(id);ro.disconnect();controls.dispose();scene.traverse(o=>{if(o instanceof T.Mesh){o.geometry.dispose();const m=o.material;Array.isArray(m)?m.forEach(x=>x.dispose()):m.dispose();}});};},[p,pose,z,nx,ny,max,cabin,transparent,filter,used,view]);return <div className="bls-scene" ref={host} aria-label={view==='cabin'?'Drehbares 3D-Modell der BLS-Kabine':'Drehbare Schichtoberfläche'}/>;}
+import { SVGRenderer } from 'three/examples/jsm/renderers/SVGRenderer.js';
+import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { brush, colorFraction, lamps, pistonTravel, type Params, type Pose } from './model';
+export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing }: {
+  p: Params; pose: Pose; z: Float32Array; nx: number; ny: number; max: number; log: boolean;
+  cabin: boolean; transparent: boolean; filter: boolean; used: number; time: number; duration: number; playing: boolean;
+}) {
+  const host = useRef<HTMLDivElement>(null), rendererRef = useRef<T.WebGLRenderer | SVGRenderer | null>(null);
+  const saved = useRef<{ focus: string; position: T.Vector3; target: T.Vector3 } | null>(null);
+  const [focus, setFocus] = useState('overall');
+  useEffect(() => () => { if (rendererRef.current instanceof T.WebGLRenderer) rendererRef.current.dispose(); rendererRef.current = null; }, []);
+  useEffect(() => {
+    if (!host.current) return;
+    const el = host.current, scene = new T.Scene(); scene.background = new T.Color('#e9eef2');
+    const camera = new T.PerspectiveCamera(38, 1, 1, 6000); camera.position.set(1000, 850, 1250);
+    let renderer = rendererRef.current;
+    if (!renderer) {
+      try { renderer = new T.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); }
+      catch { renderer = new SVGRenderer(); renderer.setQuality('low'); }
+      rendererRef.current = renderer;
+    }
+    const activeRenderer = renderer; el.appendChild(renderer.domElement);
+    const labelRenderer = new CSS2DRenderer(); labelRenderer.domElement.className = 'bls-3d-labels'; el.appendChild(labelRenderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement); controls.target.set(0, 285, 0); controls.enableDamping = true;
+    scene.add(new T.HemisphereLight(0xffffff, 0x607080, 2.6));
+    const light = new T.DirectionalLight(0xffffff, 3); light.position.set(400, 900, 500); scene.add(light);
+    function box(w: number, h: number, d: number, x: number, y: number, z: number, color: number, opacity = 1, parent: T.Object3D = scene) {
+      const mesh = new T.Mesh(new T.BoxGeometry(w, h, d), new T.MeshStandardMaterial({ color, metalness: .55, roughness: .36, transparent: opacity < 1, opacity, depthWrite: opacity === 1 }));
+      mesh.position.set(x, y, z); parent.add(mesh); return mesh;
+    }
+    function cyl(r: number, h: number, x: number, y: number, z: number, color: number, opacity = 1, parent: T.Object3D = scene) {
+      const mesh = new T.Mesh(new T.CylinderGeometry(r, r, h, 24), new T.MeshStandardMaterial({ color, metalness: .35, roughness: .3, transparent: opacity < 1, opacity, depthWrite: opacity === 1 }));
+      mesh.position.set(x, y, z); parent.add(mesh); return mesh;
+    }
+    function label(text: string, x: number, y: number, z: number, cls = '') {
+      const div = document.createElement('div'); div.className = `bls-model-label ${cls}`; div.textContent = text;
+      const object = new CSS2DObject(div); object.position.set(x, y, z); scene.add(object); return div;
+    }
+    if (cabin) {
+      const op = transparent ? .1 : 1;
+      box(750, 40, 650, 0, -100, 0, 0x89949e); box(750, 90, 650, 0, 730, 0, 0xb2bbc1);
+      for (const x of [-370, 370]) for (const zz of [-320, 320]) box(18, 810, 18, x, 310, zz, 0x73828c);
+      box(740, 600, 6, 0, 350, -320, 0xaabac2, op); box(6, 600, 640, -370, 350, 0xaabac2, op);
+      box(6, 600, 640, 370, 350, 0xaabac2, op); box(740, 600, 6, 0, 350, 320, 0xc0d8e3, transparent ? .06 : .3);
+    }
+    // Actual control desk is kept visible independently of the enclosing walls.
+    box(260, 250, 240, -500, 30, 220, 0x87949d); box(240, 10, 145, -500, 162, 235, 0x263d4c);
+    const states = lamps(pose, time, duration), lampMaterials: T.MeshBasicMaterial[] = [];
+    const shortLabels = ['Auto Start · Tür verriegeln', 'Spritzapplikation Start', 'Spritze entnehmen', 'Spritze anfahren'];
+    for (let i = 0; i < 4; i++) {
+      const x = -590 + i * 60; cyl(20, 6, x, 171, 255, 0x202d36); cyl(17, 5, x, 175, 255, 0xc0c9ce);
+      const material = new T.MeshBasicMaterial({ color: i < 2 ? 0x184c36 : 0x8b969f });
+      const lens = new T.Mesh(new T.SphereGeometry(14, 20, 12), material); lens.scale.y = .35; lens.position.set(x, 180, 255); scene.add(lens); lampMaterials.push(material);
+      if (focus === 'panel') label(shortLabels[i], x, 172, 294, 'bls-panel-label');
+    }
+    if (filter) for (let i = 0; i < 20; i++) { const slat = box(700, 15, 22, 0, -65, -285 + i * 30, 0xb89d74); slat.rotation.x = .45; }
+    box(650, 18, 26, 0, -20, 0, 0x344551); box(120, 38, 100, -pose.x, 8, 0, 0x8898a1); cyl(37, 12, -pose.x, 33, 0, 0x2d454f);
+    // Bridge is connected to both cabin sides, Y rail and carriage are mechanically continuous.
+    for (const zz of [-250, 250]) box(740, 22, 35, 0, 675, zz, 0x8d9ba5);
+    box(45, 24, 560, 0, 670, 0, 0x8899a4); box(105, 28, 90, 0, 647, pose.y - 25, 0x9ba8ae);
+    const outlet = 53 + p.distance, spineBottom = outlet + 20;
+    box(32, 645 - spineBottom, 28, 0, (645 + spineBottom) / 2, pose.y - 45, 0xa7b2b9);
+    box(10, 645 - spineBottom, 6, 0, (645 + spineBottom) / 2, pose.y - 28, 0x263843);
+    box(76, 28, 65, 0, outlet + 35, pose.y - 20, 0x9ba7af); // bottom saddle joins spine and cap
+    box(35, 130, 35, -42, 570, pose.y - 45, 0x172e40); // drive motor, connected through gear bracket
+    box(65, 24, 40, -20, 635, pose.y - 45, 0x9ca9b2);
+    const totalStroke = pistonTravel(100);
+    const liftFraction = pose.phase === 'Spritze anfahren' ? Math.max(0, 1 - (time - .8) / .7) : pose.phase === 'Spritze entnehmen' ? Math.min(1, Math.max(0, (time - (duration - 1.5)) / 1.5)) : time <= .8 ? 1 : 0;
+    // The syringe is in front of the guide. Needle remains seated; drive rises for removal.
+    const barrelBottom = outlet + 65, barrelTop = barrelBottom + totalStroke;
+    cyl(16.5, totalStroke, 0, (barrelTop + barrelBottom) / 2, pose.y, 0xb1d4df, .23);
+    cyl(18, 7, 0, barrelBottom, pose.y, 0xe9e7dc); cyl(19, 6, 0, barrelTop, pose.y, 0xe5e7e6);
+    cyl(5, 18, 0, outlet + 53, pose.y, 0xd2d6d8); cyl(1.3, 28, 0, outlet + 31, pose.y, 0xa8b7c0);
+    const pistonY = barrelTop - pistonTravel(used);
+    cyl(14.5, 7, 0, pistonY, pose.y, 0xf4f1df);
+    const driveY = pistonY + 9 + liftFraction * 28;
+    cyl(4, Math.max(4, 640 - driveY), 0, (640 + driveY) / 2, pose.y, 0x778b98);
+    box(36, 8, 30, 0, driveY, pose.y, 0xd5dce0); box(18, 14, 45, 0, 634, pose.y - 20, 0xa9b5bd);
+    // Air cap: threaded retaining ring, central nozzle, opposed sculpted horns and air holes.
+    cyl(20, 22, 0, outlet + 14, pose.y, 0x263b4d); cyl(23, 10, 0, outlet + 3, pose.y, 0xb8a78a);
+    for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; box(1.2, 9, 1.2, 22.6 * Math.cos(a), outlet + 3, pose.y + 22.6 * Math.sin(a), 0x88929a); }
+    cyl(20, 4, 0, outlet - 3, pose.y, 0x3469a6); cyl(15, 3, 0, outlet - 6, pose.y, 0xcbd3d8);
+    cyl(5, 5, 0, outlet - 9, pose.y, 0x7a8d99); cyl(2, 1, 0, outlet - 12, pose.y, 0x172e40);
+    const cap = new T.Group(); cap.position.set(0, outlet - 6, pose.y);
+    // Horns are perpendicular to fan major axis: the impinging shaping jets flatten the spray.
+    cap.rotation.y = -p.orientation * Math.PI / 180; scene.add(cap);
+    const shape = new T.Shape(); shape.moveTo(10, 0); shape.lineTo(20, 0); shape.lineTo(19, -17); shape.lineTo(14, -21); shape.lineTo(10, -12); shape.closePath();
+    for (const sign of [-1, 1]) {
+      const geometry = new T.ExtrudeGeometry(shape, { depth: 6, bevelEnabled: true, bevelSize: .7, bevelThickness: .7, bevelSegments: 2, steps: 1 });
+      const horn = new T.Mesh(geometry, new T.MeshStandardMaterial({ color: 0xc5cdd0, metalness: .8, roughness: .28 }));
+      horn.rotation.y = sign === 1 ? Math.PI / 2 : -Math.PI / 2; horn.position.x = sign === 1 ? -3 : 3; cap.add(horn);
+      const hole = new T.Mesh(new T.SphereGeometry(1.8, 8, 6), new T.MeshBasicMaterial({ color: 0x1a2932 })); hole.position.set(0, -15, sign * 14); cap.add(hole);
+    }
+    if (focus === 'head') { label(`Flachstrahl ${p.orientation}° · Hörner quer zur langen Strahlachse`, 0, outlet - 35, pose.y); }
+    if (pose.on && used < 100) {
+      const b = brush(p), spray = new T.Mesh(new T.ConeGeometry(1, p.distance, 36, 1, true), new T.MeshBasicMaterial({ color: 0x2ad89d, transparent: true, opacity: .10, side: T.DoubleSide, depthWrite: false }));
+      spray.scale.set(b.sx * 2.5, 1, b.sy * 2.5); spray.rotation.y = -p.orientation * Math.PI / 180; spray.position.set(0, outlet - 12 - p.distance / 2, pose.y); scene.add(spray);
+    }
+    const group = new T.Group(); group.position.set(-pose.x, 40, 0); group.rotation.y = -pose.angle; scene.add(group);
+    box(p.width, 2, p.height, 0, 0, 0, 0xc2cbd1, 1, group);
+    const geometry = new T.PlaneGeometry(p.width, p.height, nx - 1, ny - 1); geometry.rotateX(-Math.PI / 2);
+    const colors = new Float32Array(nx * ny * 3);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i, value = z[k]; geometry.attributes.position.setY(k, 2);
+      const col = value <= 1e-9 ? new T.Color('#dbe3e8') : new T.Color().setHSL((235 - 235 * colorFraction(value, max, log)) / 360, .83, .48);
+      colors.set([col.r, col.g, col.b], k * 3);
+    }
+    geometry.setAttribute('color', new T.BufferAttribute(colors, 3)); geometry.computeVertexNormals(); group.add(new T.Mesh(geometry, new T.MeshStandardMaterial({ vertexColors: true, side: T.DoubleSide, roughness: .75 })));
+    const grid = new T.GridHelper(900, 18, 0x9bacb8, 0xc5cfd6); grid.position.y = -100; scene.add(grid);
+    if (focus === 'head') { camera.position.set(170, outlet + 95, pose.y + 300); controls.target.set(0, outlet + 70, pose.y); }
+    if (focus === 'panel') { camera.position.set(-500, 470, 550); controls.target.set(-500, 170, 255); }
+    if (saved.current?.focus === focus) { camera.position.copy(saved.current.position); controls.target.copy(saved.current.target); }
+    const resize = () => { const w = el.clientWidth, h = el.clientHeight; activeRenderer.setSize(w, h); labelRenderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+    const ro = new ResizeObserver(resize); ro.observe(el); resize();
+    let id = 0;
+    function render() {
+      for (let i = 0; i < states.length; i++) {
+        const s = states[i], lit = s.state === 'on' || s.state === 'blink' && Math.floor((playing ? performance.now() / 1000 : time) * 4) % 2 === 0;
+        lampMaterials[i].color.setHex(i < 2 ? lit ? 0x37ff88 : 0x184c36 : lit ? 0xffffff : 0x8b969f);
+      }
+      controls.update(); activeRenderer.render(scene, camera); labelRenderer.render(scene, camera); id = requestAnimationFrame(render);
+    }
+    render();
+    return () => {
+      saved.current = { focus, position: camera.position.clone(), target: controls.target.clone() }; cancelAnimationFrame(id); ro.disconnect(); controls.dispose(); labelRenderer.domElement.remove();
+      scene.traverse(o => { if (o instanceof T.Mesh) { o.geometry.dispose(); const m = o.material; Array.isArray(m) ? m.forEach(x => x.dispose()) : m.dispose(); } });
+    };
+  }, [p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, focus]);
+  return <div><div className="toolbar">{[['overall', 'Gesamtansicht'], ['head', 'Spritzkopf & Hörner'], ['panel', 'Bedienpult']].map(([v, l]) => <button className={focus === v ? 'active' : ''} key={v} onClick={() => { saved.current = null; setFocus(v); }}>{l}</button>)}</div><div className="bls-scene" ref={host} aria-label="Drehbares Kabinenmodell mit verbundener Aufhängung, Spritze, Luftkappenhörnern und beschrifteten Leuchten" /></div>;
+}
