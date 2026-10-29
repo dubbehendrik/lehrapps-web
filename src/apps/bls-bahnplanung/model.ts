@@ -2,7 +2,7 @@ export type Params = {
   mode: string; q: number; atom: number; horn: number; distance: number; orientation: number;
   solids: number; density: number; viscosity: number; material: string;
   speed: number; spacing: number; over: number; passes: number; flash: number; spot: number;
-  width: number; height: number;
+  width: number; height: number; deltaY: number; nozzle: number;
 };
 export const materials = [
   { id: '2k-solvent', name: '2K-Lösemittellack · Beispiel', density: 1.2, viscosity: 100, solids: 50 },
@@ -12,7 +12,7 @@ export const materials = [
 export const defaults: Params = {
   mode: 'meander', q: 80, atom: 2, horn: 1.5, distance: 150, orientation: 90,
   solids: 50, density: 1.2, viscosity: 100, material: '2k-solvent',
-  speed: 200, spacing: 30, over: 60, passes: 1, flash: 0, spot: 1, width: 200, height: 100,
+  speed: 200, spacing: 30, over: 60, passes: 1, flash: 0, spot: 1, width: 200, height: 100, deltaY: 0, nozzle: 1.5,
 };
 export type Pose = { x: number; y: number; angle: number; phase: string; on: boolean };
 export type Segment = { a: Pose; b: Pose; start: number; duration: number };
@@ -56,7 +56,7 @@ export function plan(p: Params) {
     const angle = p.mode === 'cross' ? (pass % 2) * Math.PI / 2 : 0;
     const w = angle ? p.height : p.width, h = angle ? p.width : p.height, end = w / 2 + p.over;
     if (angle !== cur.angle) move(cur.x, cur.y, angle, 'Werkstück drehen', 2);
-    const count = Math.ceil(h / p.spacing);
+    const count = Math.max(0, Math.ceil((h + 2 * p.deltaY) / p.spacing));
     const rows = p.mode === 'single' ? [0] : Array.from({ length: count + 1 }, (_, i) => (i - count / 2) * p.spacing);
     move(end, rows[0], angle, 'Startposition', 1, false);
     for (let i = 0; i < rows.length; i++) {
