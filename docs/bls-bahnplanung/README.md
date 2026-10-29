@@ -15,3 +15,13 @@ Reference model family: Li et al. 2024, https://doi.org/10.1177/1687813224123418
 ## Verification
 
 Automated tests cover Gaussian normalization, round/elliptical symmetry, orientation, distance scaling, continuous flow during offsets and rotation, priming consumption, zero flow, analytical spot reference, edge accumulation and syringe exhaustion. Full repository build runs tests and TypeScript before Vite. Browser QA covers SVG fallback where WebGL is unavailable; native WebGL appearance remains to be checked on a GPU-enabled device.
+
+## Refinement 2026-10-29
+
+- Initial sheet X=200 / Y=100 mm; portrait 2D view (X up) with sheet-fixed arrows. Default pitch 30 mm, speed 200 mm/s, distance 150 mm, cap 90 degrees.
+- Draft number text is checked only on blur/Enter; invalid text remains visible, errors block recalculation. Recalculation preserves relative time and prior results remain until confirmed.
+- Material examples for solvent 2K, waterborne 1K and waterborne 2K, plus custom density/viscosity/volume solids. Wet density is used only for wet mass. Viscosity is descriptive. AWG uses the ratio of deposited to sprayed solids, including priming. Solid density cancels for identical composition; undefined at zero solids/zero flow.
+- Start release 0.8 s (application lamp blinking), approach 0.7 s, priming 1 s, final drive retract 1.5 s. Four lamps are mapped to these states with text status as well as color. Left and second lamps are green; right two white. Approximate 30 mm syringe bore determines piston travel.
+- Cap has a retaining ring, central nozzle and opposed extruded horns. Horn axis is perpendicular to the fan major axis. Cap, needle, syringe and guide are connected; bridge connects to booth frame. Head and control-desk closeups are available.
+- Shared logarithmic COLOR mapping log(1+999*h/hmax)/log(1000), neutral zero; height, cut curves and µm axis remain linear. Canvas profile follows the HR-ESTA visualization with a movable section plane and direct rotation controls.
+- Browser verified delayed validation (intermediate 1 accepted before blur, then rejected for speed), editing to 100 and recalculation, profile, closeup and labeled panel. Browser has WebGL disabled; SVG fallback and Canvas profile verified. Native GPU appearance still needs user-side checking.
