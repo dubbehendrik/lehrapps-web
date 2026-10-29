@@ -4,9 +4,9 @@ import { SVGRenderer } from 'three/examples/jsm/renderers/SVGRenderer.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { brush, colorFraction, lamps, pistonTravel, type Params, type Pose } from './model';
-export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing }: {
+export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, heightGain }: {
   p: Params; pose: Pose; z: Float32Array; nx: number; ny: number; max: number; log: boolean;
-  cabin: boolean; transparent: boolean; filter: boolean; used: number; time: number; duration: number; playing: boolean;
+  cabin: boolean; transparent: boolean; filter: boolean; used: number; time: number; duration: number; playing: boolean; heightGain: number;
 }) {
   const host = useRef<HTMLDivElement>(null), rendererRef = useRef<T.WebGLRenderer | SVGRenderer | null>(null);
   const saved = useRef<{ focus: string; position: T.Vector3; target: T.Vector3 } | null>(null);
@@ -150,7 +150,8 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
     const geometry = new T.PlaneGeometry(p.width, p.height, nx - 1, ny - 1); geometry.rotateX(Math.PI / 2);
     const colors = new Float32Array(nx * ny * 3);
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-      const k = j * nx + i, value = z[k]; geometry.attributes.position.setY(k, 2);
+      const k = j * nx + i, value = z[k]; // Values are micrometres; scene lengths are millimetres. The display gain is independent of color scaling.
+      geometry.attributes.position.setY(k, 2 + value / 1000 * heightGain);
       const col = value <= 1e-9 ? new T.Color('#dbe3e8') : new T.Color().setHSL((235 - 235 * colorFraction(value, max, log)) / 360, .83, .48);
       colors.set([col.r, col.g, col.b], k * 3);
     }
@@ -178,6 +179,6 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
       saved.current = { focus, position: camera.position.clone(), target: controls.target.clone() }; cancelAnimationFrame(id); ro.disconnect(); labelRenderer.domElement.remove();
       scene.traverse(o => { if ((o instanceof T.Mesh || o instanceof T.Line)) { o.geometry.dispose(); const m = o.material; Array.isArray(m) ? m.forEach(x => x.dispose()) : m.dispose(); } });
     };
-  }, [p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, focus]);
+  }, [p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, focus, heightGain]);
   return <div><div className="toolbar">{[['overall', 'Gesamtansicht'], ['head', 'Spritzkopf & Hörner'], ['panel', 'Bedienpult']].map(([v, l]) => <button className={focus === v ? 'active' : ''} key={v} onClick={() => { saved.current = null; setFocus(v); }}>{l}</button>)}</div><div className="bls-scene" ref={host} aria-label="Drehbares Kabinenmodell mit verbundener Aufhängung, Spritze, Luftkappenhörnern und beschrifteten Leuchten" /></div>;
 }
