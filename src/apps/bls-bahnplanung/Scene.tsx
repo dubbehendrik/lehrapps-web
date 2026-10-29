@@ -3,6 +3,7 @@ import * as T from 'three';
 import { SVGRenderer } from 'three/examples/jsm/renderers/SVGRenderer.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { coatingVolume } from './coatingVolume';
 import { cutValues, type Axis } from './ProfileView';
 import { brush, colorFraction, lamps, pistonTravel, type Params, type Pose, type Result } from './model';
 export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, heightGain, r, axis, fraction, showCut }: {
@@ -148,15 +149,16 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
     }
     const group = new T.Group(); group.position.set(-pose.x, 40, 0); group.rotation.y = pose.angle; scene.add(group);
     box(p.width, 2, p.height, 0, 0, 0, 0xc2cbd1, 1, group);
-    const geometry = new T.PlaneGeometry(p.width, p.height, nx - 1, ny - 1); geometry.rotateX(Math.PI / 2);
-    const colors = new Float32Array(nx * ny * 3);
+    const volume = coatingVolume(p.width, p.height, nx, ny, z, heightGain);
+    const geometry = new T.BufferGeometry(); geometry.setAttribute('position', new T.BufferAttribute(volume.positions, 3)); geometry.setIndex(volume.indices);
+    const colors = new Float32Array(nx * ny * 6);
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
       const k = j * nx + i, value = z[k]; // Values are micrometres; scene lengths are millimetres. The display gain is independent of color scaling.
-      geometry.attributes.position.setY(k, 2 + value / 1000 * heightGain);
+      // Top, perimeter walls and underside form a closed display volume.
       const col = value <= 1e-9 ? new T.Color('#dbe3e8') : new T.Color().setHSL((235 - 235 * colorFraction(value, max, log)) / 360, .83, .48);
-      colors.set([col.r, col.g, col.b], k * 3);
+      colors.set([col.r, col.g, col.b], k * 3); colors.set([col.r, col.g, col.b], (nx * ny + k) * 3);
     }
-    geometry.setAttribute('color', new T.BufferAttribute(colors, 3)); geometry.computeVertexNormals(); group.add(new T.Mesh(geometry, new T.MeshStandardMaterial({ vertexColors: true, side: T.DoubleSide, roughness: .75 })));
+    geometry.setAttribute('color', new T.BufferAttribute(colors, 3)); geometry.computeVertexNormals(); group.add(new T.Mesh(geometry, new T.MeshStandardMaterial({ vertexColors: true, side: T.FrontSide, roughness: .75 })));
     if (showCut) {
       const fixed = (fraction - .5) * (axis === 'x' ? p.height : p.width);
       const length = axis === 'x' ? p.width : p.height;
@@ -165,12 +167,12 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
       const top = 2 + Math.max(12, max / 1000 * heightGain * 1.08);
       const a = point(-length/2, 2), b = point(length/2, 2), c = point(length/2, top), d = point(-length/2, top);
       const planeGeometry = new T.BufferGeometry().setFromPoints([a,b,c,a,c,d]); planeGeometry.computeVertexNormals();
-      group.add(new T.Mesh(planeGeometry, new T.MeshBasicMaterial({ color: 0x7943b6, transparent: true, opacity: .13, side: T.DoubleSide, depthWrite: false })));
+      group.add(new T.Mesh(planeGeometry, new T.MeshBasicMaterial({ color: 0x7943b6, transparent: true, opacity: .13, side: T.DoubleSide, depthWrite: false, depthTest: false })));
       const outline = new T.Line(new T.BufferGeometry().setFromPoints([a,b,c,d,a]), new T.LineDashedMaterial({ color: 0x673b9e, dashSize: 5, gapSize: 3 }));
-      outline.computeLineDistances(); group.add(outline);
+      outline.material.depthTest = false; outline.renderOrder = 5; outline.computeLineDistances(); group.add(outline);
       const values = cutValues(r, z, axis, fraction);
       const profilePoints = values.map((v, i) => point(-length/2 + i/(values.length-1)*length, 2.15 + v/1000*heightGain));
-      group.add(new T.Line(new T.BufferGeometry().setFromPoints(profilePoints), new T.LineBasicMaterial({ color: 0x54218a })));
+      const profile = new T.Line(new T.BufferGeometry().setFromPoints(profilePoints), new T.LineBasicMaterial({ color: 0x54218a, depthTest: false })); profile.renderOrder = 6; group.add(profile);
       const div = document.createElement('div'); div.className = 'bls-model-label';
       div.textContent = `${axis === 'x' ? 'y' : 'x'} = ${fixed.toLocaleString('de-DE', { maximumFractionDigits: 1 })} mm`;
       const caption = new CSS2DObject(div); caption.position.copy(d).y += 7; group.add(caption);
