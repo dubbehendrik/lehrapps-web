@@ -96,7 +96,9 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
       box(9, 9, 550, -pose.x + xOffset, 17, 0, 0xb9c8d0);
       for (const zz of [-260,260]) box(22, 24, 28, -pose.x + xOffset, 10, zz, 0x344b5a);
     }
-    box(120, 16, 100, -pose.x, 25, 0, 0x8898a1); cyl(37, 12, -pose.x, 36, 0, 0x2d454f);
+    box(120, 16, 100, -pose.x, 25, 0, 0x8898a1); // Support top at y=39 meets sheet underside; coating lies at y=42.
+    // Never overlap these surfaces: coplanar depth values cause a flickering circular patch.
+    cyl(37, 12, -pose.x, 33, 0, 0x2d454f);
     // Bridge is connected to both cabin sides, Y rail and carriage are mechanically continuous.
     for (const zz of [-250, 250]) box(740, 22, 35, 0, 675, zz, 0x8d9ba5);
     box(45, 24, 560, 0, 670, 0, 0x8899a4); box(105, 28, 90, 0, 647, (-pose.y) - 25, 0x9ba8ae);
