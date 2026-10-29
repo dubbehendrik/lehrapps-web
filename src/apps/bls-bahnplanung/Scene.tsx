@@ -3,10 +3,11 @@ import * as T from 'three';
 import { SVGRenderer } from 'three/examples/jsm/renderers/SVGRenderer.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { brush, colorFraction, lamps, pistonTravel, type Params, type Pose } from './model';
-export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, heightGain }: {
+import { cutValues, type Axis } from './ProfileView';
+import { brush, colorFraction, lamps, pistonTravel, type Params, type Pose, type Result } from './model';
+export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, heightGain, r, axis, fraction, showCut }: {
   p: Params; pose: Pose; z: Float32Array; nx: number; ny: number; max: number; log: boolean;
-  cabin: boolean; transparent: boolean; filter: boolean; used: number; time: number; duration: number; playing: boolean; heightGain: number;
+  cabin: boolean; transparent: boolean; filter: boolean; used: number; time: number; duration: number; playing: boolean; heightGain: number; r: Result; axis: Axis; fraction: number; showCut: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null), rendererRef = useRef<T.WebGLRenderer | SVGRenderer | null>(null);
   const saved = useRef<{ focus: string; position: T.Vector3; target: T.Vector3 } | null>(null);
@@ -156,6 +157,24 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
       colors.set([col.r, col.g, col.b], k * 3);
     }
     geometry.setAttribute('color', new T.BufferAttribute(colors, 3)); geometry.computeVertexNormals(); group.add(new T.Mesh(geometry, new T.MeshStandardMaterial({ vertexColors: true, side: T.DoubleSide, roughness: .75 })));
+    if (showCut) {
+      const fixed = (fraction - .5) * (axis === 'x' ? p.height : p.width);
+      const length = axis === 'x' ? p.width : p.height;
+      const point = (along: number, height: number) => axis === 'x'
+        ? new T.Vector3(along, height, -fixed) : new T.Vector3(fixed, height, -along);
+      const top = 2 + Math.max(12, max / 1000 * heightGain * 1.08);
+      const a = point(-length/2, 2), b = point(length/2, 2), c = point(length/2, top), d = point(-length/2, top);
+      const planeGeometry = new T.BufferGeometry().setFromPoints([a,b,c,a,c,d]); planeGeometry.computeVertexNormals();
+      group.add(new T.Mesh(planeGeometry, new T.MeshBasicMaterial({ color: 0x7943b6, transparent: true, opacity: .13, side: T.DoubleSide, depthWrite: false })));
+      const outline = new T.Line(new T.BufferGeometry().setFromPoints([a,b,c,d,a]), new T.LineDashedMaterial({ color: 0x673b9e, dashSize: 5, gapSize: 3 }));
+      outline.computeLineDistances(); group.add(outline);
+      const values = cutValues(r, z, axis, fraction);
+      const profilePoints = values.map((v, i) => point(-length/2 + i/(values.length-1)*length, 2.15 + v/1000*heightGain));
+      group.add(new T.Line(new T.BufferGeometry().setFromPoints(profilePoints), new T.LineBasicMaterial({ color: 0x54218a })));
+      const div = document.createElement('div'); div.className = 'bls-model-label';
+      div.textContent = `${axis === 'x' ? 'y' : 'x'} = ${fixed.toLocaleString('de-DE', { maximumFractionDigits: 1 })} mm`;
+      const caption = new CSS2DObject(div); caption.position.copy(d).y += 7; group.add(caption);
+    }
     for (const [direction, name, color] of [[new T.Vector3(1,0,0), 'X', 0xb62332], [new T.Vector3(0,0,-1), 'Y', 0x175fa7]] as const) {
       const origin = new T.Vector3(-pose.x, 48, 0); scene.add(new T.ArrowHelper(direction, origin, 90, color, 12, 7));
       const tip=origin.clone().addScaledVector(direction,105); label(name,tip.x,tip.y,tip.z);
@@ -179,6 +198,6 @@ export default function Scene({ p, pose, z, nx, ny, max, log, cabin, transparent
       saved.current = { focus, position: camera.position.clone(), target: controls.target.clone() }; cancelAnimationFrame(id); ro.disconnect(); labelRenderer.domElement.remove();
       scene.traverse(o => { if ((o instanceof T.Mesh || o instanceof T.Line)) { o.geometry.dispose(); const m = o.material; Array.isArray(m) ? m.forEach(x => x.dispose()) : m.dispose(); } });
     };
-  }, [p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, focus, heightGain]);
+  }, [p, pose, z, nx, ny, max, log, cabin, transparent, filter, used, time, duration, playing, focus, heightGain, r, axis, fraction, showCut]);
   return <div><div className="toolbar">{[['overall', 'Gesamtansicht'], ['head', 'Spritzkopf & Hörner'], ['panel', 'Bedienpult']].map(([v, l]) => <button className={focus === v ? 'active' : ''} key={v} onClick={() => { saved.current = null; setFocus(v); }}>{l}</button>)}</div><div className="bls-scene" ref={host} aria-label="Drehbares Kabinenmodell mit verbundener Aufhängung, Spritze, Luftkappenhörnern und beschrifteten Leuchten" /></div>;
 }
