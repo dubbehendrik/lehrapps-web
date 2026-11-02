@@ -202,12 +202,10 @@ export default function App() {
     busy || !solved.svg || !!solved.errors.length || !!solved.messages.length;
   return (
     <article className="hx-app">
-      <h1>Mollier h,x-Diagramm</h1>
-      <p>
+      <h1>Mollier h,x-Diagramm</h1><details className="program-description"><summary>Programmbeschreibung</summary><p>
         Luftzustände und Zustandsänderungen für die Planung von Lackierkabinen.
       </p>
-      <details>
-        <summary>Hinweise zur Verwendung und Berechnungsgrundlagen</summary>
+<h3>Modellannahmen und Berechnungsgrundlagen</h3>
         <p>
           Zwei Zustandsgrößen vorgeben oder einen Punkt im Diagramm anklicken.
           Alternativ erzeugt eine Prozessart mit einer Zielgröße den nächsten

@@ -96,10 +96,10 @@ export default function App() {
   };
   const compareCompatible = !reference || reference.config.sheetWidth === result.config.sheetWidth && reference.config.sheetHeight === result.config.sheetHeight;
   return <article className="rb-app">
-    <p className="eyebrow">Fokus: Labor · Virtueller Beschichtungsversuch</p>
     <h1>Roboter Bahnplanung <span>(Demo)</span></h1>
-    <details className="rb-program-info"><summary>Programmbeschreibung, Formeln und Modellgrenzen</summary>
+    <details className="rb-program-info program-description"><summary>Programmbeschreibung</summary>
       <p>Brush einstellen, Spritzbild untersuchen und den zeitlichen Schichtaufbau auf stationären und bewegten Bahnen vergleichen. Der violette Schnitt wird in 2D und in beiden 3D-Ansichten an derselben Position dargestellt.</p>
+<h3>Modellannahmen und Berechnungsgrundlagen</h3>
       <p>{COPY} CAD und TCP-Bewegung dienen der Anschauung; keine Bestätigung von Erreichbarkeit oder Kollisionsfreiheit.</p>
       <ProgramFormulas/>
       <p>Quelle: Nico Güttler (2024), „Methodik für numerische Lackiersimulationen: Bedeutung der Modell- und Eingangsparameter bei der Hochrotationszerstäubung“. Referenzprofil: Abb. A.1, ABB RB1000 SSD, Brush 1; Parameterreihen: Abb. A.7–A.11; Stoffdaten: Tab. 3.4. Diese konkrete Literaturkombination dient als Ausgangspunkt des generischen Modells, nicht als Kalibrierung des dargestellten CAD-Werkzeugs.</p>

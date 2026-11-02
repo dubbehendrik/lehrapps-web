@@ -57,7 +57,7 @@ export default function App() {
     const relativeTime = time / r.duration; setPlaying(false); setBusy(true);
     setTimeout(() => { setP({ ...draft }); const next = simulate(draft); setTime(Math.min(next.duration, relativeTime * next.duration)); setBusy(false); setMessage('Neu berechnet. Die relative Zeitposition wurde beibehalten.'); }, 20);
   };
-  return <div className="bls"><p>FOKUS LABOR · FÜLL LAB</p><h1>BLS Bahnplanung <small>(Demo)</small></h1>
+  return <div className="bls"><h1>BLS Bahnplanung <small>(Demo)</small></h1>
     <Description />
     <div className={'bls-update ' + (dirty ? 'dirty' : '')} role="status"><span>{dirty ? 'Einstellungen geändert – die angezeigten Ergebnisse gehören noch zur bisherigen Berechnung.' : message || 'Ergebnisse entsprechen den berechneten Einstellungen.'}</span><button className="blue" disabled={invalid || !!error || busy} onClick={calculate}>{busy ? 'Berechnet …' : 'Neu berechnen'}</button></div>
     <div className="bls-layout"><aside>

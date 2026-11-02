@@ -1,3 +1,4 @@
+import { MathFormula } from '../../components/MathFormula';
 import { createElement as el, useState } from 'react';
 import { MathExpression, IndexedSymbol, math as m } from '../../components/MathNotation';
 import { SupportFooter } from '../../components/SupportFooter';
@@ -38,10 +39,11 @@ export default function ZerfallsartenApp() {
   }
   return <div className="zerfallsarten-app">
     <h1>Zerfallsarten an einer Rotationsglocke</h1>
-    <details><summary>Hinweise zur Verwendung und Berechnung</summary>
+    <details className="program-description"><summary>Programmbeschreibung</summary>
       <p>Die App berechnet dimensionslose Kennzahlen für die Lackzerstäubung und die Filmdicke am Glockenrand unter Annahme konstanter Viskosität. Änderungen der Eingaben aktualisieren den Betriebspunkt unmittelbar.</p>
+<h3>Modellannahmen und Berechnungsgrundlagen</h3>
       <div className="zerfall-formulas">{formulas.map(([name,formula])=><MathExpression key={String(name)} label={`Formel für ${name}`}>{m.row(name==='Kᵦ'?m.index('K','b'):m.identifier(String(name)),m.operator('='),formula)}</MathExpression>)}</div>
-      <p>In den Formeln werden SI-Einheiten verwendet; n wird in min⁻¹ eingesetzt. Der Radius ist r = D/2. Der Konturwinkel muss strikt zwischen 0° und 180° liegen. Nahe diesen Grenzen wird das Filmdickenmodell singulär.</p>
+      <p>In den Formeln werden SI-Einheiten verwendet; n wird in min⁻¹ eingesetzt. Der Radius ist <MathFormula label="Glockenradius" markup={"<mrow><mi>r</mi><mo>=</mo><mfrac><mi>D</mi><mn>2</mn></mfrac></mrow>"}/>. Der Konturwinkel muss strikt zwischen 0° und 180° liegen. Nahe diesen Grenzen wird das Filmdickenmodell singulär.</p>
       <p>Das historische Diagramm zeigt Tropfen-, Faden- und Lamellenzerstäubung. Die Bereichsgrenzen werden aus der Abbildung abgelesen; eine automatische Klassifikation wird daraus nicht abgeleitet. Die graue Fläche ist der eingezeichnete Arbeitsbereich, keine allgemeingültige Betriebsfreigabe.</p>
       <p>Abbildung in Anlehnung an: Weckerle, G.: Beschichtung hochwertiger Karosserieoberflächen mit Pulver Slurry, Dissertation, Universität Stuttgart, 2003.</p>
     </details>

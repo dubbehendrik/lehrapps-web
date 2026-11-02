@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useRef,useState,type ReactNode} from 'react';
+import {createElement,useEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {Chart} from '../../components/Chart';
 import {SupportFooter} from '../../components/SupportFooter';
 import {MathExpression,math} from '../../components/MathNotation';
@@ -21,11 +21,12 @@ function ComparisonMap({result,view,point,onChoose}:{result:Result;view:View;poi
   useEffect(()=>{if(ref.current&&result.comparison)drawDiagram(ref.current,result.p,view,result.comparison.slice,point);},[result,view.smooth,point]);
   return <figure><figcaption><h2>Vergleich: {result.p.radiation?.enabled?'ohne':'mit'} Wärmestrahlung</h2><p>Gleicher Schnitt, Zeitpunkt und feste Farbskala. Auch hier kann ein Punkt ausgewählt werden.</p></figcaption><canvas ref={ref} className="heat-canvas" width={WIDTH} height={HEIGHT} role="img" aria-label="Temperaturkarte des Vergleichsszenarios" onClick={e=>{const r=e.currentTarget.getBoundingClientRect(),pos=diagramPoint(result.p,view,(e.clientX-r.left)/r.width*WIDTH,(e.clientY-r.top)/r.height*HEIGHT);if(pos)onChoose(pos);}}/></figure>;
 }
-function Description(){return <details className="heat-description"><summary>Programmbeschreibung</summary>
+function Description(){return <details className="heat-description program-description"><summary>Programmbeschreibung</summary>
   <p>Die Anwendung zeigt, wie sich die Temperatur in einem <strong>quaderförmigen Bauteil</strong> während der Abkühlung verändert. Material, Abmessungen und Wärmeübergang zur Umgebung können eingestellt sowie verschiedene Schnitte und Zeitpunkte betrachtet werden. Gegenüberliegende Flächen dürfen unterschiedliche Wärmeübergangskoeffizienten besitzen.</p>
+<h3>Modellannahmen und Berechnungsgrundlagen</h3>
   <div className="formula-list">
     <MathExpression label="Biot-Zahl: alpha i plus oder minus mal L i geteilt durch lambda">{math.row(math.index('Bi','i,±'),math.operator('='),math.fraction(math.row(math.index('α','i,±'),math.index('L','i,char')),math.identifier('λ')))}</MathExpression>
-    <MathExpression label="Fourier-Zahl: a mal t geteilt durch L i zum Quadrat">{math.row(math.index('Fo','i'),math.operator('='),math.fraction(math.row(math.identifier('a'),math.identifier('t')),math.row(math.index('L','i,char'),math.operator('²'))))}</MathExpression>
+    <MathExpression label="Fourier-Zahl: a mal t geteilt durch L i zum Quadrat">{math.row(math.index('Fo','i'),math.operator('='),math.fraction(math.row(math.identifier('a'),math.identifier('t')),createElement('msup',null,math.index('L','i,char'),math.number('2'))))}</MathExpression>
     <MathExpression label="Temperaturleitfähigkeit: lambda geteilt durch rho mal c p">{math.row(math.identifier('a'),math.operator('='),math.fraction(math.identifier('λ'),math.row(math.identifier('ρ'),math.index('c','p'))))}</MathExpression>
   </div>
   <p>Für jede Richtung i = x, y, z ist L<sub>i,char</sub> die <strong>halbe Bauteilabmessung</strong>, auch bei asymmetrischer Kühlung. α bezeichnet den Wärmeübergangskoeffizienten, λ die Wärmeleitfähigkeit, ρ die Dichte und cₚ die spezifische Wärmekapazität. − und + kennzeichnen die gegenüberliegenden Flächen. Bei α = 0 entfällt die Konvektion. Eine Fläche ist adiabatisch, wenn zusätzlich kein Strahlungsaustausch stattfindet (Strahlung ausgeschaltet oder ε = 0).</p>

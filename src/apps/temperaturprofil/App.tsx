@@ -197,13 +197,11 @@ export default function TemperatureApp() {
   }
   return (
     <>
-      <h1>Temperaturverläufe</h1>
-      <p>
+      <h1>Temperaturverläufe</h1><details className="program-description"><summary>Programmbeschreibung</summary><p>
         Wärmeübergangskoeffizienten aus Messungen bestimmen und Erwärmung oder
         Abkühlung vergleichen.
       </p>
-      <details>
-        <summary>Modell und Bedienung</summary>
+<h3>Modellannahmen und Berechnungsgrundlagen</h3>
         <div className="normal-formula">
           <MathExpression label="Temperaturmodell mit Referenzzeit">
             {math.row(

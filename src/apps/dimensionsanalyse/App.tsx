@@ -615,16 +615,15 @@ export default function App() {
   }
   return (
     <div className="dim-app">
-      <p className="eyebrow">Fokus: Vorlesung · Ähnlichkeitstheorie</p>
       <h1>Dimensionsanalyse</h1>
-      <details>
-        <summary>Programmbeschreibung, Grundlagen und Grenzen</summary>
+      <details className="program-description"><summary>Programmbeschreibung</summary>
         <p>
           Vier Module verbinden eine Bibliothek von {numbers.length} Kennzahlen,{" "}
           {problems.length}
           kuratierte Aufgabenfamilien, einen exakten Buckingham-Π-Schnelllöser
           und einen interaktiven Dimensionsraum.
         </p>
+<h3>Modellannahmen und Berechnungsgrundlagen</h3>
         <p>
           Jede Größe wird durch sieben Exponenten beschrieben. Produkte werden
           zu Linearkombinationen: Eine dimensionslose Gruppe erfüllt die

@@ -8,7 +8,7 @@ import ProgramFormulas from '../src/apps/roboter-bahnplanung/ProgramFormulas';
 describe('Lackierdemo: Programminformation und Ansichtsfolge',()=>{
  it('startet mit eingeklappter Programmbeschreibung direkt unter dem Titel',()=>{
    const html=renderToStaticMarkup(createElement(App));
-   const match=html.match(/<details class="rb-program-info"[^>]*>/);
+   const match=html.match(/<details class="[^"]*\brb-program-info\b[^"]*"[^>]*>/);
    expect(match).not.toBeNull();expect(match![0]).not.toContain('open');
    expect(html.indexOf('rb-program-info')).toBeGreaterThan(html.indexOf('</h1>'));
    expect(html.indexOf('rb-program-info')).toBeLessThan(html.indexOf('rb-steps'));
