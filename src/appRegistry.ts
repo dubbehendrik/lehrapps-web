@@ -1,12 +1,13 @@
 import { lazy } from "react";
 export const appCategories = [
-  { id: "labor", label: "Fokus: Labor" },
-  { id: "vorlesung", label: "Fokus: Vorlesung" },
-  { id: "mathematik", label: "Fokus: Mathematik" },
+  { id: "labor", label: "Labor" },
+  { id: "vorlesung", label: "Vorlesung" },
+  { id: "mathematik", label: "Mathematik" },
+  { id: "automatisierung", label: "Automatisierung" },
 ] as const;
 export const appRegistry = [
-  { path: "/bls-bahnplanung", category: "labor", overviewOrder: 7, name: "BLS Bahnplanung (Demo)", description: "BLS-Kabine erkunden, Rund- und Flachstrahl einstellen und Schichtaufbau bei Einzelbahn, Mäander und Kreuzgang untersuchen.", component: lazy(() => import("./apps/bls-bahnplanung/App")) },
-  { path: "/roboter-bahnplanung", category: "labor", overviewOrder: 6, name: "Roboter Bahnplanung (Demo)", description: "Rotationssymmetrische Spritzbilder einstellen, 2D- und 3D-Bahnszenarien untersuchen und generische Trockenschichtdicken in µm vergleichen. Literaturgestütztes Lehrmodell, keine reale Roboterbahnplanung.", component: lazy(() => import("./apps/roboter-bahnplanung/App")) },
+  { path: "/bls-bahnplanung", category: "automatisierung", overviewOrder: 1, name: "BLS Bahnplanung (Demo)", description: "BLS-Kabine erkunden, Rund- und Flachstrahl einstellen und Schichtaufbau bei Einzelbahn, Mäander und Kreuzgang untersuchen.", component: lazy(() => import("./apps/bls-bahnplanung/App")) },
+  { path: "/roboter-bahnplanung", category: "automatisierung", overviewOrder: 0, name: "Roboter Bahnplanung (Demo)", description: "Rotationssymmetrische Spritzbilder einstellen, 2D- und 3D-Bahnszenarien untersuchen und generische Trockenschichtdicken in µm vergleichen. Literaturgestütztes Lehrmodell, keine reale Roboterbahnplanung.", component: lazy(() => import("./apps/roboter-bahnplanung/App")) },
   { path: "/collatz-visualizer", category: "mathematik", overviewOrder: 3, name: "Collatz-Visualizer", description: "Collatz-Folgen, inverse Bäume, Binärdarstellungen und affine Transformationsräume erkunden.", component: lazy(() => import("./apps/collatz-visualizer/App")) },
   { path: "/dimensionsanalyse", category: "vorlesung", overviewOrder: 8, name: "Dimensionsanalyse", description: "Dimensionslose Kennzahlen einschließlich Elektrochemie und Batterien nachschlagen, Buckingham-Π-Aufgaben lösen und Dimensionsräume mit interaktiven Vektorzügen untersuchen.", component: lazy(() => import("./apps/dimensionsanalyse/App")) },
   { path: "/filmstroemung-glockenteller", category: "vorlesung", overviewOrder: 6, name: "Filmströmung auf Glockenteller", description: "Filmdicke, Geschwindigkeit und Rheologie vergleichen und die strukturviskose Filmströmung schrittweise iterieren.", component: lazy(() => import("./apps/filmstroemung-glockenteller/App")) },

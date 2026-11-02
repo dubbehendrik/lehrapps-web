@@ -258,12 +258,8 @@ export default function StrahlbreiteApp() {
       : [];
   return (
     <>
-      <p className="eyebrow">
-        Applikations- und Verfahrenstechnik · Strahlbreite
-      </p>
       <h1>Vom Einzelstrahl zur Totalbeschichtung</h1>
-      <details>
-        <summary>Hinweise zur Verwendung und Berechnung</summary>
+      <details className="program-description"><summary>Programmbeschreibung</summary>
         <p>
           Lade ein Einzelstrahlprofil als Excel-Datei oder wähle eines der drei
           Beispiele. Die erste Zeile enthält Spaltenüberschriften, die ersten
@@ -271,6 +267,7 @@ export default function StrahlbreiteApp() {
           wird verwendet; unvollständige Zeilen werden ausgelassen. Orte müssen
           streng aufsteigen.
         </p>
+<h3>Modellannahmen und Berechnungsgrundlagen</h3>
         <p>
           Der kubische Spline verwendet den Glättungsfaktor s als Grenze für die
           Summe der quadrierten Abweichungen an den Messpunkten. Bei s = 0

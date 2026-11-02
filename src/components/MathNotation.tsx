@@ -2,7 +2,9 @@ import { createElement, type ReactNode } from "react";
 
 // Native MathML provides real fractions and indices without an extra renderer.
 export const math = {
-  identifier: (value: string) => createElement("mi", null, value),
+  identifier: (value: string) => value.endsWith("̇")
+    ? createElement("mover", null, createElement("mi", null, value.slice(0, -1)), createElement("mo", null, "˙"))
+    : createElement("mi", null, value),
   number: (value: string) => createElement("mn", null, value),
   operator: (value: string) => createElement("mo", null, value),
   text: (value: string) => createElement("mtext", null, value),
@@ -13,7 +15,7 @@ export const math = {
     createElement(
       "msub",
       null,
-      createElement("mi", null, base),
+      math.identifier(base),
       createElement(/^\d+$/.test(index) ? "mn" : "mtext", null, index),
     ),
 };
@@ -30,6 +32,7 @@ export function MathExpression({
     {
       xmlns: "http://www.w3.org/1998/Math/MathML",
       className: "math-expression",
+      displaystyle: "true",
       "aria-label": label,
     },
     children,

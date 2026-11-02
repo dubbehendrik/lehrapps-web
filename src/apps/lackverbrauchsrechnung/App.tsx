@@ -151,10 +151,8 @@ export default function App() {
   };
   return (
     <>
-      <h1>Lackverbrauchs&shy;rechnung</h1>
-      <p>Bauteil → Produktion → Lackmenge, Verluste und Kosten</p>
-      <details>
-        <summary>Modell, Einheiten und Bedienung</summary>
+      <h1>Lackverbrauchs&shy;rechnung</h1><details className="program-description"><summary>Programmbeschreibung</summary><p>Bauteil → Produktion → Lackmenge, Verluste und Kosten</p>
+<h3>Modellannahmen und Berechnungsgrundlagen</h3>
         <p>
           Abschätzung für eine einheitliche Beschichtung mit
           verarbeitungsfertigem Lack. Materialangaben und Literpreis beziehen

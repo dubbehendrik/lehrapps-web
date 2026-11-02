@@ -706,10 +706,14 @@ export default function App() {
   return (
     <div className="flock-app">
       <h1>Flock-Inspector</h1>
-      <p>
-        Faserlängen erkennen, kontrollieren und vergleichen. Gemessen wird die
-        projizierte Länge entlang der Mittellinie.
-      </p>
+      <details className="program-description"><summary>Programmbeschreibung</summary>
+        <p>Faserlängen erkennen, kontrollieren und vergleichen. Bilder laden, für jedes Bild einen Maßstab kalibrieren, Fasern erkennen lassen und die Ergebnisse visuell kontrollieren. Gemessen wird die projizierte Länge entlang der Mittellinie.</p>
+        <h3>Modellannahmen und Grenzen</h3>
+        <p>Die Auswertung erfasst zweidimensionale Projektionen, keine räumliche Faserlänge. Kalibrierung, Bildkontrast, Überlagerungen und Bildränder beeinflussen die Erkennung. Mehrdeutige Fasern müssen geprüft, gegebenenfalls nachgezeichnet oder ausgeschlossen werden.</p>
+        <p>Materialvergleiche verwenden unabhängige Probenmittelwerte. Der zweiseitige Welch-Test prüft einen Mittelwertunterschied bei einem Signifikanzniveau von 5 %. Die Erklärung und das Ergebnis stehen zusätzlich beim Vergleich. Einzelne Fasern derselben Probe ersetzen keine unabhängigen Proben.</p>
+        <h3>Speicherung und Verarbeitung</h3>
+        <p>Die Bildverarbeitung erfolgt lokal im Browser. Projekte können als ZIP gespeichert und wieder geladen werden; Messwerte lassen sich als CSV exportieren. Die Offline-Version steht unterhalb dieser Beschreibung zum Download bereit.</p>
+      </details>
       {import.meta.env.VITE_OFFLINE !== "true" && (
         <p><a href="/downloads/Flock-Inspector-Offline.zip" download>Offline-Version herunterladen (ZIP)</a> · Für Firefox unter Windows 7 und neuer. ZIP entpacken und Start-Flock-Inspector.html mit Firefox öffnen.</p>
       )}
