@@ -1,0 +1,10 @@
+import { describe,it,expect } from 'vitest';
+import { defaults, reynolds, modalState, localVelocity, pipeVelocity, pipeForces, trajectories, validate } from '../src/apps/laminar-turbulent/logic';
+describe('local linear shear and laminar pipe reference',()=>{
+ it('uses SI conversions and Poiseuille reference',()=>{expect(reynolds(defaults)).toBeCloseTo(2000);expect(pipeVelocity(0)).toBe(2);expect(pipeVelocity(1)).toBe(0);expect(pipeForces(defaults).pressureGradient).toBeCloseTo(64);expect(pipeForces(defaults).shearStress).toBeCloseTo(0.08);});
+ it('has zero disturbance without a seed and decays at long times',()=>{expect(modalState({...defaults,amplitude:0},5).energy).toBe(0);expect(modalState(defaults,1000).energy).toBeLessThan(1e-100);});
+ it('satisfies modal lift-up ODE and energy balance',()=>{const t=2,h=1e-5,s=modalState(defaults,t),l=modalState(defaults,t-h),r=modalState(defaults,t+h);expect((r.axial-l.axial)/(2*h)).toBeCloseTo(4*s.cross-s.decayRate*s.axial,8);expect((r.energy-l.energy)/(2*h)).toBeCloseTo(s.production-s.dissipation,8);expect(modalState(defaults,s.peakTime).axial).toBeGreaterThan(s.axial);});
+ it('uses divergence-free transverse velocities',()=>{const y=.037,z=.061,h=1e-6;const dy=(localVelocity(defaults,1,y+h,z).v-localVelocity(defaults,1,y-h,z).v)/(2*h);const dz=(localVelocity(defaults,1,y,z+h).w-localVelocity(defaults,1,y,z-h).w)/(2*h);expect(dy+dz).toBeCloseTo(0,8);});
+ it('tracks faster and slower markers and supports zero time',()=>{const paths=trajectories(defaults,2);expect(paths[0].at(-1)!.y).toBeGreaterThan(-.04);expect(paths[1].at(-1)!.y).toBeLessThan(.04);expect(trajectories(defaults,0)[0]).toHaveLength(1);const clean=trajectories({...defaults,amplitude:0},2);expect(clean[0].at(-1)!.y).toBe(-.04);expect(clean[0].at(-1)!.x).toBeCloseTo(3.32);});
+ it('rejects nonphysical and nonfinite inputs',()=>{expect(validate(defaults)).toBeNull();expect(validate({...defaults,viscosity:0})).toBeTruthy();expect(validate({...defaults,speed:NaN})).toBeTruthy();});
+});
