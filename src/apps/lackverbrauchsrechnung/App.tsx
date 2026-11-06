@@ -13,16 +13,17 @@ import {
   PLANS,
   PERIODS,
   CHARTS,
-  traces,
   type Parameters,
   type Period,
   type Scenario,
 } from "./logic";
 import { exportData, exportImage } from "./exports";
-const fmt = (v: unknown) =>
-  typeof v === "number"
-    ? v.toLocaleString("de-DE", { maximumFractionDigits: 4 })
-    : String(v ?? "–");
+import {
+  formatValue as fmt,
+  chartLayout,
+  chartTraces as traces,
+} from "./presentation";
+import { NumberField } from "./NumberField";
 const colors = [
   "#0072B2",
   "#D55E00",
@@ -60,6 +61,7 @@ function Table({ rows }: { rows: Record<string, unknown>[] }) {
 }
 export default function App() {
   const [p, setP] = useState({ ...DEFAULTS }),
+    [inputVersion, setInputVersion] = useState(0),
     [saved, setSaved] = useState<Scenario[]>([]),
     [name, setName] = useState(""),
     [keep, setKeep] = useState(true),
@@ -82,19 +84,15 @@ export default function App() {
     max?: number,
     step = 1,
   ) => (
-    <label>
-      {label}
-      <input
-        type="number"
-        value={Number.isNaN(Number(p[k])) ? "" : p[k]}
-        min={k === "price" || k === "pause" ? 0 : undefined}
-        max={max}
-        step={step}
-        onChange={(e) =>
-          update(k, e.target.value === "" ? NaN : Number(e.target.value))
-        }
-      />
-    </label>
+    <NumberField
+      key={`${k}-${inputVersion}`}
+      label={label}
+      value={Number(p[k])}
+      min={k === "price" || k === "pause" ? 0 : undefined}
+      max={max}
+      step={step}
+      onChange={(value) => update(k, value)}
+    />
   );
   const select = (
     k: keyof Parameters,
@@ -151,8 +149,11 @@ export default function App() {
   };
   return (
     <>
-      <h1>Lackverbrauchs&shy;rechnung</h1><details className="program-description"><summary>Programmbeschreibung</summary><p>Bauteil → Produktion → Lackmenge, Verluste und Kosten</p>
-<h3>Modellannahmen und Berechnungsgrundlagen</h3>
+      <h1>Lackverbrauchs&shy;rechnung</h1>
+      <details className="program-description">
+        <summary>Programmbeschreibung</summary>
+        <p>Bauteil → Produktion → Lackmenge, Verluste und Kosten</p>
+        <h3>Modellannahmen und Berechnungsgrundlagen</h3>
         <p>
           Abschätzung für eine einheitliche Beschichtung mit
           verarbeitungsfertigem Lack. Materialangaben und Literpreis beziehen
@@ -358,6 +359,7 @@ export default function App() {
             <button
               onClick={() => {
                 setP({ ...DEFAULTS });
+                setInputVersion((v) => v + 1);
                 setSaved([]);
                 setName("");
                 setKeep(true);
@@ -465,26 +467,7 @@ export default function App() {
                   : "Zeitachse: verfügbare Produktionsstunden einschließlich Werkstückpausen; über die Takte gemittelt."
               }
               data={traces(entries, chart, period)}
-              layout={{
-                xaxis: {
-                  title: {
-                    text:
-                      chart === CHARTS[2]
-                        ? "Materialnutzungsgrad MNG [%]"
-                        : "Verfügbare Produktionszeit [h]",
-                  },
-                },
-                yaxis: {
-                  title: {
-                    text:
-                      chart === CHARTS[1]
-                        ? "Kumulierte Lackkosten [€]"
-                        : "Lackmenge [L]",
-                  },
-                  rangemode: "tozero",
-                },
-                legend: { orientation: "h" },
-              }}
+              layout={chartLayout(chart)}
             />
           )}
           {saved.length > 0 ? (

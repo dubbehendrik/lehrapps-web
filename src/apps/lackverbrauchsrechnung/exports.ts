@@ -1,10 +1,9 @@
 import {
-  calculate,
-  PERIODS,
-  traces,
-  type Scenario,
-  type Period,
-} from "./logic";
+  chartLayout,
+  formatInput,
+  chartTraces as traces,
+} from "./presentation";
+import { calculate, PERIODS, type Scenario, type Period } from "./logic";
 import { download } from "../../lib/download";
 export { download } from "../../lib/download";
 export function exportFrames(entries: Scenario[]) {
@@ -52,7 +51,7 @@ export async function exportData(entries: Scenario[], format: "CSV" | "Excel") {
   if (format === "CSV") {
     const keys = Object.keys(frames.summary[0]);
     const escape = (v: unknown) =>
-      `"${String(typeof v === "number" ? String(v).replace(".", ",") : (v ?? "")).replaceAll('"', '""')}"`;
+      `"${String(typeof v === "number" ? formatInput(v).replace(".", ",") : (v ?? "")).replaceAll('"', '""')}"`;
     download(
       new Blob(
         [
@@ -118,7 +117,19 @@ export async function exportData(entries: Scenario[], format: "CSV" | "Excel") {
       sheet: names[i],
       data: [
         keys,
-        ...rows.map((row) => keys.map((k) => row[k] as string | number | null)),
+        ...rows.map((row) =>
+          keys.map((k) => {
+            const value = row[k] as string | number | null;
+            return typeof value === "number"
+              ? {
+                  value,
+                  type: Number,
+                  format:
+                    value !== 0 && Math.abs(value) < 0.01 ? "0.##E+00" : "0.##",
+                }
+              : value;
+          }),
+        ),
       ],
       stickyRowsCount: 1,
     };
@@ -134,34 +145,34 @@ export async function exportImage(
   const { default: Plotly } = await import("plotly.js-basic-dist-min");
   const div = document.createElement("div");
   document.body.append(div);
+  const data = traces(entries, chart, period);
+  const legendHeight = data.reduce(
+    (height, trace) => height + trace.name.split("<br>").length * 22 + 10,
+    0,
+  );
+  const height = Math.max(600, legendHeight + 180);
   try {
-    await Plotly.newPlot(div, traces(entries, chart, period), {
+    await Plotly.newPlot(div, data, {
       width: 1100,
-      height: 600,
+      height,
       title: { text: `${chart} · ${period}` },
-      xaxis: {
-        title: {
-          text:
-            chart === "Materialnutzungsgrad"
-              ? "Materialnutzungsgrad MNG [%]"
-              : "Verfügbare Produktionszeit [h]",
-        },
-      },
-      yaxis: {
-        title: {
-          text:
-            chart === "Kumulierte Lackkosten"
-              ? "Kumulierte Lackkosten [€]"
-              : "Lackmenge [L]",
-        },
-        rangemode: "tozero",
+      ...chartLayout(chart),
+      // Export every legend entry without a scroll area in the static image.
+      margin: { l: 100, r: 300, t: 80, b: 100 },
+      legend: {
+        orientation: "v",
+        x: 1.02,
+        xanchor: "left",
+        y: 1,
+        yanchor: "top",
+        maxheight: height - 180,
       },
     });
     await Plotly.downloadImage(div, {
       format,
       filename: "Lackverbrauch",
       width: 1100,
-      height: 600,
+      height,
     });
   } finally {
     Plotly.purge(div);
