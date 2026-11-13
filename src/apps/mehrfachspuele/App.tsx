@@ -79,7 +79,6 @@ export default function App() {
   const history = (all: boolean) => { updateActive(s => ({ ...s, interventions: all ? [] : s.interventions.slice(0, -1) })); setEditor(null); setError(''); setMessage(all ? 'Alle Eingriffe zurückgesetzt.' : 'Letzten Eingriff rückgängig gemacht.'); };
   const annotations: Partial<import("plotly.js").Annotation>[] = [];
   const traces: Data[] = [];
-  const legend: { label: string; color: string; dashed?: boolean }[] = [];
   scenarios.forEach((s, index) => {
     if (!selected.includes(s.id)) return;
     const r = results.get(s.id)!;
@@ -87,31 +86,27 @@ export default function App() {
     const stages = [s.parameters.stages.length, ...(extraStages[s.id] ?? []).filter(n => n < s.parameters.stages.length)];
     stages.forEach((n, j) => {
       const label = `${s.name} · Stufe ${n}${n === s.parameters.stages.length ? ' (Endkonzentration)' : ''}`;
-      traces.push({ type: 'scatter', mode: j === 0 ? 'lines' : 'lines+markers', marker: { color, size: 6, symbol: (['circle', 'diamond', 'square', 'triangle-up', 'triangle-down', 'pentagon', 'hexagon', 'star', 'cross', 'x', 'triangle-right'] as const)[n - 1] }, x: r.concentrations.map((_, t) => t), y: r.concentrations.map(row => row[n - 1]),
-        line: { color, width: j === 0 ? 3 : 2, dash: 'solid' },
+      traces.push({ type: 'scatter', name: label, showlegend: true, mode: j === 0 ? 'lines' : 'lines+markers', marker: { color, size: 8, symbol: (['circle', 'diamond', 'square', 'triangle-up', 'triangle-down', 'pentagon', 'hexagon', 'star', 'cross', 'x', 'triangle-right'] as const)[n - 1] }, x: r.concentrations.map((_, t) => t), y: r.concentrations.map(row => row[n - 1]),
+        line: { color, width: j === 0 ? 4 : 1.3, dash: 'solid' },
         text: r.concentrations.map(row => `${escapeHtml(label)}<br>c = ${fmt(row[n - 1])} g/L`), hovertemplate: '%{text}<br>t = %{x}<extra></extra>' });
-      legend.push({ label, color, dashed: j > 0 });
     });
     const limit = commonLimit ? comparisonLimit : s.parameters.limit;
     if (!commonLimit) {
-      traces.push({ type: 'scatter', mode: 'lines', x: [0, s.parameters.steps], y: [limit, limit], line: { color, width: 2, dash: 'dash' }, hoverinfo: 'skip' });
-      legend.push({ label: `${s.name} · Grenze ${fmt(limit)} g/L`, color, dashed: true });
+      traces.push({ type: 'scatter', mode: 'lines', name: `${s.name} · Grenze ${fmt(limit)} g/L`, showlegend: true, x: [0, s.parameters.steps], y: [limit, limit], line: { color, width: 2, dash: 'dash' }, hoverinfo: 'skip' });
     }
     if (r.firstExceedance !== null) {
       const t = r.firstExceedance;
-      traces.push({ type: 'scatter', mode: 'markers', x: [t], y: [r.concentrations[t].at(-1)!], marker: { color, size: 12, symbol: 'diamond', line: { color: '#fff', width: 2 } }, text: [`${escapeHtml(s.name)} · erste Grenzüberschreitung`], hovertemplate: '%{text}<br>t = %{x}<br>c = %{y:.1f} g/L<extra></extra>' });
-      legend.push({ label: `${s.name} · erste Überschreitung bei t = ${t}`, color });
+      traces.push({ type: 'scatter', name: `${s.name} · erste Überschreitung bei t = ${t}`, showlegend: true, mode: 'markers', x: [t], y: [r.concentrations[t].at(-1)!], marker: { color, size: 12, symbol: 'diamond', line: { color: '#fff', width: 2 } }, text: [`${escapeHtml(s.name)} · erste Grenzüberschreitung`], hovertemplate: '%{text}<br>t = %{x}<br>c = %{y:.1f} g/L<extra></extra>' });
     }
     s.interventions.forEach((e, k) => {
-      traces.push({ type: 'scatter', mode: 'markers', x: [e.step], y: [e.value], marker: { color, size: 9, symbol: 'square' }, hovertemplate: `Eingriff · n = ${e.stage}<br>t = %{x}<br>c = %{y:.1f} g/L<extra></extra>` });
+      traces.push({ type: 'scatter', name: `${s.name} · Eingriff n = ${e.stage}, t = ${e.step}`, showlegend: true, mode: 'markers', x: [e.step], y: [e.value], marker: { color, size: 9, symbol: 'square' }, hovertemplate: `Eingriff · n = ${e.stage}<br>t = %{x}<br>c = %{y:.1f} g/L<extra></extra>` });
       annotations.push({ x: e.step, y: e.value, xref: 'x', yref: 'y', ax: 30 + (k % 3) * 25, ay: -55 - (k % 3) * 35,
         text: `${escapeHtml(s.name)} · n = ${e.stage}, t = ${e.step}<br>${escapeHtml(e.comment || 'Manueller Eingriff')}`,
-        showarrow: true, arrowhead: 2, arrowcolor: color, bordercolor: color, borderwidth: 1, borderpad: 6, bgcolor: color + '22', font: { color: '#162c3c', size: 13 } });
+        showarrow: true, arrowhead: 2, arrowcolor: color, bordercolor: color, borderwidth: 1, borderpad: 6, bgcolor: `rgb(${[1, 3, 5].map(i => Math.round(255 * 0.87 + parseInt(color.slice(i, i + 2), 16) * 0.13)).join(',')})`, font: { color: '#162c3c', size: 13 } });
     });
   });
   if (commonLimit && selected.length) {
-    traces.push({ type: 'scatter', mode: 'lines', x: [0, Math.max(...scenarios.filter(s => selected.includes(s.id)).map(s => s.parameters.steps))], y: [comparisonLimit, comparisonLimit], line: { color: '#b3261e', dash: 'dash', width: 2 }, hoverinfo: 'skip' });
-    legend.push({ label: `Gemeinsame Grenze ${fmt(comparisonLimit)} g/L`, color: '#b3261e', dashed: true });
+    traces.push({ type: 'scatter', mode: 'lines', name: `Gemeinsame Grenze ${fmt(comparisonLimit)} g/L`, showlegend: true, x: [0, Math.max(...scenarios.filter(s => selected.includes(s.id)).map(s => s.parameters.steps))], y: [comparisonLimit, comparisonLimit], line: { color: '#b3261e', dash: 'dash', width: 2 }, hoverinfo: 'skip' });
   }
   const displayStep = Math.min(viewStep, active.parameters.steps);
   const lastEdit = active.interventions.at(-1);
@@ -185,8 +180,8 @@ export default function App() {
         <div className="rinse-checks">{s.parameters.stages.slice(0, -1).map((_, n) => <label className="rinse-check" key={n}><input type="checkbox" aria-label={`${s.name}: Stufe ${n + 1}`} checked={(extraStages[s.id] ?? []).includes(n + 1)} onChange={() => setExtraStages(old => { const current = old[s.id] ?? []; return { ...old, [s.id]: current.includes(n + 1) ? current.filter(v => v !== n + 1) : [...current, n + 1] }; })} />Stufe {n + 1}</label>)}</div>
       </div>)}
       {selected.length ? <><RinseChart title="Konzentrationsverlauf" description="Endkonzentrationen der ausgewählten Szenarien; rote gestrichelte Linien zeigen deren Grenzschmutzkonzentrationen." data={traces}
-        layout={{ annotations, showlegend: false, xaxis: { title: { text: 'Tauchschritt t [–]' }, rangemode: 'tozero', tickformat: 'd' }, yaxis: { title: { text: 'Konzentration c [g/L]' }, rangemode: 'tozero', tickformat: '.1f', exponentformat: 'none' }, margin: { l: 95, r: 20, t: 20, b: 65 } }} />
-        <ul className="rinse-legend" aria-label="Kurvenlegende">{legend.map((v, i) => <li key={i}><span style={{ borderColor: v.color, borderTopStyle: v.dashed ? 'dashed' : 'solid' }} />{v.label}</li>)}</ul></> : <p>Mindestens ein Szenario zum Vergleich auswählen.</p>}
+        layout={{ annotations, showlegend: true, xaxis: { title: { text: 'Tauchschritt t [–]' }, rangemode: 'tozero', tickformat: 'd' }, yaxis: { title: { text: 'Konzentration c [g/L]' }, rangemode: 'tozero', tickformat: '.1f', exponentformat: 'none' }, margin: { l: 95, r: 20, t: 20, b: 65 } }} />
+</> : <p>Mindestens ein Szenario zum Vergleich auswählen.</p>}
     </section>
     <section className="controls"><h2>Konzentrationstabelle · {active.name}</h2>
       <p><span className="rinse-key manual">Manuell</span> selbst gesetzter Zustand. <span className="rinse-key affected">Folge</span> dadurch geänderter Wert gegenüber der Rechnung ohne Eingriffe. 🔒 gesperrte Zelle.</p>

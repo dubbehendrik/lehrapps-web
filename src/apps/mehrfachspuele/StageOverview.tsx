@@ -13,7 +13,7 @@ export function StageOverview({ parameters: p, concentrations, step }: { paramet
           <path d="M23 62 H217 V122 H23 Z" fill={bathColor(concentrations[i], p.sourceConcentration)} />
           <path d="M23 62 H217" stroke="#41738d" strokeWidth="2" />
           <text x="120" y="45" textAnchor="middle" fontSize="19" fill="#162c3c">Stufe {i + 1}</text>
-          <text x="120" y="94" textAnchor="middle" fontSize="19" fill="#162c3c">{fmt(concentrations[i])} g/L</text>
+          <text x="120" y="94" textAnchor="middle" fontSize="19" fill={concentrations[i] <= p.sourceConcentration * 0.4 ? "#ffffff" : "#162c3c"}>{fmt(concentrations[i])} g/L</text>
         </svg>
         <p><IndexedSymbol base="V" index={`B,${i + 1}`} /> = {fmt(b.volume)} L<br />
           <IndexedSymbol base="c" index={`${i + 1},0`} /> = {fmt(b.initialConcentration)} g/L</p>

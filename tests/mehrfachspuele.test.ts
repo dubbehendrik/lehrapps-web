@@ -111,8 +111,8 @@ describe('versioned Excel model state', () => {
 });
 
 it('interpolates bath colors and clamps exceptional concentrations', () => {
-  expect(bathColor(0, 50)).toBe('rgb(130, 186, 216)');
-  expect(bathColor(25, 50)).toBe('rgb(143, 171, 186)');
+  expect(bathColor(0, 50)).toBe('rgb(35, 110, 165)');
+  expect(bathColor(25, 50)).toBe('rgb(95, 133, 160)');
   expect(bathColor(50, 50)).toBe('rgb(155, 155, 155)');
   expect(bathColor(100, 50)).toBe(bathColor(50, 50));
   expect(bathColor(0, 0)).toBe(bathColor(0, 50));

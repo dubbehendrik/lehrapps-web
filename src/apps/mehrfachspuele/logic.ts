@@ -78,6 +78,6 @@ export function fmt(v: number | null): string {
 
 export function bathColor(concentration: number, source: number): string {
   const ratio = source > 0 ? Math.min(1, Math.max(0, concentration / source)) : concentration > 0 ? 1 : 0;
-  const blue = [130, 186, 216], grey = [155, 155, 155];
+  const blue = [35, 110, 165], grey = [155, 155, 155];
   return `rgb(${blue.map((v, i) => Math.round(v + ratio * (grey[i] - v))).join(', ')})`;
 }
