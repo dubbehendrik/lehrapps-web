@@ -6,6 +6,7 @@ export const appCategories = [
   { id: "automatisierung", label: "Automatisierung" },
 ] as const;
 export const appRegistry = [
+  { path: "/mehrfachspuele", category: "vorlesung", overviewOrder: 10, name: "Mehrfachspüle", description: "Standspülen vergleichen, Verschmutzung über Tauchschritte verfolgen und Badwechsel als kommentierte Eingriffe untersuchen. Szenarien als Excel-Modellstand speichern und laden.", component: lazy(() => import("./apps/mehrfachspuele/App")) },
   { path: "/laminar-turbulent", category: "vorlesung", overviewOrder: 9, name: "Laminar-Turbulent Übergang (schematisch)", description: "Laminare Rohrströmung, Querbewegung und vorübergehende Verstärkung kleiner Störungen mit Fluidelementen und Kraftbildern untersuchen.", component: lazy(() => import("./apps/laminar-turbulent/App")) },
   { path: "/bls-bahnplanung", category: "automatisierung", overviewOrder: 1, name: "BLS Bahnplanung (Demo)", description: "BLS-Kabine erkunden, Rund- und Flachstrahl einstellen und Schichtaufbau bei Einzelbahn, Mäander und Kreuzgang untersuchen.", component: lazy(() => import("./apps/bls-bahnplanung/App")) },
   { path: "/roboter-bahnplanung", category: "automatisierung", overviewOrder: 0, name: "Roboter Bahnplanung (Demo)", description: "Rotationssymmetrische Spritzbilder einstellen, 2D- und 3D-Bahnszenarien untersuchen und generische Trockenschichtdicken in µm vergleichen. Literaturgestütztes Lehrmodell, keine reale Roboterbahnplanung.", component: lazy(() => import("./apps/roboter-bahnplanung/App")) },
