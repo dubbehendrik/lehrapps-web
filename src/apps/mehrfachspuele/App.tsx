@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import type { Data } from 'plotly.js';
-import { Chart } from '../../components/Chart';
+import { RinseChart } from './RinseChart';
 import { IndexedSymbol } from '../../components/MathNotation';
 import { SupportFooter } from '../../components/SupportFooter';
 import { calculate, canEdit, cellState, defaultParameters, fmt, MAX_SCENARIOS, MAX_STAGES, MAX_STEPS, validateParameters } from './logic';
@@ -23,9 +23,10 @@ export default function App() {
   const [activeId, setActiveId] = useState('example-three');
   const [draft, setDraft] = useState<Parameters>(defaultParameters);
   const [selected, setSelected] = useState(['example-three', 'example-one']);
-  const [extraStages, setExtraStages] = useState<number[]>([]);
+  const [extraStages, setExtraStages] = useState<Record<string, number[]>>({});
+  const [commonLimit, setCommonLimit] = useState(true);
+  const [comparisonLimit, setComparisonLimit] = useState(25);
   const [viewStep, setViewStep] = useState(1);
-  const [page, setPage] = useState(0);
   const [editor, setEditor] = useState<{ stage: number; step: number; value: string; comment: string } | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -36,13 +37,13 @@ export default function App() {
   const active = scenarios.find(s => s.id === activeId)!;
   const locked = active.interventions.length > 0;
   const dirty = JSON.stringify(draft) !== JSON.stringify(active.parameters);
-  const results = useMemo(() => new Map(scenarios.map(s => [s.id, calculate(s.parameters, s.interventions)])), [scenarios]);
+  const results = useMemo(() => new Map(scenarios.map(s => [s.id, calculate({ ...s.parameters, limit: commonLimit ? comparisonLimit : s.parameters.limit }, s.interventions)])), [scenarios, commonLimit, comparisonLimit]);
   const result = results.get(activeId)!;
   const baseline = useMemo(() => calculate(active.parameters), [active.parameters]);
   const toggle = (items: string[], id: string) => items.includes(id) ? items.filter(x => x !== id) : [...items, id];
   const updateActive = (update: (s: Scenario) => Scenario) => setScenarios(old => old.map(s => s.id === activeId ? update(s) : s));
   const choose = (s: Scenario) => {
-    setActiveId(s.id); setDraft(copy(s.parameters)); setEditor(null); setPage(0); setExtraStages([]); setViewStep(1); setError(''); setMessage('');
+    setActiveId(s.id); setDraft(copy(s.parameters)); setEditor(null); setViewStep(1); setError(''); setMessage('');
   };
   const numeric = (key: 'dragVolume' | 'sourceConcentration' | 'limit' | 'steps', label: ReactNode) => <label>{label}
     <input type="number" min={key === 'steps' ? 1 : 0} max={key === 'steps' ? MAX_STEPS : 1e9} step={key === 'steps' ? 1 : 'any'} value={Number.isNaN(draft[key]) ? '' : draft[key]}
@@ -55,7 +56,7 @@ export default function App() {
         if (scenarios.length >= MAX_SCENARIOS) throw new Error(`Höchstens ${MAX_SCENARIOS} Szenarien.`);
         const s: Scenario = { id: crypto.randomUUID(), name: `Szenario ${scenarios.length + 1}`, parameters: copy(draft), interventions: [] };
         setScenarios(old => [...old, s]); setSelected(old => [...old, s.id]); choose(s);
-      } else { updateActive(s => ({ ...s, parameters: copy(draft) })); setPage(0); setViewStep(1); setExtraStages([]); setError(''); setMessage('Szenario neu berechnet.'); }
+      } else { updateActive(s => ({ ...s, parameters: copy(draft) })); setViewStep(1); setError(''); setMessage('Szenario neu berechnet.'); }
       setEditor(null);
     } catch (e) { setError((e as Error).message); }
   };
@@ -76,26 +77,43 @@ export default function App() {
     } catch (e) { setError((e as Error).message); }
   };
   const history = (all: boolean) => { updateActive(s => ({ ...s, interventions: all ? [] : s.interventions.slice(0, -1) })); setEditor(null); setError(''); setMessage(all ? 'Alle Eingriffe zurückgesetzt.' : 'Letzten Eingriff rückgängig gemacht.'); };
+  const annotations: Partial<import("plotly.js").Annotation>[] = [];
   const traces: Data[] = [];
   const legend: { label: string; color: string; dashed?: boolean }[] = [];
   scenarios.forEach((s, index) => {
     if (!selected.includes(s.id)) return;
     const r = results.get(s.id)!;
     const color = colors[index % colors.length];
-    const stages = [s.parameters.stages.length, ...(s.id === activeId ? extraStages.filter(n => n < s.parameters.stages.length) : [])];
+    const stages = [s.parameters.stages.length, ...(extraStages[s.id] ?? []).filter(n => n < s.parameters.stages.length)];
     stages.forEach((n, j) => {
       const label = `${s.name} · Stufe ${n}${n === s.parameters.stages.length ? ' (Endkonzentration)' : ''}`;
-      traces.push({ type: 'scatter', mode: 'lines', x: r.concentrations.map((_, t) => t), y: r.concentrations.map(row => row[n - 1]),
-        line: { color, width: j === 0 ? 3 : 2, dash: j === 0 ? 'solid' : 'dot' },
+      traces.push({ type: 'scatter', mode: j === 0 ? 'lines' : 'lines+markers', marker: { color, size: 6, symbol: (['circle', 'diamond', 'square', 'triangle-up', 'triangle-down', 'pentagon', 'hexagon', 'star', 'cross', 'x', 'triangle-right'] as const)[n - 1] }, x: r.concentrations.map((_, t) => t), y: r.concentrations.map(row => row[n - 1]),
+        line: { color, width: j === 0 ? 3 : 2, dash: 'solid' },
         text: r.concentrations.map(row => `${escapeHtml(label)}<br>c = ${fmt(row[n - 1])} g/L`), hovertemplate: '%{text}<br>t = %{x}<extra></extra>' });
       legend.push({ label, color, dashed: j > 0 });
     });
-    traces.push({ type: 'scatter', mode: 'lines', x: [0, s.parameters.steps], y: [s.parameters.limit, s.parameters.limit],
-      line: { color: '#b3261e', width: 2, dash: 'dash' }, hoverinfo: 'skip' });
-    legend.push({ label: `${s.name} · Grenze ${fmt(s.parameters.limit)} g/L`, color: '#b3261e', dashed: true });
+    const limit = commonLimit ? comparisonLimit : s.parameters.limit;
+    if (!commonLimit) {
+      traces.push({ type: 'scatter', mode: 'lines', x: [0, s.parameters.steps], y: [limit, limit], line: { color, width: 2, dash: 'dash' }, hoverinfo: 'skip' });
+      legend.push({ label: `${s.name} · Grenze ${fmt(limit)} g/L`, color, dashed: true });
+    }
+    if (r.firstExceedance !== null) {
+      const t = r.firstExceedance;
+      traces.push({ type: 'scatter', mode: 'markers', x: [t], y: [r.concentrations[t].at(-1)!], marker: { color, size: 12, symbol: 'diamond', line: { color: '#fff', width: 2 } }, text: [`${escapeHtml(s.name)} · erste Grenzüberschreitung`], hovertemplate: '%{text}<br>t = %{x}<br>c = %{y:.1f} g/L<extra></extra>' });
+      legend.push({ label: `${s.name} · erste Überschreitung bei t = ${t}`, color });
+    }
+    s.interventions.forEach((e, k) => {
+      traces.push({ type: 'scatter', mode: 'markers', x: [e.step], y: [e.value], marker: { color, size: 9, symbol: 'square' }, hovertemplate: `Eingriff · n = ${e.stage}<br>t = %{x}<br>c = %{y:.1f} g/L<extra></extra>` });
+      annotations.push({ x: e.step, y: e.value, xref: 'x', yref: 'y', ax: 30 + (k % 3) * 25, ay: -55 - (k % 3) * 35,
+        text: `${escapeHtml(s.name)} · n = ${e.stage}, t = ${e.step}<br>${escapeHtml(e.comment || 'Manueller Eingriff')}`,
+        showarrow: true, arrowhead: 2, arrowcolor: color, bordercolor: color, borderwidth: 1, borderpad: 6, bgcolor: color + '22', font: { color: '#162c3c', size: 13 } });
+    });
   });
+  if (commonLimit && selected.length) {
+    traces.push({ type: 'scatter', mode: 'lines', x: [0, Math.max(...scenarios.filter(s => selected.includes(s.id)).map(s => s.parameters.steps))], y: [comparisonLimit, comparisonLimit], line: { color: '#b3261e', dash: 'dash', width: 2 }, hoverinfo: 'skip' });
+    legend.push({ label: `Gemeinsame Grenze ${fmt(comparisonLimit)} g/L`, color: '#b3261e', dashed: true });
+  }
   const displayStep = Math.min(viewStep, active.parameters.steps);
-  const start = page * 25, end = Math.min(start + 25, result.concentrations.length);
   const lastEdit = active.interventions.at(-1);
   const readFile = async (file?: File) => {
     if (!file) return;
@@ -153,17 +171,21 @@ export default function App() {
     <section className="result" aria-label="Ergebnis des bearbeiteten Szenarios"><h2>{active.name}</h2>
       <p>Gesamtvolumen: <strong>{fmt(result.totalVolume)} L</strong> · N = {active.parameters.stages.length} · T = {active.parameters.steps}</p>
       <p>Nach T: Endkonzentration <strong>{fmt(result.concentrations.at(-1)!.at(-1)!)} g/L</strong> · Spülkriterium <strong>{fmt(result.criterion.at(-1)!)}</strong></p>
-      <p>{result.firstExceedance === null ? `Keine Grenzüberschreitung innerhalb der berechneten ${active.parameters.steps} Tauchschritte.` : `Erste Grenzüberschreitung: t = ${result.firstExceedance}. Zuvor ${result.firstExceedance - 1} aufeinanderfolgende zulässige Tauchschritte.`}</p>
+      <p><strong>{result.firstExceedance === null ? `Keine Grenzüberschreitung innerhalb der berechneten ${active.parameters.steps} Tauchschritte.` : `Erste Grenzüberschreitung: t = ${result.firstExceedance}. Zuvor ${result.firstExceedance - 1} aufeinanderfolgende zulässige Tauchschritte.`}</strong></p>
       {active.interventions.length > 0 && <p>Manuelle Eingriffe aktiv: externe Stoffentnahmen oder Stoffzugaben werden nicht bilanziert.</p>}
     </section>
     <label className="rinse-step">Tauchschritt für die Stufenübersicht: t = {displayStep}<input type="range" min={0} max={active.parameters.steps} value={displayStep} onChange={e => setViewStep(Number(e.target.value))} /><input aria-label="Tauchschritt der Stufenübersicht" type="number" min={0} max={active.parameters.steps} step={1} value={displayStep} onChange={e => { const t = Number(e.target.value); if (Number.isInteger(t) && t >= 0 && t <= active.parameters.steps) setViewStep(t); }} /></label>
     <StageOverview parameters={active.parameters} concentrations={result.concentrations[displayStep]} step={displayStep} />
-    <section className="controls"><h2>Szenarien vergleichen</h2><div className="rinse-checks">{scenarios.map((s, i) => <label className="rinse-check" key={s.id}><input type="checkbox" checked={selected.includes(s.id)} onChange={() => setSelected(old => toggle(old, s.id))} /><span className="rinse-swatch" style={{ background: colors[i % colors.length] }} />{s.name}</label>)}</div>
-      <fieldset><legend>Zusätzliche Stufenkurven des bearbeiteten Szenarios</legend>{active.parameters.stages.length === 1 ? <p>Die einzige Stufe ist bereits die Endkonzentration.</p> : active.parameters.stages.slice(0, -1).map((_, i) => <label className="rinse-check" key={i}><input type="checkbox" checked={extraStages.includes(i + 1)} onChange={() => setExtraStages(old => old.includes(i + 1) ? old.filter(n => n !== i + 1) : [...old, i + 1])} />Stufe {i + 1}</label>)}
-        {!selected.includes(activeId) && <p>Für zusätzliche Kurven das bearbeitete Szenario oben zum Vergleich auswählen.</p>}
-      </fieldset>
-      {selected.length ? <><Chart title="Konzentrationsverlauf" description="Endkonzentrationen der ausgewählten Szenarien; rote gestrichelte Linien zeigen deren Grenzschmutzkonzentrationen." data={traces}
-        layout={{ showlegend: false, xaxis: { title: { text: 'Tauchschritt t [–]' }, rangemode: 'tozero', tickformat: 'd' }, yaxis: { title: { text: 'Konzentration c [g/L]' }, rangemode: 'tozero', tickformat: '.1e' }, margin: { l: 95, r: 20, t: 20, b: 65 } }} />
+    <section className="controls"><h2>Szenarien vergleichen</h2>
+      <label className="rinse-check"><input type="checkbox" checked={commonLimit} onChange={e => setCommonLimit(e.target.checked)} />Gemeinsame Grenzschmutzkonzentration</label>
+      {commonLimit && <label>Gemeinsame Grenze [g/L]<input type="number" min={0} max={1e9} step="any" value={comparisonLimit} onChange={e => { const v = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(v) && v >= 0 && v <= 1e9) setComparisonLimit(v); }} /><button onClick={() => setComparisonLimit(scenarios[0].parameters.sourceConcentration / 2)}>Auf c₀/2 des ersten Szenarios setzen</button></label>}
+      <p>Die gemeinsame Grenze gilt auch für Ergebnisanzeigen und Überschreitungsmarker. Ohne gemeinsame Grenze gelten die individuellen Szenariogrenzen.</p>
+      {scenarios.map((s, i) => <div className="rinse-scenario-row" key={s.id}>
+        <label className="rinse-check"><input type="checkbox" checked={selected.includes(s.id)} onChange={() => setSelected(old => toggle(old, s.id))} /><span className="rinse-swatch" style={{ background: colors[i % colors.length] }} />{s.name} · Endstufe {s.parameters.stages.length}</label>
+        <div className="rinse-checks">{s.parameters.stages.slice(0, -1).map((_, n) => <label className="rinse-check" key={n}><input type="checkbox" aria-label={`${s.name}: Stufe ${n + 1}`} checked={(extraStages[s.id] ?? []).includes(n + 1)} onChange={() => setExtraStages(old => { const current = old[s.id] ?? []; return { ...old, [s.id]: current.includes(n + 1) ? current.filter(v => v !== n + 1) : [...current, n + 1] }; })} />Stufe {n + 1}</label>)}</div>
+      </div>)}
+      {selected.length ? <><RinseChart title="Konzentrationsverlauf" description="Endkonzentrationen der ausgewählten Szenarien; rote gestrichelte Linien zeigen deren Grenzschmutzkonzentrationen." data={traces}
+        layout={{ annotations, showlegend: false, xaxis: { title: { text: 'Tauchschritt t [–]' }, rangemode: 'tozero', tickformat: 'd' }, yaxis: { title: { text: 'Konzentration c [g/L]' }, rangemode: 'tozero', tickformat: '.1f', exponentformat: 'none' }, margin: { l: 95, r: 20, t: 20, b: 65 } }} />
         <ul className="rinse-legend" aria-label="Kurvenlegende">{legend.map((v, i) => <li key={i}><span style={{ borderColor: v.color, borderTopStyle: v.dashed ? 'dashed' : 'solid' }} />{v.label}</li>)}</ul></> : <p>Mindestens ein Szenario zum Vergleich auswählen.</p>}
     </section>
     <section className="controls"><h2>Konzentrationstabelle · {active.name}</h2>
@@ -174,14 +196,13 @@ export default function App() {
         <label>Neue Konzentration [g/L]<input autoFocus required type="number" min={0} max={1e9} step="any" value={editor.value} onChange={e => setEditor({ ...editor, value: e.target.value })} /></label>
         <label>Kommentar (optional)<input type="text" maxLength={500} placeholder="z. B. Wasserwechsel" value={editor.comment} onChange={e => setEditor({ ...editor, comment: e.target.value })} /></label></div>
         <div className="button-row"><button type="submit" disabled={dirty}>Änderung übernehmen</button><button type="button" onClick={() => setEditor(null)}>Abbrechen</button></div></form>}
-      <div className="rinse-pagination"><button disabled={page === 0} onClick={() => setPage(p => p - 1)}>Vorherige Zeilen</button><span>t = {start}–{end - 1} von 0–{active.parameters.steps}</span><button disabled={end >= result.concentrations.length} onClick={() => setPage(p => p + 1)}>Weitere Zeilen</button></div>
       <div className="rinse-table" tabIndex={0} role="region" aria-label="Konzentrationen, horizontal scrollbar"><table><thead><tr><th scope="col">Tauchschritt t</th>{active.parameters.stages.map((_, i) => <th scope="col" key={i}>{symbol('c', `${i + 1},t`)} [g/L]</th>)}<th scope="col">{symbol('R', 't')} [–]</th></tr></thead>
-        <tbody>{result.concentrations.slice(start, end).map((row, offset) => { const t = start + offset; return <tr key={t}><th scope="row">{t}</th>{row.map((value, i) => {
+        <tbody>{result.concentrations.map((row, t) => { return <tr key={t}><th scope="row">{t}</th>{row.map((value, i) => {
           const n = i + 1, state = cellState(active, t, n, value, baseline.concentrations[t][i]);
           const disabled = t === 0 || dirty || !canEdit(active.interventions, n, t);
           const edit = [...active.interventions].reverse().find(e => e.stage === n && e.step === t);
           return <td key={n} className={state} title={edit?.comment || undefined}><button disabled={disabled} aria-label={`Stufe ${n}, Tauchschritt ${t}: ${fmt(value)} g/L${disabled ? ', gesperrt' : ', bearbeiten'}`} onClick={() => { setEditor({ stage: n, step: t, value: String(value), comment: '' }); setError(''); }}>
-            {fmt(value)}<small>{state === 'manual' ? 'Manuell' : state === 'affected' ? 'Folge' : disabled ? 'Gesperrt' : 'Bearbeiten'}</small>{edit?.comment && <small className="rinse-comment">{edit.comment}</small>}</button></td>;
+            {disabled && <span aria-label="Gesperrt">🔒 </span>}{fmt(value)}<small>{state === 'manual' ? 'Manuell' : state === 'affected' ? 'Folge' : disabled ? 'Gesperrt' : 'Bearbeiten'}</small>{edit?.comment && <small className="rinse-comment">{edit.comment}</small>}</button></td>;
         })}<td className={t > 0 && result.criterion[t] !== baseline.criterion[t] ? 'affected' : ''}>{t === 0 ? 'Noch kein Tauchschritt' : result.criterion[t] === null ? 'Nicht definiert (0/0)' : fmt(result.criterion[t])}{t > 0 && result.criterion[t] !== baseline.criterion[t] && <small className="rinse-result-note">Folge</small>}</td></tr>; })}</tbody></table></div>
       <details className="rinse-history"><summary>Eingriffshistorie ({active.interventions.length})</summary>{locked ? <ol>{active.interventions.map((e, i) => <li key={i}>n = {e.stage}, t = {e.step}: {fmt(e.value)} g/L{e.comment ? ` – ${e.comment}` : ''}</li>)}</ol> : <p>Keine manuellen Eingriffe.</p>}</details>
     </section>

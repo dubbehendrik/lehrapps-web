@@ -13,7 +13,7 @@ export function ProgramDescription() {
       Gleichheit ist zulässig; ausgewertet wird die erste strikte Überschreitung innerhalb von 1 bis T.
       Bei t = 0 wurde noch kein Tauchschritt durchgeführt. Bei positiver Eingangskonzentration und sauberem Endbad ist R unendlich; bei 0/0 nicht definiert.</p>
     <h2>Szenarien und Eingriffe</h2>
-    <p>Das Dropdown wählt das bearbeitete Szenario; die Checkboxen wählen unabhängig davon die Vergleichskurven.
+    <p>Das Dropdown wählt das bearbeitete Szenario; die Szenariozeilen wählen unabhängig davon die Vergleichskurven und zusätzlichen Stufen. Eine gemeinsame Grenze gilt für Diagramm und Ergebnisauswertung; ihr Startwert ist die halbe Eingangskonzentration des ersten Szenarios. Eingriffe werden auch in ausgeblendeten Stufen als verschiebbare Kommentarkästen mit fest verankerten Pfeilen angezeigt. Rauten markieren die erste strikte Grenzüberschreitung der jeweiligen Endstufe.
       In der Konzentrationstabelle öffnet eine Zelle die Eingabe samt optionalem Kommentar.
       Dunkelorange und „Manuell“ kennzeichnen gesetzte Werte; Hellorange und „Folge“ kennzeichnen tatsächlich geänderte Folgezellen gegenüber der Rechnung ohne Eingriffe.</p>
     <p>Ein Eingriff setzt die Konzentration nach der Durchmischung fest. Die nächste Stufe desselben Tauchschritts erhält bereits diesen Wert.

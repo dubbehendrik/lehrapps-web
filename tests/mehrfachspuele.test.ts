@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculate, canEdit, cellState, defaultParameters, fmt, validateInterventions } from '../src/apps/mehrfachspuele/logic';
+import { bathColor, calculate, canEdit, cellState, defaultParameters, fmt, validateInterventions } from '../src/apps/mehrfachspuele/logic';
 import type { Scenario } from '../src/apps/mehrfachspuele/types';
 import { parseScenario, scenarioRows, workbookSheets } from '../src/apps/mehrfachspuele/workbook';
 import write from 'write-excel-file/node';
@@ -108,4 +108,20 @@ describe('versioned Excel model state', () => {
     const missing = raw(); missing[2][0] = 'wrong'; expect(() => parseScenario(missing, 'x')).toThrow();
     const backwards = raw(); backwards[13][2] = 1; expect(() => parseScenario(backwards, 'x')).toThrow();
   });
+});
+
+it('interpolates bath colors and clamps exceptional concentrations', () => {
+  expect(bathColor(0, 50)).toBe('rgb(130, 186, 216)');
+  expect(bathColor(25, 50)).toBe('rgb(143, 171, 186)');
+  expect(bathColor(50, 50)).toBe('rgb(155, 155, 155)');
+  expect(bathColor(100, 50)).toBe(bathColor(50, 50));
+  expect(bathColor(0, 0)).toBe(bathColor(0, 50));
+  expect(bathColor(1, 0)).toBe(bathColor(50, 50));
+});
+it('evaluates a shared limit without changing concentration or individual parameters', () => {
+  const p = defaultParameters();
+  const own = calculate(p), shared = calculate({ ...p, limit: 10 });
+  expect(shared.concentrations).toEqual(own.concentrations);
+  expect(shared.firstExceedance).toBe(16);
+  expect(p.limit).toBe(25);
 });
