@@ -6,6 +6,7 @@ export const appCategories = [
   { id: "automatisierung", label: "Automatisierung" },
 ] as const;
 export const appRegistry = [
+  { path: "/pulverkreislauf", category: "vorlesung", overviewOrder: 12, name: "Pulverkreislauf", description: "Partikelgrößenverteilungen und Pulverrückführung mit einer größenaufgelösten Massenbilanz untersuchen.", component: lazy(() => import("./apps/pulverkreislauf/App")) },
   { path: "/tropfengroessenverteilung", category: "vorlesung", overviewOrder: 11, name: "Tropfengrößenverteilung", description: "Anzahl-, Längen-, Oberflächen- und Volumenverteilungen vergleichen, Klassenbreiten verändern und Quantile sowie Sauter-Durchmesser aus Einzeltropfen bestimmen.", component: lazy(() => import("./apps/tropfengroessenverteilung/App")) },
   { path: "/mehrfachspuele", category: "vorlesung", overviewOrder: 10, name: "Mehrfachspüle", description: "Standspülen vergleichen, Verschmutzung über Tauchschritte verfolgen und Badwechsel als kommentierte Eingriffe untersuchen. Szenarien als Excel-Modellstand speichern und laden.", component: lazy(() => import("./apps/mehrfachspuele/App")) },
   { path: "/laminar-turbulent", category: "vorlesung", overviewOrder: 9, name: "Laminar-Turbulent Übergang (schematisch)", description: "Laminare Rohrströmung, Querbewegung und vorübergehende Verstärkung kleiner Störungen mit Fluidelementen und Kraftbildern untersuchen.", component: lazy(() => import("./apps/laminar-turbulent/App")) },
