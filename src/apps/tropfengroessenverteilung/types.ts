@@ -5,6 +5,7 @@ export interface PlotSettings {
   ordinate: 'share' | 'density' | 'logDensity'; logarithmicAxis: boolean;
   spacing: 'linear' | 'log'; binMode: 'width' | 'count'; width: number; ratio: number; count: number;
   quantileOrders: Order[]; percentiles: number[]; means: string[];
+  cumulativeMode: 'classified' | 'empirical'; hiddenMarkers: string[];
 }
 export interface WeightedPopulation { diameters: number[]; fractions: number[]; cumulative: number[]; }
 export interface Histogram { edges: number[]; shares: number[]; density: number[]; logDensity: number[]; }
