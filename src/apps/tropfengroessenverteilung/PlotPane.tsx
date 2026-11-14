@@ -28,6 +28,8 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
       const xEdges = [displayLow, ...edges.slice(1)];
       for (const [datasetIndex, entry] of active.entries()) {
         const datasetLabel = entry.dataset.name;
+        const visibleSumHeight = (diameter: number) => Math.max(...s.cumulativeOrders.map(order => 100 * cumulativeAt(entry.populations[order], diameter)));
+        const hasVisibleSum = s.cumulative && s.cumulativeOrders.length > 0;
         for (const r of [...new Set([...s.orders, ...s.cumulativeOrders])]) {
           const population = entry.populations[r], bins = histogram(population, edges), color = colors[(r + datasetIndex * 4) % colors.length];
           const code = entry.dataset.id === 'a' ? 'A' : entry.dataset.id === 'b' ? 'B' : `Import ${datasets.findIndex(d => d.id === entry.dataset.id) - 1}`;
@@ -53,7 +55,7 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
         for (const r of s.quantileOrders) for (const p of s.percentiles) {
           const value = quantile(entry.populations[r], p / 100), label = `D${quantileNames[r]},${p}`;
           markers.push({ dataset: datasetLabel, label, value, color: colors[r], meaning: `${p}-%-Quantil · ${orderNames[r]}` });
-          shapes.push({ type: 'line', x0: value, x1: value, y0: 0, y1: p, yref: 'y2', line: { color: colors[r], width: 1.3, dash: datasetIndex % 2 ? 'dashdot' : 'dash' } });
+          shapes.push({ type: 'line', x0: value, x1: value, y0: 0, y1: hasVisibleSum ? (s.cumulativeOrders.includes(r) ? p : visibleSumHeight(value)) : p, yref: 'y2', line: { color: colors[r], width: 1.3, dash: datasetIndex % 2 ? 'dashdot' : 'dash' } });
           if (s.cumulative && s.cumulativeOrders.includes(r)) {
             shapes.push({ type: 'line', x0: displayLow, x1: value, y0: p, y1: p, yref: 'y2', line: { color: colors[r], width: 1, dash: 'dot' } });
             traces.push({ type: 'scatter', mode: 'markers', name: `${datasetLabel} · ${label}`, showlegend: false, x: [value], y: [p], yaxis: 'y2', marker: { size: 9, color: colors[r], symbol: datasetIndex % 2 ? 'diamond-open' : 'circle-open', line: { width: 2 } }, hovertemplate: `${datasetLabel} · ${label}<br>%{x:.1f} µm<extra></extra>` });
@@ -63,7 +65,7 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
           const [p, q] = mean.split(',').map(Number), value = momentMean(entry.dataset.diameters, p, q);
           const color = colors[mean === '3,2' ? 4 : mean === '4,3' ? 1 : 3];
           markers.push({ dataset: datasetLabel, label: `D${mean}`, value, color, meaning: mean === '3,2' ? 'Sauter-Durchmesser' : mean === '4,3' ? 'Volumengewichtetes Mittel' : 'Arithmetisches Mittel' });
-          shapes.push({ type: 'line', x0: value, x1: value, y0: 0, y1: 1, yref: 'paper', line: { color, width: 2, dash: datasetIndex % 2 ? 'longdashdot' : 'longdash' } });
+          shapes.push({ type: 'line', x0: value, x1: value, y0: 0, y1: hasVisibleSum ? visibleSumHeight(value) : 1, yref: hasVisibleSum ? 'y2' : 'paper', line: { color, width: 2, dash: datasetIndex % 2 ? 'longdashdot' : 'longdash' } });
         }
       }
       const ordinateLabel = s.ordinate === 'share' ? 'Klassenanteil ΔQ [%]' : s.ordinate === 'density' ? 'Verteilungsdichte q [%/µm]' : 'Logarithmische Dichte [%/Dekade]';
