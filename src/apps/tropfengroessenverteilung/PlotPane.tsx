@@ -3,11 +3,13 @@ import type { Data, Layout } from 'plotly.js';
 import { Chart } from '../../components/Chart';
 import { classEdges, cumulativeAt, formatNumber as fmt, histogram, momentMean, orderNames, quantile, weightedPopulation } from './logic';
 import type { Dataset, Order, PlotSettings } from './types';
-const colors = ['#164a87', '#a34c00', '#007053', '#843d8d'];
+const palettes = [['#123c69', '#1d5f96', '#347cad', '#52708d', '#071f3b', '#275d71', '#466bc0', '#57647d'], ['#8c3505', '#bd5108', '#d77515', '#9f642f', '#5e2507', '#ad4429', '#c18734', '#835b43']];
+const shade = (hex: string) => `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},0.16)`;
 const subs = ['₀', '₁', '₂', '₃'];
 const quantileNames = ['n', 'L', 'A', 'v'];
 function toggle<T>(values: T[], value: T): T[] { return values.includes(value) ? values.filter(x => x !== value) : [...values, value]; }
 export function PlotPane({ number, datasets, settings: s, onChange }: { number: number; datasets: Dataset[]; settings: PlotSettings; onChange: (s: PlotSettings) => void }) {
+  const colors = palettes[number === 1 ? 0 : 1];
   const [cursor, setCursor] = useState(50), [customPercentile, setCustomPercentile] = useState('25'), [percentileError, setPercentileError] = useState('');
   const update = (patch: Partial<PlotSettings>) => onChange({ ...s, ...patch });
   const selected = datasets.filter(d => s.datasetIds.includes(d.id));
@@ -27,14 +29,20 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
       for (const [datasetIndex, entry] of active.entries()) {
         const datasetLabel = entry.dataset.name;
         for (const r of [...new Set([...s.orders, ...s.cumulativeOrders])]) {
-          const population = entry.populations[r], bins = histogram(population, edges), color = colors[r];
+          const population = entry.populations[r], bins = histogram(population, edges), color = colors[(r + datasetIndex * 4) % colors.length];
           const code = entry.dataset.id === 'a' ? 'A' : entry.dataset.id === 'b' ? 'B' : `Import ${datasets.findIndex(d => d.id === entry.dataset.id) - 1}`;
           const label = `${code} · ${orderNames[r]}`;
           if (s.distribution && s.orders.includes(r)) {
             const values = bins[s.ordinate === 'share' ? 'shares' : s.ordinate].map(x => x * 100);
             traces.push({ type: 'scatter', mode: 'lines', name: `${label} · ${s.ordinate === 'share' ? 'ΔQ' : 'q'}${subs[r]}`,
-              x: [displayLow, ...xEdges], y: [0, ...values, 0], line: { color, width: 2.5, shape: 'hv', dash: datasetIndex % 2 ? 'dashdot' : 'solid' },
+              x: [displayLow, ...xEdges], y: [0, ...values, 0], fill: 'tozeroy', fillcolor: shade(color), line: { color, width: 2.5, shape: 'hv', dash: 'solid' },
               hovertemplate: `${label}<br>D = %{x:.1f} µm<br>Höhe = %{y:.1f}<extra></extra>` });
+            const boundaryX: (number | null)[] = [], boundaryY: (number | null)[] = [];
+            for (let k = 1; k < xEdges.length - 1; k++) {
+              const top = Math.max(values[k - 1], values[k]);
+              if (top > 0) { boundaryX.push(xEdges[k], xEdges[k], null); boundaryY.push(0, top, null); }
+            }
+            traces.push({ type: 'scatter', mode: 'lines', x: boundaryX, y: boundaryY, showlegend: false, hoverinfo: 'skip', line: { color, width: 1, dash: 'dash' }, opacity: 0.45 });
           }
           if (s.cumulative && s.cumulativeOrders.includes(r)) traces.push({ type: 'scatter', mode: 'lines', name: `${label} · Q${subs[r]}`,
             x: [displayLow, ...population.diameters, edges[edges.length - 1]], y: [0, ...population.cumulative.map(x => x * 100), 100], yaxis: 'y2',
@@ -52,7 +60,7 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
         }
         for (const mean of s.means) {
           const [p, q] = mean.split(',').map(Number), value = momentMean(entry.dataset.diameters, p, q);
-          const color = mean === '3,2' ? '#303a44' : mean === '4,3' ? '#a33117' : '#156d78';
+          const color = colors[mean === '3,2' ? 4 : mean === '4,3' ? 1 : 3];
           markers.push({ dataset: datasetLabel, label: `D${mean}`, value, color, meaning: mean === '3,2' ? 'Sauter-Durchmesser' : mean === '4,3' ? 'Volumengewichtetes Mittel' : 'Arithmetisches Mittel' });
           shapes.push({ type: 'line', x0: value, x1: value, y0: 0, y1: 1, yref: 'paper', line: { color, width: 2, dash: datasetIndex % 2 ? 'longdashdot' : 'longdash' } });
         }
@@ -67,8 +75,8 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
         legend: { orientation: 'v', x: 0, y: -0.24, yanchor: 'top', font: { size: 13 } }, shapes, hovermode: 'closest' };
       return { traces, layout, height, markers, edges, min, max, error: '', clipped: s.logarithmicAxis && edges[0] === 0 };
     } catch (e) { return { traces, layout: {}, height: 480, markers, edges: [], min: 0, max: 0, error: (e as Error).message, clipped: false }; }
-  }, [s, datasets, populations]);
-  const checkbox = (label: React.ReactNode, checked: boolean, onToggle: () => void) => <label className="drop-check"><input type="checkbox" checked={checked} onChange={onToggle} />{label}</label>;
+  }, [s, datasets, populations, number]);
+  const checkbox = (label: React.ReactNode, checked: boolean, onToggle: () => void) => <label className="drop-check"><input type="checkbox" checked={checked} onChange={onToggle} /><span>{label}</span></label>;
   const numeric = (label: string, value: number, key: 'width' | 'ratio' | 'count', min: number, max: number, step: number | 'any') => <label>{label}<input type="number" value={Number.isNaN(value) ? '' : value} min={min} max={max} step={step} onChange={e => update({ [key]: e.target.value === '' ? NaN : Number(e.target.value) })} /></label>;
   return <section className="drop-pane" aria-label={`Plot ${number}`}><h2>Plot {number}</h2>
     <details className="drop-settings" open><summary>Einstellungen für Plot {number}</summary><div className="drop-setting-grid">
@@ -92,7 +100,7 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
         <aside className="drop-info" aria-label={`Erklärung zu Plot ${number}`}><h3>Was zeigt dieser Plot?</h3>
           {s.distribution && <p>{s.ordinate === 'share' ? 'Die Höhe gibt den gewichteten Anteil einer Klasse an. Alle Klassenanteile einer Kurve ergeben 100 %. Eine größere Klassenbreite verändert die Balken- beziehungsweise Treppenhöhe.' : s.ordinate === 'density' ? 'Die Höhe gibt den Anteil pro µm an. Dichte × Klassenbreite ergibt den Klassenanteil. Das ist die geeignete Größe zum Vergleich unterschiedlich breiter Klassen.' : 'Die Höhe gibt den Anteil pro Dekade an. Eine Dekade ist beispielsweise 10–100 µm. Auf der logarithmischen x-Achse entspricht die Fläche dem Anteil.'}</p>}
           {s.cumulative && <p>Die Summenkurve zeigt, welcher Anteil bei oder unter dem Durchmesser liegt. Ihre Skala ist {s.distribution ? 'rechts' : 'links'} in %. Die Treppen entstehen aus den Einzelbeobachtungen und bleiben beim Umklassieren gleich.</p>}
-          <p>Farben unterscheiden Gewichtungen. Die Linienart unterscheidet Datensätze und Verteilung/Summe; die Legende benennt jede Kurve.</p>
+          <p>Blautöne kennzeichnen Plot 1, Orangetöne Plot 2. Farbabstufungen unterscheiden Gewichtungen und Datensätze. Histogrammränder sind durchgezogen, Summenkurven gestrichelt. Leicht gestrichelte senkrechte Linien zeigen die Klassengrenzen bis zur Randkurve. Die Legende benennt jede Kurve.</p>
           {s.logarithmicAxis && s.ordinate !== 'logDensity' && s.distribution && <p className="drop-note">Bei dieser logarithmischen x-Achse ist die sichtbare Fläche unter dem Histogramm kein direktes Maß für den Anteil.</p>}
           {chart.clipped && <p className="drop-note">Die erste Klasse beginnt bei 0 µm. Null ist logarithmisch nicht darstellbar; ihr linker Rand wird im Bild abgeschnitten. Berechnete Anteile bleiben vollständig.</p>}
           <label>Durchmesser zum Erkunden [µm]<input type="number" min={0.001} max={100000} step="any" value={Number.isFinite(cursor) ? Number(cursor.toPrecision(8)) : ''} onChange={e => setCursor(e.target.value === '' ? NaN : Number(e.target.value))} /></label><p>Mit der Maus im Plot oder per Eingabe erkunden.</p>
