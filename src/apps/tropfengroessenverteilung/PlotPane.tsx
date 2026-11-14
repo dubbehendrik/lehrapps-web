@@ -42,7 +42,8 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
               const top = Math.max(values[k - 1], values[k]);
               if (top > 0) { boundaryX.push(xEdges[k], xEdges[k], null); boundaryY.push(0, top, null); }
             }
-            traces.push({ type: 'scatter', mode: 'lines', x: boundaryX, y: boundaryY, showlegend: false, hoverinfo: 'skip', line: { color, width: 1, dash: 'dash' }, opacity: 0.45 });
+            traces.push({ type: 'scatter', mode: 'lines', x: boundaryX, y: boundaryY, showlegend: false, hoverinfo: 'skip', line: { color, width: 1.6, dash: 'solid' }, opacity: 0.8 });
+            traces.push({ type: 'scatter', mode: 'lines', x: [xEdges[xEdges.length - 1], xEdges[xEdges.length - 1]], y: [0, values[values.length - 1]], showlegend: false, hoverinfo: 'skip', line: { color, width: 2.5, dash: 'solid' } });
           }
           if (s.cumulative && s.cumulativeOrders.includes(r)) traces.push({ type: 'scatter', mode: 'lines', name: `${label} · Q${subs[r]}`,
             x: [displayLow, ...population.diameters, edges[edges.length - 1]], y: [0, ...population.cumulative.map(x => x * 100), 100], yaxis: 'y2',
@@ -52,7 +53,7 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
         for (const r of s.quantileOrders) for (const p of s.percentiles) {
           const value = quantile(entry.populations[r], p / 100), label = `D${quantileNames[r]},${p}`;
           markers.push({ dataset: datasetLabel, label, value, color: colors[r], meaning: `${p}-%-Quantil · ${orderNames[r]}` });
-          shapes.push({ type: 'line', x0: value, x1: value, y0: 0, y1: 1, yref: 'paper', line: { color: colors[r], width: 1.3, dash: datasetIndex % 2 ? 'dashdot' : 'dash' } });
+          shapes.push({ type: 'line', x0: value, x1: value, y0: 0, y1: p, yref: 'y2', line: { color: colors[r], width: 1.3, dash: datasetIndex % 2 ? 'dashdot' : 'dash' } });
           if (s.cumulative && s.cumulativeOrders.includes(r)) {
             shapes.push({ type: 'line', x0: displayLow, x1: value, y0: p, y1: p, yref: 'y2', line: { color: colors[r], width: 1, dash: 'dot' } });
             traces.push({ type: 'scatter', mode: 'markers', name: `${datasetLabel} · ${label}`, showlegend: false, x: [value], y: [p], yaxis: 'y2', marker: { size: 9, color: colors[r], symbol: datasetIndex % 2 ? 'diamond-open' : 'circle-open', line: { width: 2 } }, hovertemplate: `${datasetLabel} · ${label}<br>%{x:.1f} µm<extra></extra>` });
@@ -100,7 +101,7 @@ export function PlotPane({ number, datasets, settings: s, onChange }: { number: 
         <aside className="drop-info" aria-label={`Erklärung zu Plot ${number}`}><h3>Was zeigt dieser Plot?</h3>
           {s.distribution && <p>{s.ordinate === 'share' ? 'Die Höhe gibt den gewichteten Anteil einer Klasse an. Alle Klassenanteile einer Kurve ergeben 100 %. Eine größere Klassenbreite verändert die Balken- beziehungsweise Treppenhöhe.' : s.ordinate === 'density' ? 'Die Höhe gibt den Anteil pro µm an. Dichte × Klassenbreite ergibt den Klassenanteil. Das ist die geeignete Größe zum Vergleich unterschiedlich breiter Klassen.' : 'Die Höhe gibt den Anteil pro Dekade an. Eine Dekade ist beispielsweise 10–100 µm. Auf der logarithmischen x-Achse entspricht die Fläche dem Anteil.'}</p>}
           {s.cumulative && <p>Die Summenkurve zeigt, welcher Anteil bei oder unter dem Durchmesser liegt. Ihre Skala ist {s.distribution ? 'rechts' : 'links'} in %. Die Treppen entstehen aus den Einzelbeobachtungen und bleiben beim Umklassieren gleich.</p>}
-          <p>Blautöne kennzeichnen Plot 1, Orangetöne Plot 2. Farbabstufungen unterscheiden Gewichtungen und Datensätze. Histogrammränder sind durchgezogen, Summenkurven gestrichelt. Leicht gestrichelte senkrechte Linien zeigen die Klassengrenzen bis zur Randkurve. Die Legende benennt jede Kurve.</p>
+          <p>Blautöne kennzeichnen Plot 1, Orangetöne Plot 2. Farbabstufungen unterscheiden Gewichtungen und Datensätze. Histogrammränder sind durchgezogen, Summenkurven gestrichelt. Durchgezogene senkrechte Linien zeigen die Klassengrenzen bis zur Randkurve. Quantilhilfslinien reichen von der Achse bis zum jeweiligen Punkt der Summenkurve. Die Legende benennt jede Kurve.</p>
           {s.logarithmicAxis && s.ordinate !== 'logDensity' && s.distribution && <p className="drop-note">Bei dieser logarithmischen x-Achse ist die sichtbare Fläche unter dem Histogramm kein direktes Maß für den Anteil.</p>}
           {chart.clipped && <p className="drop-note">Die erste Klasse beginnt bei 0 µm. Null ist logarithmisch nicht darstellbar; ihr linker Rand wird im Bild abgeschnitten. Berechnete Anteile bleiben vollständig.</p>}
           <label>Durchmesser zum Erkunden [µm]<input type="number" min={0.001} max={100000} step="any" value={Number.isFinite(cursor) ? Number(cursor.toPrecision(8)) : ''} onChange={e => setCursor(e.target.value === '' ? NaN : Number(e.target.value))} /></label><p>Mit der Maus im Plot oder per Eingabe erkunden.</p>
