@@ -72,7 +72,7 @@ export function histogram(population: WeightedPopulation, edges: number[]): Hist
 }
 export function defaultSettings(order: Order): PlotSettings {
   return { datasetIds: ['a'], orders: [order], cumulativeOrders: [order], distribution: true, cumulative: true, ordinate: 'share', logarithmicAxis: false,
-    spacing: 'linear', binMode: 'width', width: 5, ratio: 1.25, count: 20, quantileOrders: [3], percentiles: [10, 50, 90], means: ['3,2', '4,3'] };
+    spacing: 'linear', binMode: 'width', width: 5, ratio: 1.25, count: 20, quantileOrders: [3], percentiles: [10, 50, 90], means: ['3,2', '4,3'], cumulativeMode: 'classified', hiddenMarkers: [] };
 }
 export function formatNumber(value: number): string {
   if (!Number.isFinite(value)) return '–';

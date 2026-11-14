@@ -6,7 +6,7 @@ Route: `/tropfengroessenverteilung`, Kategorie Vorlesung.
 
 Die vom Nutzer bereitgestellte `Groessenverteilungen.xlsx` enthält auf Blatt 1 eine Anzahlverteilung in 5-µm-Klassen (Mitte 2,5 bis 102,5 µm) und dieselben 203 Beobachtungen in 10-µm-Klassen. Positive Häufigkeiten der 5-µm-Klassen: 1,3,4,6,15,22,34,43,28,15,10,9,7,3,2,1. Mit dem Klassenmittenansatz ergeben sich D10 = 37,672413793103445 µm und D32 = 46,132734530938123 µm. Die kumulierten Volumenanteile bei 37,5 und 47,5 µm betragen 0,27585627497413981 und 0,52836642215419516. Diese Referenzen sind unabhängig von den neuen synthetischen Einzelwerten getestet.
 
-Die Excel-Spalte P (10-µm-Klassen) enthält Anzahl / Klassenbreite, während F (5-µm-Klassen) zusätzlich durch 203 normiert ist. Die App verwendet durchgehend normierte Anteile und beschriftet deren Ableitung als Dichte. Die Excel berechnet Volumenmomente beim Umklassieren erneut aus Klassenmitten; die App berechnet Momente und empirische Summenkurven aus den Einzelwerten, unabhängig von der Histogrammklassierung.
+Die Excel-Spalte P (10-µm-Klassen) enthält Anzahl / Klassenbreite, während F (5-µm-Klassen) zusätzlich durch 203 normiert ist. Die App verwendet durchgehend normierte Anteile und beschriftet deren Ableitung als Dichte. Die Excel berechnet Volumenmomente beim Umklassieren erneut aus Klassenmitten; die App berechnet Momente und empirische Summenkurven aus den Einzelwerten, unabhängig von der Histogrammklassierung. Zusätzlich gibt es eine klassierte Summenkurve als Standardansicht.
 
 ## Synthetische Beispiele
 
@@ -25,3 +25,13 @@ Fachlicher Kontext: https://www.ilasseurope.org/ICLASS/ilass2010/FILES/FULL_PAPE
 - XLSX-Download enthält ein autoritatives Datenblatt und ein Hinweise-Blatt; nur das erste wird importiert. Zusätzliche Datenspalten werden zurückgewiesen. Herkunft eigener Imports wird nicht verifiziert.
 
 Tests: analytisches 1000:1-Beispiel, Excel-Referenzen, Dichtenintegration, Gewichtungen, Randpunkte, Quantile, Skalierung, Klassierungsinvarianz, reproduzierbare Beispiele und Importvalidierung. Fachliche Abnahme durch den Nutzer steht bei Erstveröffentlichung aus.
+
+## Summenkurven und Kennwertmarker
+
+Die Standardansicht verbindet kumulierte Klassenanteile an den Klassengrenzen linear in der gewählten Achsenskalierung. Bei logarithmischer x-Achse wird entsprechend in log(D) interpoliert. Die empirische Treppenfunktion bleibt separat auswählbar. Rohdatenquantile und Momentenmittelwerte bleiben unabhängig davon. Marker liegen beim Rohdatendurchmesser auf der dargestellten Kurve; ihr y-Wert kann bei klassierter Darstellung von der nominalen Quantilschwelle abweichen.
+
+Je Kennwert ist bevorzugt die gleich gewichtete sichtbare Summenkurve zugeordnet, sonst Q3 falls sichtbar, andernfalls die erste ausgewählte Summengewichtung. Die Legendeneinträge nennen Zielgewichtung, vollständigen Namen und Durchmesser. Ohne Summenkurve liegen Marker auf der x-Achse. Gefüllte Marker und gestrichelte Hilfslinien bilden eine kontrolliert sichtbare Legendengruppe. Einzelschalter in der Kennwerttabelle bleiben mit der Legende synchron. Verfügbare gefüllte Symbole werden bei sehr vielen Kennwerten wiederverwendet; Kombination aus Symbol, Farbe und vollständigem Legendennamen identifiziert den Kennwert.
+
+Alle Histogrammfüllungen werden vor allen Randkurven gezeichnet. Randlinien und Flächen einer Verteilung bilden eine gemeinsame Legendengruppe. Cyan-/Blautöne für Plot 1, Orangetöne für Plot 2; Summenkurven durchgezogen und dicker als Histogrammränder.
+
+Zusätzliche Referenztests prüfen die lineare und logarithmische Kurveninterpolation, gewichtete Klassensummen, empirische Sprünge bei gleichen Durchmessern und die unveränderten Rohdatenquantile.

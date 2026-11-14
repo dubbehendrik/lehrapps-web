@@ -34,7 +34,7 @@ export async function exportDataset(dataset?: Dataset): Promise<void> {
       [dataset ? `${dataset.name}: ${dataset.synthetic ? 'Synthetische Lehrdaten, keine Messung und keine Zerstäubervalidierung.' : 'Importierter Datensatz; Herkunft wird durch die App nicht geprüft.'}` : 'Leere Vorlage für eigene Messdaten.'],
       ['Beispiel A: aus den Klassenhäufigkeiten der bereitgestellten Excel inspirierte synthetische Einzelwerte mit fester Zufallsfolge.'],
       ['Beispiel B: synthetische logarithmische Normalverteilung; Anzahlmedian 48 µm, logarithmische Standardabweichung 0,48; begrenzt auf 5–180 µm.'],
-      ['Kennwerte werden aus ungerundeten Einzelwerten berechnet; die Klassenbreite beeinflusst nur das Histogramm.'],
+      ['Kennwerte werden aus ungerundeten Einzelwerten berechnet; die Klassenbreite beeinflusst das Histogramm und die klassierte Summenkurve, nicht die empirische Summenkurve oder die Kennwerte.'],
     ].map(row => row.map(value => ({ value, type: String, wrap: true }))), columns: [{ width: 110 }] },
   ]).toFile(dataset ? `Tropfen_${dataset.id === 'a' ? 'A_synthetisch' : dataset.id === 'b' ? 'B_synthetisch' : 'Messdaten'}.xlsx` : 'Tropfen_Vorlage.xlsx');
 }
