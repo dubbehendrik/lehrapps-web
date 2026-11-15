@@ -21,3 +21,18 @@ export function simulate(p:Parameters){
  for(let t=0;t<duration-1e-9;){const h=Math.min(dt,duration-t),r=rates();if(sum(r.back)>p.flow+1e-10)throw Error('Rückstrom übersteigt Förderstrom; konstante Vorratsregelung ist nicht möglich.');mass=mass.map((v,i)=>v+h*(-r.spray[i]+r.back[i]+r.fresh[i]));wall=wall.map((v,i)=>v+h*(r.wallIn[i]-r.wallOut[i]));deposited+=h*sum(r.part);lost+=h*(sum(r.cycloneLoss)+sum(r.sieveLoss));added+=h*sum(r.fresh);t+=h;const rr=rates();hold=residual(rr)<1e-5?hold+h:0;if(hold>=turnTime){steadyTurns=t/turnTime;save(t,rr);break;}if(t>=nextSave-1e-9||t>=duration-1e-9){save(t,rr);nextSave=t+.05*turnTime;}}
  const last=history[history.length-1];return {d,edges,fresh,history,...last,steadyTurns,balance:p.stock+added-sum(mass)-sum(wall)-deposited-lost};
 }
+/** Exact stationary class balance: spray_i = freshFeed_i / (1-returnFraction_i). */
+export function stationary(p:Parameters){
+ // Reuse validation without retaining a transient solution.
+ const valid=simulate({...p,wallFraction:0,maxTurns:0.01,residence:p.stock/p.flow});
+ const {d,edges,fresh}=valid;
+ const a=d.map(x=>p.efficiency/100*(p.selective?Math.exp(-.5*(Math.log(x/p.preferred)/p.width)**2):1));
+ const z=d.map(x=>p.recover?1/(1+(p.cyclone/x)**p.sharpness):1),s=d.map(x=>(x<=p.sieve?1:0)*p.recycle/100),ret=d.map((_,i)=>(1-a[i])*z[i]*s[i]);
+ if(!Number.isFinite(p.wallFraction)||!Number.isFinite(p.residence)||p.wallFraction<0||p.wallFraction>100||p.residence<=0)throw Error('Kabinenanteil 0–100 %, Austragszeit positiv.');
+ const closed=ret.every(v=>v===1);if(!closed&&ret.some((v,i)=>1-v<1e-12&&fresh[i]>1e-15))throw Error('Für diese verlustfreien Größenklassen ist kein eindeutiger stationärer Mischzustand mit Frischpulverzugabe bestimmbar.');
+ const weights=fresh.map((v,i)=>closed?v:v/Math.max(1-ret[i],1e-12)),spray=weights.map(v=>p.flow*v/sum(weights));
+ const part=spray.map((v,i)=>v*a[i]),over=spray.map((v,i)=>v-part[i]),wallIn=over.map(v=>v*p.wallFraction/100),direct=over.map((v,i)=>v-wallIn[i]),wallOut=[...wallIn],separatorIn=[...over],recovered=over.map((v,i)=>v*z[i]),cycloneLoss=over.map((v,i)=>v-recovered[i]),back=recovered.map((v,i)=>v*s[i]),sieveLoss=recovered.map((v,i)=>v-back[i]);
+ const feed=p.flow-sum(back);const streams:Streams={fresh:fresh.map(v=>v*feed),spray,part,over,wallIn,direct,wallOut,separatorIn,recovered,cycloneLoss,back,sieveLoss};
+ return {d,edges,fresh,streams,wall:wallIn.map(v=>v*p.residence),mass:spray.map(v=>v/p.flow*p.stock),balance:feed-sum(part)-sum(cycloneLoss)-sum(sieveLoss)};
+}
+
