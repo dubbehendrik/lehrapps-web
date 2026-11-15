@@ -1,0 +1,105 @@
+{
+  "Bayes’sche Optimierung": [
+    "labor",
+    "mathematik"
+  ],
+  "BLS Bahnplanung (Demo)": [
+    "vorlesung",
+    "automatisierung",
+    "applikationstechnik",
+    "anlagentechnik"
+  ],
+  "Collatz-Visualizer": [
+    "mathematik"
+  ],
+  "Dimensionsanalyse": [
+    "vorlesung",
+    "verfahrenstechnik"
+  ],
+  "Filmströmung auf Glockenteller": [
+    "vorlesung",
+    "applikationstechnik"
+  ],
+  "Flock-Inspector": [
+    "labor"
+  ],
+  "Gegenstromkaskade": [
+    "vorlesung",
+    "anlagentechnik"
+  ],
+  "Gitterschnitt": [
+    "labor"
+  ],
+  "Klebstoffauftrag": [
+    "labor"
+  ],
+  "Lackverbrauchsrechnung": [
+    "vorlesung",
+    "applikationstechnik",
+    "anlagentechnik"
+  ],
+  "Laminar-Turbulent Übergang (schematisch)": [
+    "vorlesung",
+    "verfahrenstechnik"
+  ],
+  "Mehrfachspüle": [
+    "vorlesung",
+    "anlagentechnik"
+  ],
+  "Mollier h,x-Diagramm": [
+    "vorlesung",
+    "anlagentechnik"
+  ],
+  "Neuronale Netze": [
+    "mathematik"
+  ],
+  "Normalverteilung": [
+    "mathematik"
+  ],
+  "Pulverkreislauf": [
+    "vorlesung",
+    "applikationstechnik"
+  ],
+  "Roboter Bahnplanung (Demo)": [
+    "automatisierung",
+    "applikationstechnik",
+    "anlagentechnik"
+  ],
+  "Strahlbreite": [
+    "labor",
+    "applikationstechnik",
+    "anlagentechnik"
+  ],
+  "Temperaturverläufe": [
+    "labor",
+    "applikationstechnik",
+    "anlagentechnik"
+  ],
+  "Temperaturverteilung": [
+    "labor",
+    "applikationstechnik",
+    "anlagentechnik"
+  ],
+  "Tropfenflug am Hochrotationszerstäuber": [
+    "vorlesung",
+    "applikationstechnik",
+    "anlagentechnik"
+  ],
+  "Tropfengrößenverteilung": [
+    "vorlesung",
+    "applikationstechnik",
+    "anlagentechnik"
+  ],
+  "Vorbehandlungsverfahren": [
+    "vorlesung",
+    "anlagentechnik"
+  ],
+  "Wärmeleitung im Stab": [
+    "vorlesung",
+    "verfahrenstechnik"
+  ],
+  "Zerfallsarten": [
+    "vorlesung",
+    "anlagentechnik"
+  ]
+}

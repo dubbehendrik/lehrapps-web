@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { appCategories } from '../appRegistry';
-import { categoryForLocation } from '../lib/appNavigation';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { appTags } from '../appRegistry';
+import { filterQuery, readAppFilter, toggleTag } from '../lib/appNavigation';
 
 export function SiteHeader() {
   const header = useRef<HTMLElement>(null);
@@ -14,7 +14,8 @@ export function SiteHeader() {
     return () => observer.disconnect();
   }, []);
   const location = useLocation();
-  const activeCategory = categoryForLocation(location.pathname, location.search);
+  const navigate = useNavigate();
+  const filter = readAppFilter(location.search);
   return <header ref={header} className="site-header">
     <div className="site-heading">
       <div className="site-brand">
@@ -23,13 +24,19 @@ export function SiteHeader() {
       </div>
       <img src="/HSE-Logo.jpg" alt="Hochschule Esslingen" />
     </div>
-    <nav className="category-tabs" aria-label="Fokus auswählen">
-      {appCategories.map(category => <Link key={category.id}
-        className={`category-tab category-tab-${category.id}`}
-        to={`/?fokus=${category.id}`}
-        aria-current={activeCategory === category.id ? 'page' : undefined}>
-        {category.label}
-      </Link>)}
+    <nav className="hashtag-toolbar" aria-label="Programme nach Hashtags filtern">
+      <div className="hashtag-buttons">
+        {appTags.map(tag => <button type="button" key={tag.id}
+          className="hashtag-button" aria-pressed={filter.tags.includes(tag.id)}
+          onClick={() => navigate('/' + filterQuery(toggleTag(filter, tag.id)))}>
+          #{tag.label}
+        </button>)}
+      </div>
+      <button type="button" className="filter-mode" aria-label={`Filterverknüpfung: ${filter.mode}. Auf ${filter.mode === 'AND' ? 'OR' : 'AND'} umschalten`}
+        aria-pressed={filter.mode === 'OR'} title={filter.mode === 'AND' ? 'Alle gewählten Hashtags müssen zutreffen' : 'Mindestens ein gewählter Hashtag muss zutreffen'}
+        onClick={() => navigate('/' + filterQuery({ ...filter, mode: filter.mode === 'AND' ? 'OR' : 'AND' }))}>
+        {filter.mode}
+      </button>
     </nav>
   </header>;
 }
