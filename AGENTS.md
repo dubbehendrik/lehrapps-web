@@ -2,8 +2,8 @@
 
 These rules apply to all existing and future apps in this repository.
 
-- Keep app paths, titles, categories and overview order in `src/appRegistry.ts`.
-- The shared sticky `SiteHeader` contains the text brand and the four category links. On app pages highlight the app's category; category links open the corresponding overview list. A direct visit to `/` selects Labor. Preserve all existing app URLs.
+- Keep app paths, titles and multiple hashtags in `src/appRegistry.ts`.
+- The shared sticky SiteHeader contains the text brand and seven hashtag filters with an AND/OR toggle on the right. Default AND; no selected hashtags means all apps. Store filters in the URL and preserve them when opening an app. Keep old `?fokus=` links usable. Sort the overview alphabetically using German collation. Render bold names and descriptions with a right-aligned Öffnen link; no Fokus heading. Preserve all existing app URLs.
 - Every app starts with one large `h1`, immediately followed by a native `details.program-description` labelled exactly **Programmbeschreibung**, collapsed by default. Then render the working application. Do not insert decorative topic labels, subtitles, input controls or download links before the description.
 - Retain all existing explanations, formulas and limitations. Group model assumptions and limits under a subsection within Programmbeschreibung. Keep input-specific and result-specific warnings near the relevant controls/results as well. Never hide safety-critical or validity warnings solely in the description.
 - Reuse shared components and styles. Follow the title → description → program hierarchy on desktop, tablet and mobile. Native details and navigation must work by keyboard. Sticky navigation must remain visible without obscuring focused controls.
