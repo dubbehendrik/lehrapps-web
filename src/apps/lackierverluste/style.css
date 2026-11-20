@@ -1,0 +1,62 @@
+.loss-app {
+  margin-block: 1rem 2rem;
+}
+.loss-app fieldset {
+  min-inline-size: 0;
+  border: 1px solid #a9b9c9;
+  border-radius: .5rem;
+  margin: 0;
+  padding: .75rem;
+}
+.loss-app legend {
+  font-weight: 700;
+}
+.loss-fields,
+.loss-vessels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: .75rem;
+}
+.loss-fields label {
+  display: grid;
+  gap: .25rem;
+}
+.loss-fields input {
+  inline-size: 100%;
+  box-sizing: border-box;
+}
+.loss-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin-block: .25rem .75rem;
+}
+.loss-flow,
+.loss-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+}
+.loss-flow {
+  padding-inline-start: 1.6rem;
+  column-gap: 2.2rem;
+}
+.loss-table {
+  overflow-x: auto;
+}
+.loss-table table {
+  border-collapse: collapse;
+  inline-size: 100%;
+}
+.loss-table caption {
+  text-align: start;
+  margin-block-end: .4rem;
+}
+.loss-table :is(th, td) {
+  border-block-end: 1px solid #a9b9c9;
+  text-align: start;
+  padding: .45rem;
+}
+.loss-table td {
+  white-space: nowrap;
+}

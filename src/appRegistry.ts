@@ -9,6 +9,8 @@ export const appTags = [
   { id: "verfahrenstechnik", label: "Verfahrenstechnik" },
 ] as const;
 export const appRegistry = [
+  { path: "/lackierverluste", tags: ["vorlesung", "applikationstechnik"],
+    name: "Lackierverluste", description: "Restentleerbarkeit, Umfüllverluste und Overspray bei der manuellen Spritzapplikation chargenweise bilanzieren.", component: lazy(() => import("./apps/lackierverluste/App")) },
   { path: "/pulverkreislauf", tags: ["vorlesung", "applikationstechnik"],
     name: "Pulverkreislauf", description: "Partikelgrößenverteilungen und Pulverrückführung mit einer größenaufgelösten Massenbilanz untersuchen.", component: lazy(() => import("./apps/pulverkreislauf/App")) },
   { path: "/tropfengroessenverteilung", tags: ["vorlesung", "applikationstechnik", "anlagentechnik"],
