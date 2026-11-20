@@ -5,6 +5,8 @@ import {
   addBatches, calculateBatch, defaults, emptyBatch, fillHeight, maxChargeHeight, retainedVolume, volumeAt,
   type Batch, type Cylinder, type Settings,
 } from './logic';
+import { ProcessSketch } from './ProcessSketch';
+import { Waterfall } from './Waterfall';
 import './style.css';
 
 const format = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
@@ -101,6 +103,23 @@ export default function LackierverlusteApp() {
       <p>Im Eimer gilt die Anfangsfüllhöhe, im Mischbecher die tatsächliche Füllhöhe. Durch das Umdrehen auf der Pistole gilt die gesamte Innenhöhe des RPS-Bechers als benetzt. Sein Bodenrest liegt am ursprünglichen Becherboden. Geometrie und Restdicken sind Beispielwerte. Der Auftragswirkungsgrad bezieht sich auf die versprühte Menge.</p>
     </details>
     <section className="loss-app">
+      <h2>Prozess und Chargenbilanz</h2>
+      {valid && <ProcessSketch settings={settings} available={available} pailRest={pailRest} batch={last?.batch} format={number} />}
+      <div className="loss-actions">
+        <button type="button" disabled={!nextBatch} onClick={addCup}>Nächster Becher</button>
+        <button type="button" disabled={!last} onClick={() => setHistory(previous => previous.slice(0, -1))}>Letzten Becher rückgängig</button>
+        <button type="button" disabled={!last} onClick={() => setHistory([])}>Eimer zurücksetzen</button>
+      </div>
+      {valid && <p role="status">
+        {history.length} {history.length === 1 ? 'Charge' : 'Chargen'} verarbeitet. Entnehmbarer Vorrat: <strong>{displayVolume(available > tolerance ? available : 0)}</strong>.
+        {' '}Eimerrest: <strong>{displayVolume(pailRest)}</strong>.
+        {available <= tolerance && ' Der Eimer ist bis auf den geometrischen Rest entleert.'}
+      </p>}
+      {nextBatch && <p>Nächste Charge: {displayVolume(nextBatch.withdrawn)} aus dem Eimer
+        {nextBatch.withdrawn + tolerance < volumeAt(settings.fillHeight, firstCup) && ' (letzte Teilfüllung)'}.
+        {' '}Füllhöhe im RPS-Becher: {number(fillHeight(nextBatch.sprayCupInput, sprayCup))} mm.
+      </p>}
+      {last && <p>Letzte Charge: {number(fillHeight(last.batch.sprayCupInput, sprayCup))} mm Füllhöhe im RPS-Becher.</p>}
       <fieldset disabled={history.length > 0} className="loss-settings">
         <legend>Einstellungen</legend>
         <label className="loss-checkbox">
@@ -127,25 +146,8 @@ export default function LackierverlusteApp() {
       {history.length > 0 && <p>Für neue Einstellungen den Eimer zurücksetzen oder alle Chargen rückgängig machen.</p>}
       {!valid && <p role="alert">Bitte Behältermaße, Restdicken und AWG innerhalb der Feldgrenzen eingeben.</p>}
       {valid && !canFill && <p role="alert">Bitte Geometrie und Sollfüllhöhe prüfen. Die Sollfüllhöhe muss mindestens 1 mm betragen und beide Becherkapazitäten berücksichtigen.</p>}
-      <h2>Prozess und Chargenbilanz</h2>
-      <ol className="loss-flow" aria-label="Prozesskette">
-        <li>Lackeimer</li>{useMixingCup && <li>Mischbecher</li>}<li>RPS-Becher</li><li>Spritzpistole</li><li>Werkstück</li>
-      </ol>
-      <div className="loss-actions">
-        <button type="button" disabled={!nextBatch} onClick={addCup}>Nächster Becher</button>
-        <button type="button" disabled={!last} onClick={() => setHistory(previous => previous.slice(0, -1))}>Letzten Becher rückgängig</button>
-        <button type="button" disabled={!last} onClick={() => setHistory([])}>Eimer zurücksetzen</button>
-      </div>
-      {valid && <p role="status">
-        {history.length} {history.length === 1 ? 'Charge' : 'Chargen'} verarbeitet. Entnehmbarer Vorrat: <strong>{displayVolume(available > tolerance ? available : 0)}</strong>.
-        {' '}Eimerrest: <strong>{displayVolume(pailRest)}</strong>.
-        {available <= tolerance && ' Der Eimer ist bis auf den geometrischen Rest entleert.'}
-      </p>}
-      {nextBatch && <p>Nächste Charge: {displayVolume(nextBatch.withdrawn)} aus dem Eimer
-        {nextBatch.withdrawn + tolerance < volumeAt(settings.fillHeight, firstCup) && ' (letzte Teilfüllung)'}.
-        {' '}Füllhöhe im RPS-Becher: {number(fillHeight(nextBatch.sprayCupInput, sprayCup))} mm.
-      </p>}
-      {last && <p>Letzte Charge: {number(fillHeight(last.batch.sprayCupInput, sprayCup))} mm Füllhöhe im RPS-Becher.</p>}
+      {valid && <Waterfall capacity={pail.capacity} available={available} pailRest={pailRest}
+        batch={last?.batch} total={total} useMixingCup={useMixingCup} format={number} />}
       <div className="loss-table">
         <table>
           <caption>Lackvolumina je Charge und über alle verarbeiteten Chargen</caption>
