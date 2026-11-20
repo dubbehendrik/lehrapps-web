@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { MathFormula } from '../../components/MathFormula';
 import { SupportFooter } from '../../components/SupportFooter';
 import {
@@ -24,8 +24,8 @@ function NumberField({ label, value, min, max, onChange }: {
   </label>;
 }
 
-function CylinderFields({ name, cylinder, onChange }: {
-  name: string; cylinder: Cylinder; onChange: (cylinder: Cylinder) => void;
+function CylinderFields({ name, cylinder, onChange, children }: {
+  name: string; cylinder: Cylinder; children?: ReactNode; onChange: (cylinder: Cylinder) => void;
 }) {
   const fields = [
     { key: 'capacity', label: 'Fassungsvermögen [ml]', min: 1, max: 20000 },
@@ -39,6 +39,7 @@ function CylinderFields({ name, cylinder, onChange }: {
     <div className="loss-fields">
       {fields.map(({ key, ...field }) => <NumberField key={key} {...field} value={cylinder[key]}
         onChange={value => onChange({ ...cylinder, [key]: value })} />)}
+      {children}
     </div>
   </fieldset>;
 }
@@ -84,6 +85,20 @@ export default function LackierverlusteApp() {
     { label: 'Auftrag auf Werkstück', key: 'deposited' },
   ] satisfies { label: string; key: keyof Batch }[];
 
+  const chargeHeightField = <div>
+    <NumberField label="Sollfüllhöhe [mm]" value={settings.fillHeight} min={1} max={Math.max(1, limit)}
+      onChange={value => setSettings({ ...settings, fillHeight: value })} />
+    {valid && limit >= 1 && <small>Max. {number(Math.floor((limit + tolerance) * 10) / 10)} mm</small>}
+  </div>;
+  const sketchSettings = {
+    ...settings,
+    pail: validCylinder(pail) ? pail : defaults.pail,
+    mixingCup: validCylinder(mixingCup) ? mixingCup : defaults.mixingCup,
+    sprayCup: validCylinder(sprayCup) ? sprayCup : defaults.sprayCup,
+    transferEfficiency: Number.isFinite(settings.transferEfficiency)
+      ? Math.max(0, Math.min(100, settings.transferEfficiency)) : defaults.transferEfficiency,
+  };
+
   return <>
     <h1>Lackierverluste</h1>
     <details className="program-description">
@@ -100,11 +115,29 @@ export default function LackierverlusteApp() {
           markup="<mi>A</mi><mo>=</mo><mfrac><mrow><mi>π</mi><mo>·</mo><msup><mi>D</mi><mn>2</mn></msup></mrow><mn>4</mn></mfrac><mo>,</mo><mspace width='0.5em'/><msub><mi>A</mi><mtext>frei</mtext></msub><mo>=</mo><mfrac><mrow><mi>π</mi><mo>·</mo><msup><mrow><mi>max</mi><mo>(</mo><mn>0</mn><mo>,</mo><mi>D</mi><mo>−</mo><mn>2</mn><mo>·</mo><mi>s</mi><mo>)</mo></mrow><mn>2</mn></msup></mrow><mn>4</mn></mfrac><mo>,</mo><mspace width='0.5em'/><msub><mi>h</mi><mtext>Boden</mtext></msub><mo>=</mo><mi>min</mi><mo>(</mo><mi>B</mi><mo>,</mo><msub><mi>H</mi><mtext>benetzt</mtext></msub><mo>)</mo>" />
       </div>
       <h3>Modellannahmen und Grenzen</h3>
-      <p>Im Eimer gilt die Anfangsfüllhöhe, im Mischbecher die tatsächliche Füllhöhe. Durch das Umdrehen auf der Pistole gilt die gesamte Innenhöhe des RPS-Bechers als benetzt. Sein Bodenrest liegt am ursprünglichen Becherboden. Geometrie und Restdicken sind Beispielwerte. Der Auftragswirkungsgrad bezieht sich auf die versprühte Menge.</p>
+      <p>Im Eimer gilt die Anfangsfüllhöhe, im Mischbecher die tatsächliche Füllhöhe. Durch das Umdrehen auf der Pistole gilt die gesamte Innenhöhe des RPS-Bechers als benetzt. Sein Bodenrest liegt am ursprünglichen Becherboden, der beim Spritzen oben ist. Der Wandfilm umschließt den Becher über die gesamte Innenhöhe. Für Auslauf, Deckel und Sieb wird kein eigener Rückstand angesetzt. Geometrie und Restdicken sind Beispielwerte. Der Auftragswirkungsgrad bezieht sich auf die versprühte Menge.</p>
     </details>
     <section className="loss-app">
       <h2>Prozess und Chargenbilanz</h2>
-      {valid && <ProcessSketch settings={settings} available={available} pailRest={pailRest} batch={last?.batch} format={number} />}
+      <fieldset disabled={history.length > 0} className="loss-settings">
+        <legend>Prozessparameter</legend>
+        <label className="loss-checkbox">
+          <input type="checkbox" checked={useMixingCup}
+            onChange={event => setSettings({ ...settings, useMixingCup: event.currentTarget.checked })} />
+          Mit Mischbecher
+        </label>
+        <ProcessSketch settings={sketchSettings} available={available} pailRest={pailRest} batch={last?.batch}
+          format={number} settingsContent={{
+            pail: <CylinderFields name="Maße Lackeimer" cylinder={pail}
+              onChange={value => setSettings({ ...settings, pail: value })} />,
+            mixingCup: <CylinderFields name="Maße Mischbecher" cylinder={mixingCup}
+              onChange={value => setSettings({ ...settings, mixingCup: value })}>{chargeHeightField}</CylinderFields>,
+            sprayCup: <CylinderFields name="Maße RPS-Becher" cylinder={sprayCup}
+              onChange={value => setSettings({ ...settings, sprayCup: value })}>{!useMixingCup && chargeHeightField}</CylinderFields>,
+            application: <NumberField label="Auftragswirkungsgrad [%]" value={settings.transferEfficiency} min={0} max={100}
+              onChange={value => setSettings({ ...settings, transferEfficiency: value })} />,
+          }} />
+      </fieldset>
       <div className="loss-actions">
         <button type="button" disabled={!nextBatch} onClick={addCup}>Nächster Becher</button>
         <button type="button" disabled={!last} onClick={() => setHistory(previous => previous.slice(0, -1))}>Letzten Becher rückgängig</button>
@@ -120,29 +153,6 @@ export default function LackierverlusteApp() {
         {' '}Füllhöhe im RPS-Becher: {number(fillHeight(nextBatch.sprayCupInput, sprayCup))} mm.
       </p>}
       {last && <p>Letzte Charge: {number(fillHeight(last.batch.sprayCupInput, sprayCup))} mm Füllhöhe im RPS-Becher.</p>}
-      <fieldset disabled={history.length > 0} className="loss-settings">
-        <legend>Einstellungen</legend>
-        <label className="loss-checkbox">
-          <input type="checkbox" checked={useMixingCup}
-            onChange={event => setSettings({ ...settings, useMixingCup: event.currentTarget.checked })} />
-          Mit Mischbecher
-        </label>
-        <div className="loss-fields">
-          <NumberField label={`Sollfüllhöhe im ${useMixingCup ? 'Mischbecher' : 'RPS-Becher'} [mm]`}
-            value={settings.fillHeight} min={1} max={Math.max(1, limit)}
-            onChange={value => setSettings({ ...settings, fillHeight: value })} />
-          <NumberField label="Auftragswirkungsgrad [%]" value={settings.transferEfficiency} min={0} max={100}
-            onChange={value => setSettings({ ...settings, transferEfficiency: value })} />
-        </div>
-        {valid && limit >= 1 && <p>Maximale Sollfüllhöhe: {number(Math.floor((limit + tolerance) * 10) / 10)} mm</p>}
-        <div className="loss-vessels">
-          <CylinderFields name="Lackeimer" cylinder={pail} onChange={value => setSettings({ ...settings, pail: value })} />
-          {useMixingCup && <CylinderFields name="Mischbecher" cylinder={mixingCup}
-            onChange={value => setSettings({ ...settings, mixingCup: value })} />}
-          <CylinderFields name="RPS-Pistolenbecher" cylinder={sprayCup}
-            onChange={value => setSettings({ ...settings, sprayCup: value })} />
-        </div>
-      </fieldset>
       {history.length > 0 && <p>Für neue Einstellungen den Eimer zurücksetzen oder alle Chargen rückgängig machen.</p>}
       {!valid && <p role="alert">Bitte Behältermaße, Restdicken und AWG innerhalb der Feldgrenzen eingeben.</p>}
       {valid && !canFill && <p role="alert">Bitte Geometrie und Sollfüllhöhe prüfen. Die Sollfüllhöhe muss mindestens 1 mm betragen und beide Becherkapazitäten berücksichtigen.</p>}

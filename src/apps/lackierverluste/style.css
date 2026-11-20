@@ -11,8 +11,7 @@
 .loss-app legend {
   font-weight: 700;
 }
-.loss-fields,
-.loss-vessels {
+.loss-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
   gap: .75rem;
@@ -200,4 +199,28 @@
     color: #334d60;
     font-weight: 700;
   }
+}
+.loss-sketch-hit { fill: #8fcbb6; }
+.loss-sketch figure fieldset {
+  text-align: start;
+  margin-block-start: .6rem;
+}
+.loss-sketch figure > label {
+  margin-block-start: .6rem;
+  text-align: start;
+}
+.loss-sketch figure .loss-fields {
+  grid-template-columns: 1fr 1fr;
+  gap: .5rem;
+}
+.loss-sketch figure label {
+  font-size: .8rem;
+}
+.loss-sketch figure input[type=number] {
+  padding: .35rem;
+  margin-top: .15rem;
+}
+@media(min-width: 1160px) {
+  .loss-sketch-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .loss-sketch-grid:has(> figure:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
