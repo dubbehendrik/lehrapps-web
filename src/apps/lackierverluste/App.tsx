@@ -127,7 +127,7 @@ export default function LackierverlusteApp() {
           Mit Mischbecher
         </label>
         <ProcessSketch settings={sketchSettings} available={available} pailRest={pailRest} batch={last?.batch}
-          format={number} settingsContent={{
+          preview={nextBatch} format={number} settingsContent={{
             pail: <CylinderFields name="Maße Lackeimer" cylinder={pail}
               onChange={value => setSettings({ ...settings, pail: value })} />,
             mixingCup: <CylinderFields name="Maße Mischbecher" cylinder={mixingCup}

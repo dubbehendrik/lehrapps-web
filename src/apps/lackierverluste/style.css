@@ -224,3 +224,9 @@
   .loss-sketch-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .loss-sketch-grid:has(> figure:nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+.loss-sketch-preview .loss-sketch-rest {
+  fill: none;
+  stroke: #9b4b18;
+  stroke-width: 1.3;
+  stroke-dasharray: 3 2;
+}
