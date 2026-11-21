@@ -3,13 +3,14 @@ import { area, fillHeight, type Batch, type Cylinder, type Settings } from './lo
 
 type Formatter = (value: number) => string;
 
-function Vessel({ cylinder, volume, reserve, retained, inverted = false }: {
-  cylinder: Cylinder; volume: number; reserve?: number; retained: number; inverted?: boolean;
+function Vessel({ cylinder, volume, reserve, retained, scale, inverted = false }: {
+  cylinder: Cylinder; volume: number; reserve?: number; retained: number; scale: number; inverted?: boolean;
 }) {
-  const width = 96;
-  const height = 100;
-  const x = 56;
-  const y = 32;
+  const width = cylinder.diameter * scale;
+  const height = fillHeight(cylinder.capacity, cylinder) * scale;
+  const x = 104 - width / 2;
+  const y = 132 - height;
+  const right = x + width;
   const capacity = cylinder.capacity;
   const level = height * Math.min(1, volume / capacity);
   const floorFraction = Math.min(1, cylinder.bottomRest / fillHeight(capacity, cylinder));
@@ -48,19 +49,15 @@ function Vessel({ cylinder, volume, reserve, retained, inverted = false }: {
       {shownLevel > 0 && <line className="loss-sketch-level" x1={x} x2={x + width} y1={y + height - shownLevel} y2={y + height - shownLevel} />}
       <path className="loss-sketch-outline" d={`M ${x} ${y} v ${height} h ${width} v -${height}`} />
     </g>
-    <path className="loss-sketch-measure" d="M 56 23 H 152 M 62 20 l -6 3 6 3 M 146 20 l 6 3 -6 3 M 167 32 V 132 M 164 38 l 3 -6 3 6 M 164 126 l 3 6 3 -6" />
-    <text x="104" y="17" textAnchor="middle">D</text>
-    <text x="175" y="85">H</text>
-    <path className="loss-sketch-measure" d={`M 33 ${inverted ? 41 : 124} H 37 L 59 ${floorY}
-      M 33 ${inverted ? 102 : 65} H 37 L ${x + visibleWall / 2} ${filmY}`} />
-    <text x="23" y={inverted ? 45 : 128}>B</text>
-    <text x="24" y={inverted ? 106 : 69}>s</text>
-    {shownLevel > 0 && <g>
-      <path className="loss-sketch-measure" d={inverted
-        ? `M 47 32 V ${y + shownLevel} M 44 36 l 3 -4 3 4 M 44 ${y + shownLevel - 4} l 3 4 3 -4`
-        : `M 47 132 V ${y + height - shownLevel} M 44 128 l 3 4 3 -4 M 44 ${y + height - shownLevel + 4} l 3 -4 3 4`} />
-      <text x="39" y={inverted ? 27 : 148}>h</text>
-    </g>}
+    <path className="loss-sketch-measure" d={`M ${x} ${y-9} H ${right} m 0 -3 v 6 M ${x} ${y-12} v 6
+      M ${right+10} ${y} V 132 m -3 0 h 6 M ${right+7} ${y} h 6`} />
+    <text x="104" y={y-14} textAnchor="middle">D</text>
+    <text x={right+15} y={y+height/2+4}>H</text>
+    <path className="loss-sketch-measure" d={`M 20 ${inverted ? 41 : 124} L ${x + Math.min(width/2, 4)} ${floorY}
+      M 20 ${inverted ? 102 : 65} L ${x + visibleWall / 2} ${filmY}`} />
+    <text x="8" y={inverted ? 45 : 128}>B</text>
+    <text x="9" y={inverted ? 106 : 69}>s</text>
+    {shownLevel > 0 && <text x={right+15} y={inverted ? y+shownLevel : 132-shownLevel}>h</text>}
   </g>;
 }
 
@@ -78,11 +75,15 @@ function SprayGun({ x, y }: { x: number; y: number }) {
   </g>;
 }
 
-export function ProcessSketch({ settings, available, pailRest, batch, format, settingsContent }: {
-  settings: Settings; available: number; pailRest: number; batch?: Batch; format: Formatter;
+export function ProcessSketch({ settings, available, pailRest, batch, preview, format, settingsContent }: {
+  settings: Settings; available: number; pailRest: number; batch?: Batch; preview?: Batch; format: Formatter;
   settingsContent: { pail: ReactNode; mixingCup: ReactNode; sprayCup: ReactNode; application: ReactNode };
 }) {
   const { pail, mixingCup, sprayCup, useMixingCup, transferEfficiency } = settings;
+  const charge = batch ?? preview;
+  const cylinders = useMixingCup ? [pail, mixingCup, sprayCup] : [pail, sprayCup];
+  const scale = Math.min(...cylinders.map(cylinder =>
+    Math.min(142 / cylinder.diameter, 100 / fillHeight(cylinder.capacity, cylinder))));
   const pailCore = area(Math.max(0, pail.diameter - 2 * pail.wallFilm));
   const pailLevel = Math.min(fillHeight(pail.capacity, pail),
     pail.bottomRest + (pailCore > 0 ? available * 1000 / pailCore : fillHeight(pail.capacity, pail)));
@@ -93,11 +94,13 @@ export function ProcessSketch({ settings, available, pailRest, batch, format, se
   const volume = (value: number) => `${format(value)} ml`;
 
   return <div className="loss-sketch">
-    <div className="loss-sketch-grid">
+    {!batch && preview && <p>Schritt 0 · Vorschau der ersten Charge. Gestrichelte Konturen markieren den erwarteten Wand- und Bodenrest.</p>}
+    <div className={`loss-sketch-grid${batch ? '' : ' loss-sketch-preview'}`}>
       <figure>
         <figcaption><strong>Lackeimer</strong></figcaption>
         <svg viewBox="0 0 220 170" aria-hidden="true">
-          <Vessel cylinder={pail} volume={pail.capacity} reserve={available} retained={pailRest} />
+          <path className="loss-sketch-outline" transform="translate(192 5)" d="M 0 6 H 20 L 17 22 H 3 Z M 4 6 Q 10 -5 16 6" />
+          <Vessel scale={scale} cylinder={pail} volume={pail.capacity} reserve={available} retained={pailRest} />
         </svg>
         <Dimensions cylinder={pail} format={format} />
         <p>h = {format(pailLevel)} mm<br />Vorrat {volume(available)} · Rest {volume(pailRest)}</p>
@@ -106,20 +109,22 @@ export function ProcessSketch({ settings, available, pailRest, batch, format, se
       {useMixingCup && <figure>
         <figcaption><strong>Mischbecher</strong></figcaption>
         <svg viewBox="0 0 220 170" aria-hidden="true">
-          <Vessel cylinder={mixingCup} volume={batch?.withdrawn ?? 0} retained={batch?.mixingRest ?? 0} />
+          <path className="loss-sketch-outline" transform="translate(192 5)" d="M 1 3 H 19 L 16 22 H 4 Z M 11 9 h 6 M 11 14 h 5" />
+          <Vessel scale={scale} cylinder={mixingCup} volume={charge?.withdrawn ?? 0} retained={charge?.mixingRest ?? 0} />
         </svg>
         <Dimensions cylinder={mixingCup} format={format} />
-        {batch && <p>h = {format(fillHeight(batch.withdrawn, mixingCup))} mm<br />Befüllt {volume(batch.withdrawn)} · Rest {volume(batch.mixingRest)}</p>}
+        {charge && <p>h = {format(fillHeight(charge.withdrawn, mixingCup))} mm<br />Befüllt {volume(charge.withdrawn)} · Rest {volume(charge.mixingRest)}</p>}
         {settingsContent.mixingCup}
       </figure>}
       <figure>
         <figcaption><strong>RPS-Becher auf der Pistole</strong></figcaption>
         <svg viewBox="0 0 220 170" aria-hidden="true">
-          <Vessel cylinder={sprayCup} volume={batch?.sprayCupInput ?? 0} retained={batch?.sprayCupRest ?? 0} inverted />
+          <path className="loss-sketch-outline" transform="translate(192 5)" d="M 3 2 H 17 L 20 17 H 0 Z M 0 18 H 20 M 8 18 V 22 H 12 V 18" />
+          <Vessel scale={scale} cylinder={sprayCup} volume={charge?.sprayCupInput ?? 0} retained={charge?.sprayCupRest ?? 0} inverted />
           <SprayGun x={98} y={132} />
         </svg>
         <Dimensions cylinder={sprayCup} format={format} />
-        {batch && <p>h = {format(fillHeight(batch.sprayCupInput, sprayCup))} mm<br />Befüllt {volume(batch.sprayCupInput)} · Rest {volume(batch.sprayCupRest)}</p>}
+        {charge && <p>h = {format(fillHeight(charge.sprayCupInput, sprayCup))} mm<br />Befüllt {volume(charge.sprayCupInput)} · Rest {volume(charge.sprayCupRest)}</p>}
         <p>Wandfilm rundum und Restschicht am ursprünglichen Becherboden (hier oben).</p>
         {settingsContent.sprayCup}
       </figure>
@@ -130,7 +135,7 @@ export function ProcessSketch({ settings, available, pailRest, batch, format, se
           <path className="loss-sketch-charge" d="M 79 91 L 173 47 V 135 Z" />
           {transferEfficiency > 0 && <path className="loss-sketch-hit" d={`M 79 91 L 173 ${91 - hitHalfWidth} V ${91 + hitHalfWidth} Z`} />}
           {transferEfficiency < 100 && <path className="loss-sketch-overspray" d="M 79 91 L 183 42 m -8 0 l 8 0 -5 6 M 79 91 L 183 140 m -5 -6 l 5 6 h -8" />}
-          <rect className="loss-sketch-gun" x="173" y="47" width="12" height="88" rx="2" />
+          {transferEfficiency > 0 && <rect className="loss-sketch-gun" x="173" y={91-hitHalfWidth} width="12" height={2*hitHalfWidth} rx="2" />}
           {transferEfficiency > 0 && <line className="loss-sketch-deposit" x1="173" x2="173" y1={91 - hitHalfWidth} y2={91 + hitHalfWidth} />}
           <text x="104" y="23">AWG {format(transferEfficiency)} %</text>
           {transferEfficiency < 100 && <text x="98" y="155">Overspray</text>}
@@ -143,6 +148,6 @@ export function ProcessSketch({ settings, available, pailRest, batch, format, se
     <p className="loss-sketch-key"><span className="loss-key-mobile">Entnehmbarer Vorrat</span>
       <span className="loss-key-charge">Befüllung vor dem Entleeren</span>
       <span className="loss-key-rest">Wand- und Bodenrest</span></p>
-    <p className="loss-sketch-note">Wand- und Bodenreste sind überhöht dargestellt. Die Füllmarken folgen der berechneten Höhe. H bezeichnet die Innenhöhe, h die Füllhöhe. Beim RPS-Becher wird h vom ursprünglichen Becherboden aus gemessen. Der getroffene Anteil des Spritzfächers stellt den AWG schematisch als Winkelanteil dar. Bei sehr kleinen Füllungen begrenzt die verfügbare Lackmenge den Rest.</p>
+    <p className="loss-sketch-note">Die Gefäßquerschnitte haben einen gemeinsamen Maßstab. Wand- und Bodenreste sind überhöht dargestellt. Die Füllmarken folgen der berechneten Höhe. H bezeichnet die Innenhöhe, h die Füllhöhe. Beim RPS-Becher wird h vom ursprünglichen Becherboden aus gemessen. Der getroffene Anteil des Spritzfächers stellt den AWG schematisch als Winkelanteil dar. Bei sehr kleinen Füllungen begrenzt die verfügbare Lackmenge den Rest.</p>
   </div>;
 }
